@@ -14,12 +14,14 @@ Planning artifacts for the ecommerce PIM platform foundation. **No production co
 | 05 | [MVP Scope](./05-mvp-scope.md) | MVP vs later-phase matrix |
 | 06 | [Repo Structure](./06-repo-structure.md) | Proposed monorepo layout |
 | 07 | [Architecture Outline](./07-architecture-outline.md) | Technical architecture (no implementation) |
+| 08 | [Service Implementation Roadmap](./08-service-implementation-roadmap.md) | Cursor-ready service-by-service execution plan |
 
 ## Quick Links
 
 - **Start here:** [00-project-foundation.md](./00-project-foundation.md)
 - **Before sprint 1:** [04-discovery-workshop.md](./04-discovery-workshop.md)
 - **Sprint planning:** [02-epics-and-phases.md#recommended-mvp-backlog-order](./02-epics-and-phases.md#recommended-mvp-backlog-order)
+- **Cursor execution:** [08-service-implementation-roadmap.md](./08-service-implementation-roadmap.md)
 
 ## Status
 
