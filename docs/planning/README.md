@@ -2,6 +2,10 @@
 
 Planning artifacts for the ecommerce PIM platform foundation. **No production code** — requirements, domain model, epics, and architecture only.
 
+## Start Here
+
+**Phase 0 (current):** [09-discovery-domain-foundation.md](./09-discovery-domain-foundation.md) — master artifact for discovery and domain modeling.
+
 ## Documents
 
 | # | Document | Description |
@@ -15,10 +19,11 @@ Planning artifacts for the ecommerce PIM platform foundation. **No production co
 | 06 | [Repo Structure](./06-repo-structure.md) | Proposed monorepo layout |
 | 07 | [Architecture Outline](./07-architecture-outline.md) | Technical architecture (no implementation) |
 | 08 | [Service Implementation Roadmap](./08-service-implementation-roadmap.md) | Cursor-ready service-by-service execution plan |
+| 09 | [Discovery & Domain Foundation](./09-discovery-domain-foundation.md) | **Phase 0 master** — discovery, domain model, next steps |
 
 ## Quick Links
 
-- **Start here:** [00-project-foundation.md](./00-project-foundation.md)
+- **Phase 0 start:** [09-discovery-domain-foundation.md](./09-discovery-domain-foundation.md)
 - **Before sprint 1:** [04-discovery-workshop.md](./04-discovery-workshop.md)
 - **Sprint planning:** [02-epics-and-phases.md#recommended-mvp-backlog-order](./02-epics-and-phases.md#recommended-mvp-backlog-order)
 - **Cursor execution:** [08-service-implementation-roadmap.md](./08-service-implementation-roadmap.md)
@@ -27,5 +32,5 @@ Planning artifacts for the ecommerce PIM platform foundation. **No production co
 
 | Phase | Status |
 |-------|--------|
-| Phase 0 — Discovery | Questionnaire ready; workshops not yet run |
+| Phase 0 — Discovery | Questionnaire ready; **decision log not started** |
 | Phase 1 — MVP Core | Not started (pending discovery sign-off) |
