@@ -1,79 +1,26 @@
 # ProductInfoMan
 
-Product Information Management (PIM) system built with [Prisma](https://www.prisma.io/) and TypeScript.
+Product Information Management (PIM) system for ecommerce catalog governance.
 
-## Prerequisites
+## Planning (Phase 0)
 
-- Node.js 20+
-- npm
+Foundation planning artifacts are in [`docs/planning/`](./docs/planning/README.md):
 
-## Getting Started
+- Requirements, domain model, epics, MVP scope
+- Discovery workshop questionnaire
+- Repository structure and architecture outline
 
-1. **Install dependencies**
+**Status:** Planning complete. Implementation not started.
 
-   ```bash
-   npm install
-   ```
+## Development Setup (Scaffold)
 
-2. **Configure environment**
+The repository includes an early Prisma 7 + TypeScript scaffold. This will evolve per the target structure in `docs/planning/06-repo-structure.md`.
 
-   ```bash
-   cp .env.example .env
-   ```
-
-3. **Run database migrations**
-
-   ```bash
-   npm run db:migrate
-   ```
-
-4. **Seed sample data**
-
-   ```bash
-   npm run db:seed
-   ```
-
-## Scripts
-
-| Script | Description |
-| --- | --- |
-| `npm run db:generate` | Generate Prisma Client |
-| `npm run db:migrate` | Apply migrations in development |
-| `npm run db:push` | Push schema changes without migrations |
-| `npm run db:seed` | Seed the database with sample products |
-| `npm run db:studio` | Open Prisma Studio |
-| `npm run db:reset` | Reset the database |
-
-## Data Model
-
-### Product
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | Int | Auto-incrementing primary key |
-| `sku` | String | Unique stock-keeping unit |
-| `name` | String | Product name |
-| `description` | String? | Optional product description |
-| `price` | Decimal | Product price |
-| `quantity` | Int | Available stock quantity |
-| `createdAt` | DateTime | Record creation timestamp |
-| `updatedAt` | DateTime | Last update timestamp |
-
-## Project Structure
-
-```
-productinfoman/
-├── prisma/
-│   ├── schema.prisma    # Database schema
-│   ├── seed.ts          # Seed script
-│   └── migrations/      # Migration history
-├── src/
-│   └── lib/
-│       └── prisma.ts    # Prisma Client singleton
-├── generated/
-│   └── prisma/          # Generated Prisma Client
-├── prisma.config.ts     # Prisma configuration
-└── .env.example         # Environment variable template
+```bash
+npm install
+cp .env.example .env
+npm run db:migrate
+npm run db:seed
 ```
 
 ## License
