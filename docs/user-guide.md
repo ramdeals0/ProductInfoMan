@@ -330,6 +330,12 @@ After large catalog changes, operations may trigger a **reindex** (automatic via
 | **Cart** | Review line items and quantities |
 | **Checkout** | Place order (Stripe if configured, otherwise mock checkout) |
 
+### Taxonomy (categories, attributes, facets)
+
+**Admin → Taxonomy** provides list and edit views for categories, attribute groups, attributes, and facet definitions. Use **Edit** on any row to update labels, status, filter flags, or facet scope. Create new categories, attribute groups, attributes, and facets from the forms at the top of each page.
+
+After changing facet definitions, trigger a search reindex (`POST /api/v1/search/reindex` or `pnpm reseed:demo`) so storefront filters reflect the updated configuration.
+
 ### Faceted filters
 
 On category and search pages, the sidebar shows facets (brand, price range, category-specific attributes) with result counts. Filters update the URL so results are shareable.

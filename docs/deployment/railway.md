@@ -137,7 +137,7 @@ pnpm seed:demo-catalog
 
 Sign in at Admin with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 
-## 7. Optional: Redis
+## 8. Optional: Redis
 
 For BullMQ job queues instead of in-process workers:
 
