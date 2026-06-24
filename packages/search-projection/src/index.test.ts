@@ -139,12 +139,27 @@ describe("matchesSearchQuery", () => {
     expect(matchesSearchQuery(doc, { filters: { color: "Red" } })).toBe(false);
   });
 
-  it("filters inactive storefront products when storefront=true", () => {
+  it("matches parent category paths for products on leaf categories", () => {
+    const doc = buildSearchDocument({
+      ...baseInput,
+      primaryCategory: { id: "cat-oxford", path: "/apparel/mens/shirts/casual-shirts/oxford-shirts" },
+    })!;
+
+    expect(
+      matchesSearchQuery(doc, {
+        categoryPath: "/apparel/mens/shirts",
+        storefront: true,
+      }),
+    ).toBe(true);
+    expect(matchesSearchQuery(doc, { categoryPath: "/apparel/mens/pants" })).toBe(false);
+  });
+
+  it("evaluates storefront visibility at query time from merchandising dates", () => {
     const doc = buildSearchDocument({
       ...baseInput,
       startDate: new Date("2099-01-01"),
     })!;
+    expect(doc.storefront_active).toBe(false);
     expect(matchesSearchQuery(doc, { storefront: true })).toBe(false);
-    expect(matchesSearchQuery(doc, {})).toBe(true);
   });
 });

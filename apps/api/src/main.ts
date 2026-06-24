@@ -11,6 +11,7 @@ import { startEventWorker, closeEventQueue } from "./modules/integration/integra
 import { productRoutes } from "./modules/product-core/product.routes.js";
 import { searchRoutes } from "./modules/search/search.routes.js";
 import { startSearchWorker, closeSearchQueue } from "./modules/search/search.queue.js";
+import { warmSearchIndexesIfEmpty } from "./modules/search/search.service.js";
 import { publishRoutes } from "./modules/publish/publish.routes.js";
 import { startPublishWorker, closePublishQueue } from "./modules/publish/publish.queue.js";
 import { taxonomyRoutes } from "./modules/taxonomy/taxonomy.routes.js";
@@ -60,6 +61,10 @@ await startImportWorker();
 await startSearchWorker();
 await startPublishWorker();
 await startEventWorker();
+
+void warmSearchIndexesIfEmpty().catch((error) => {
+  app.log.error({ err: error }, "Search index warmup failed");
+});
 
 const port = Number(process.env.PORT ?? 3001);
 const host = process.env.HOST ?? "0.0.0.0";

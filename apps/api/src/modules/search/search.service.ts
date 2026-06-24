@@ -450,7 +450,7 @@ async function withCategoryPathScope(
   organizationId: string,
   query: SearchQueryInput,
 ): Promise<SearchQueryInput> {
-  if (!query.categoryId || query.categoryPath) return query;
+  if (!query.categoryId) return query;
 
   const category = await prisma.category.findFirst({
     where: { id: query.categoryId, organizationId },
@@ -459,7 +459,7 @@ async function withCategoryPathScope(
   if (!category) return query;
 
   const { categoryId: _categoryId, ...rest } = query;
-  return { ...rest, categoryPath: category.path };
+  return { ...rest, categoryPath: query.categoryPath ?? category.path };
 }
 
 async function scopeCategoryQuery(
@@ -482,7 +482,6 @@ export async function getCategorySearchResults(
   return searchProducts(organizationId, {
     ...query,
     categoryId,
-    categoryPath: category.path,
   });
 }
 
@@ -554,6 +553,35 @@ export async function handleProductChange(
   }
 
   await removeProductFromIndex(productId, organizationId, sourceEvent);
+}
+
+/** Populate the in-memory search index after API restarts when catalog data exists. */
+export async function warmSearchIndexesIfEmpty(): Promise<void> {
+  if (process.env.SEARCH_WARMUP_ON_START === "false") return;
+  if (process.env.OPENSEARCH_URL) return;
+
+  const organizations = await prisma.organization.findMany({
+    select: { id: true },
+  });
+
+  for (const organization of organizations) {
+    const productIds = await listIndexableProductIds(organization.id);
+    if (productIds.length === 0) continue;
+
+    const store = await getSearchStore();
+    const existing = await store.search(organization.id, { page: 1, pageSize: 1 }, []);
+    if (existing.total > 0) continue;
+
+    const indexVersion = await getActiveIndexVersion(organization.id);
+    await store.ensureIndex(organization.id, indexVersion.indexName);
+
+    for (const productId of productIds) {
+      const document = await buildProductSearchDocument(productId, organization.id);
+      if (document) {
+        await store.indexDocument(organization.id, document);
+      }
+    }
+  }
 }
 
 export { processSearchJob };

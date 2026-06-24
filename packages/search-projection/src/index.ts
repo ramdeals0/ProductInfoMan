@@ -338,8 +338,13 @@ export function aggregateFacets(
 }
 
 export function matchesSearchQuery(doc: SearchDocument, query: SearchQueryInput): boolean {
-  if (query.storefront && !doc.storefront_active) {
-    return false;
+  if (query.storefront) {
+    const visible = isStorefrontVisible({
+      status: doc.status,
+      startDate: doc.start_date ? new Date(doc.start_date) : null,
+      discontinueDate: doc.discontinue_date ? new Date(doc.discontinue_date) : null,
+    });
+    if (!visible) return false;
   }
 
   if (query.q) {
