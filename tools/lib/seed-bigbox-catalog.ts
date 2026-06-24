@@ -7,6 +7,12 @@ import {
   BIGBOX_ROOT,
   type BigBoxCategorySeed,
 } from "../bigbox/config.js";
+import {
+  BIGBOX_CATEGORY_ATTRIBUTES,
+  seedBigBoxAttributesAndFacets,
+} from "./seed-bigbox-attributes-facets.js";
+import { merchandisingValuesForIndex, pickFrom } from "./product-attribute-values.js";
+import { upsertProductAttribute } from "./upsert-product-attribute.js";
 
 export type SeedBigBoxOptions = {
   perCategory?: number;
@@ -77,24 +83,6 @@ export async function ensureBigBoxCategories(
   return categoryByCode;
 }
 
-async function loadAttributeIds(
-  prisma: PrismaClient,
-  organizationId: string,
-): Promise<Map<string, string>> {
-  const attributes = await prisma.attributeDefinition.findMany({
-    where: {
-      organizationId,
-      key: { in: ["brand", "color", "size", "fabric"] },
-    },
-    select: { id: true, key: true },
-  });
-  const attrByKey = new Map(attributes.map((attribute) => [attribute.key, attribute.id]));
-  if (!attrByKey.has("brand")) {
-    throw new Error('Attribute "brand" not found — run pnpm db:seed first');
-  }
-  return attrByKey;
-}
-
 function buildTitle(category: BigBoxCategorySeed, index: number): string {
   const brand = pick(BIGBOX_BRANDS, index);
   const stem = pick(category.productStems, index);
@@ -111,7 +99,7 @@ export async function seedBigBoxProducts(
   const skuPrefix = options.skuPrefix ?? "BBX";
 
   const categoryByCode = await ensureBigBoxCategories(prisma, organizationId);
-  const attrByKey = await loadAttributeIds(prisma, organizationId);
+  const attrByKey = await seedBigBoxAttributesAndFacets(prisma, organizationId, categoryByCode);
 
   let created = 0;
   let updated = 0;
@@ -121,11 +109,14 @@ export async function seedBigBoxProducts(
     const categoryId = categoryByCode.get(category.code);
     if (!categoryId) continue;
 
+    const categoryAttrs = BIGBOX_CATEGORY_ATTRIBUTES[category.code] ?? [];
+
     for (let index = 1; index <= perCategory; index++) {
       const sku = padSku(skuPrefix, category.skuCode, index);
       const brand = pick(BIGBOX_BRANDS, index + total);
       const title = buildTitle(category, index);
       const description = `${title} — ${category.name} aisle at the Big Box Store demo catalog.`;
+      const merch = merchandisingValuesForIndex(total + index);
 
       const existing = await prisma.product.findUnique({
         where: { organizationId_sku: { organizationId, sku } },
@@ -156,61 +147,35 @@ export async function seedBigBoxProducts(
       if (existing) updated++;
       else created++;
 
-      await prisma.productAttributeValue.upsert({
-        where: {
-          productId_attributeDefinitionId: {
-            productId: product.id,
-            attributeDefinitionId: attrByKey.get("brand")!,
-          },
-        },
-        create: {
-          productId: product.id,
-          attributeDefinitionId: attrByKey.get("brand")!,
-          value: brand,
-          source: "LOCAL",
-        },
-        update: { value: brand },
-      });
+      const attributeValues: Array<{ key: string; value: string | number }> = [
+        { key: "brand", value: brand },
+        { key: "price", value: merch.price },
+        { key: "rating", value: merch.rating },
+        { key: "availability", value: merch.availability },
+        { key: "warranty_years", value: merch.warranty_years },
+        { key: "material", value: merch.material },
+        { key: "fit", value: merch.fit },
+      ];
+
+      for (const [attrIndex, categoryAttr] of categoryAttrs.entries()) {
+        attributeValues.push({
+          key: categoryAttr.key,
+          value: pickFrom(categoryAttr.values, index + attrIndex),
+        });
+      }
 
       if (category.code === "apparel_family") {
-        const colorAttr = attrByKey.get("color");
-        const sizeAttr = attrByKey.get("size");
-        if (colorAttr) {
-          const color = pick(BIGBOX_APPAREL_COLORS, index);
-          await prisma.productAttributeValue.upsert({
-            where: {
-              productId_attributeDefinitionId: {
-                productId: product.id,
-                attributeDefinitionId: colorAttr,
-              },
-            },
-            create: {
-              productId: product.id,
-              attributeDefinitionId: colorAttr,
-              value: color,
-              source: "LOCAL",
-            },
-            update: { value: color },
-          });
-        }
-        if (sizeAttr) {
-          const size = pick(BIGBOX_APPAREL_SIZES, index);
-          await prisma.productAttributeValue.upsert({
-            where: {
-              productId_attributeDefinitionId: {
-                productId: product.id,
-                attributeDefinitionId: sizeAttr,
-              },
-            },
-            create: {
-              productId: product.id,
-              attributeDefinitionId: sizeAttr,
-              value: size,
-              source: "LOCAL",
-            },
-            update: { value: size },
-          });
-        }
+        attributeValues.push(
+          { key: "color", value: pick(BIGBOX_APPAREL_COLORS, index) },
+          { key: "size", value: pick(BIGBOX_APPAREL_SIZES, index) },
+          { key: "fabric", value: pickFrom(["Cotton", "Poly Blend", "Fleece", "Denim"], index) },
+        );
+      }
+
+      for (const { key, value } of attributeValues) {
+        const attributeDefinitionId = attrByKey.get(key);
+        if (!attributeDefinitionId) continue;
+        await upsertProductAttribute(prisma, product.id, attributeDefinitionId, value);
       }
 
       total++;
