@@ -7,7 +7,7 @@ High-performance ecommerce Product Information Management (PIM) platform.
 | Phase | Status |
 |-------|--------|
 | Phase 0 — Planning | Complete ([docs/planning/](./docs/planning/)) |
-| Phase 1 — Product Core | **Implemented** |
+| Phase 1 — Product Core | **Implemented** ([spec alignment](./docs/implementation/phase-1-product-core-spec.md)) |
 | Phases 2–8 | Planned ([docs/implementation/](./docs/implementation/)) |
 
 ## Stack
