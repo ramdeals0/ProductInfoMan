@@ -252,6 +252,36 @@ export const SearchQuerySchema = z.object({
   sortOrder: z.enum(["asc", "desc"]).optional(),
 });
 
+export const CreateChannelSchema = z.object({
+  code: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/),
+  name: z.string().min(1).max(128),
+  type: z.enum(["ECOMMERCE", "MARKETPLACE", "B2B", "CUSTOM"]).optional(),
+  destinationType: z.enum(["CSV", "JSON", "HTTP_WEBHOOK", "SFTP"]).optional(),
+  configJson: z.record(z.unknown()).optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const CreateChannelFieldMappingSchema = z.object({
+  sourceField: z.string().min(1).max(128),
+  targetField: z.string().min(1).max(128),
+  transformType: z.enum(["DIRECT", "TEMPLATE", "CONCAT", "LOOKUP", "DEFAULT"]).optional(),
+  transformConfigJson: z.record(z.unknown()).nullable().optional(),
+  isRequired: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+});
+
+export const PublishRunSchema = z.object({
+  channelId: z.string().cuid(),
+  productIds: z.array(z.string().cuid()).optional(),
+});
+
+export const ListPublishJobsQuerySchema = z.object({
+  channelId: z.string().cuid().optional(),
+  status: z.enum(["QUEUED", "PROCESSING", "COMPLETED", "FAILED", "RETRYING"]).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
 export type CreateProductInput = z.infer<typeof CreateProductSchema>;
 export type UpdateProductInput = z.infer<typeof UpdateProductSchema>;
 export type CreateVariantInput = z.infer<typeof CreateVariantSchema>;
@@ -274,3 +304,7 @@ export type CreateWorkflowDefinitionInput = z.infer<typeof CreateWorkflowDefinit
 export type WorkflowDecisionInput = z.infer<typeof WorkflowDecisionSchema>;
 export type ListWorkflowTasksQuery = z.infer<typeof ListWorkflowTasksQuerySchema>;
 export type SearchQuery = z.infer<typeof SearchQuerySchema>;
+export type CreateChannelInput = z.infer<typeof CreateChannelSchema>;
+export type CreateChannelFieldMappingInput = z.infer<typeof CreateChannelFieldMappingSchema>;
+export type PublishRunInput = z.infer<typeof PublishRunSchema>;
+export type ListPublishJobsQuery = z.infer<typeof ListPublishJobsQuerySchema>;

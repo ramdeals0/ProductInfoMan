@@ -707,8 +707,86 @@ async function main() {
     },
   });
 
+  const demoStore = await prisma.channel.upsert({
+    where: { organizationId_code: { organizationId: org.id, code: "demo-store" } },
+    create: {
+      organizationId: org.id,
+      code: "demo-store",
+      name: "Demo Ecommerce Store",
+      type: "ECOMMERCE",
+      destinationType: "CSV",
+      configJson: { format: "shopify-product-csv", delimiter: "," },
+      isActive: true,
+    },
+    update: { isActive: true },
+  });
+
+  const mappingVersion = await prisma.channelMappingVersion.upsert({
+    where: { channelId_version: { channelId: demoStore.id, version: 1 } },
+    create: { channelId: demoStore.id, version: 1, isActive: true },
+    update: { isActive: true },
+  });
+
+  const exportMappings = [
+    ["sku", "Variant SKU", true, 0],
+    ["title", "Title", true, 1],
+    ["description", "Body (HTML)", false, 2],
+    ["brand", "Vendor", false, 3],
+    ["attributes.color", "Color", false, 4],
+    ["attributes.size", "Size", false, 5],
+    ["parent_sku", "Handle", false, 6],
+    ["category_code", "Product Type", false, 7],
+  ] as const;
+
+  for (const [sourceField, targetField, isRequired, sortOrder] of exportMappings) {
+    await prisma.channelFieldMapping.upsert({
+      where: {
+        mappingVersionId_targetField: {
+          mappingVersionId: mappingVersion.id,
+          targetField,
+        },
+      },
+      create: {
+        channelId: demoStore.id,
+        mappingVersionId: mappingVersion.id,
+        sourceField,
+        targetField,
+        transformType: "DIRECT",
+        isRequired,
+        sortOrder,
+      },
+      update: { sourceField, isRequired, sortOrder },
+    });
+  }
+
+  await prisma.channelValidationRule.upsert({
+    where: { channelId_code: { channelId: demoStore.id, code: "allowed-status" } },
+    create: {
+      organizationId: org.id,
+      channelId: demoStore.id,
+      code: "allowed-status",
+      name: "Allowed publish statuses",
+      ruleType: "ALLOWED_STATUS",
+      ruleConfig: { statuses: ["APPROVED", "PUBLISH_READY", "PUBLISHED"] },
+    },
+    update: { isActive: true },
+  });
+
+  await prisma.channelValidationRule.upsert({
+    where: { channelId_code: { channelId: demoStore.id, code: "required-core-fields" } },
+    create: {
+      organizationId: org.id,
+      channelId: demoStore.id,
+      code: "required-core-fields",
+      name: "Required core export fields",
+      ruleType: "REQUIRED_FIELD",
+      ruleConfig: { fields: ["sku", "title"] },
+    },
+    update: { isActive: true },
+  });
+
   console.log(
-    "Seed complete: demo org, taxonomy, facets, import template, workflow, search index mapping, SHIRT-001 + 3 variants",
+    "Seed complete: demo org, taxonomy, facets, import template, workflow, search index mapping, demo-store channel, SHIRT-001 + 3 variants",
   );
 }
 

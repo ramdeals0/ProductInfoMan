@@ -17,6 +17,7 @@
     "@productinfoman/facet-engine": "workspace:*",
     "@productinfoman/import-engine": "workspace:*",
     "@productinfoman/inheritance-engine": "workspace:*",
+    "@productinfoman/publish-engine": "workspace:*",
     "@productinfoman/search-projection": "workspace:*",
     "@productinfoman/shared": "workspace:*",
     "@productinfoman/validation": "workspace:*",

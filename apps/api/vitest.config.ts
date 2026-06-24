@@ -12,6 +12,7 @@ export default defineConfig({
     env: {
       IMPORT_SYNC: "true",
       SEARCH_SYNC: "true",
+      PUBLISH_SYNC: "true",
     },
   },
 });

@@ -431,3 +431,105 @@ export interface SearchDebugEntity {
   projectedDocument: Record<string, unknown> | null;
   recentSyncEvents: SearchSyncEventEntity[];
 }
+
+export type ChannelType = "ECOMMERCE" | "MARKETPLACE" | "B2B" | "CUSTOM";
+export type ChannelDestinationType = "CSV" | "JSON" | "HTTP_WEBHOOK" | "SFTP";
+export type ChannelTransformType = "DIRECT" | "TEMPLATE" | "CONCAT" | "LOOKUP" | "DEFAULT";
+export type PublishJobStatus = "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED" | "RETRYING";
+export type PublishJobMode = "DRY_RUN" | "LIVE";
+export type PublishJobItemStatus = "PENDING" | "EXPORTED" | "FAILED" | "SKIPPED";
+export type PublishHistoryAction = "DRY_RUN" | "EXPORT" | "RETRY" | "VALIDATION_FAILED";
+export type PublishHistoryStatus = "SUCCESS" | "FAILED" | "SKIPPED";
+
+export interface ChannelEntity {
+  id: string;
+  organizationId: string;
+  code: string;
+  name: string;
+  type: ChannelType;
+  destinationType: ChannelDestinationType;
+  configJson: Record<string, unknown> | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChannelFieldMappingEntity {
+  id: string;
+  channelId: string;
+  mappingVersionId: string;
+  sourceField: string;
+  targetField: string;
+  transformType: ChannelTransformType;
+  transformConfigJson: Record<string, unknown> | null;
+  isRequired: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublishJobEntity {
+  id: string;
+  organizationId: string;
+  channelId: string;
+  status: PublishJobStatus;
+  mode: PublishJobMode;
+  totalItems: number;
+  successfulItems: number;
+  failedItems: number;
+  attempts: number;
+  maxAttempts: number;
+  errorMessage: string | null;
+  createdById: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublishJobItemEntity {
+  id: string;
+  publishJobId: string;
+  productId: string;
+  status: PublishJobItemStatus;
+  exportedPayload: Record<string, unknown> | null;
+  errorMessage: string | null;
+  processedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExportArtifactEntity {
+  id: string;
+  publishJobId: string;
+  fileName: string;
+  filePath: string;
+  fileType: string;
+  byteSize: number;
+  generatedAt: string;
+}
+
+export interface PublishHistoryEntity {
+  id: string;
+  organizationId: string;
+  channelId: string;
+  publishJobId: string;
+  productId: string | null;
+  action: PublishHistoryAction;
+  status: PublishHistoryStatus;
+  details: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface ChannelPreviewEntity {
+  channel: ChannelEntity;
+  mappingVersion: number;
+  previews: Array<{
+    productId: string;
+    sku: string;
+    status: ProductStatus;
+    isPublishable: boolean;
+    fields: Record<string, string>;
+    errors: Array<{ targetField: string; message: string }>;
+  }>;
+}

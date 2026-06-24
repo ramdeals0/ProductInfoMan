@@ -7,6 +7,8 @@ import { productRoutes } from "./modules/product-core/product.routes.js";
 import { registerSearchEventHandlers } from "./modules/search/search.events.js";
 import { searchRoutes } from "./modules/search/search.routes.js";
 import { startSearchWorker } from "./modules/search/search.queue.js";
+import { publishRoutes } from "./modules/publish/publish.routes.js";
+import { startPublishWorker } from "./modules/publish/publish.queue.js";
 import { taxonomyRoutes } from "./modules/taxonomy/taxonomy.routes.js";
 import { workflowRoutes } from "./modules/workflow/workflow.routes.js";
 
@@ -18,10 +20,12 @@ await app.register(taxonomyRoutes, { prefix: "/api/v1" });
 await app.register(importRoutes, { prefix: "/api/v1" });
 await app.register(workflowRoutes, { prefix: "/api/v1" });
 await app.register(searchRoutes, { prefix: "/api/v1" });
+await app.register(publishRoutes, { prefix: "/api/v1" });
 
 registerSearchEventHandlers();
 await startImportWorker();
 await startSearchWorker();
+await startPublishWorker();
 
 app.get("/health", async () => ({ status: "ok" }));
 

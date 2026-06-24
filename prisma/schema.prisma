@@ -34,6 +34,10 @@ model Organization {
   searchProjectionJobs SearchProjectionJob[]
   searchSyncEvents    SearchSyncEvent[]
   searchReindexRuns   SearchReindexRun[]
+  channels            Channel[]
+  publishJobs         PublishJob[]
+  channelValidationRules ChannelValidationRule[]
+  publishHistory      PublishHistory[]
 
   @@index([slug])
 }
@@ -52,6 +56,7 @@ model User {
   workflowTasksAssigned WorkflowTask[] @relation("WorkflowTaskAssignee")
   workflowApprovals     WorkflowApproval[] @relation("WorkflowApprover")
   workflowHistory       WorkflowHistory[] @relation("WorkflowHistoryActor")
+  publishJobsCreated    PublishJob[] @relation("PublishJobCreator")
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -94,6 +99,8 @@ model Product {
   targetRelationships ProductRelationship[] @relation("TargetRelationships")
   workflowTasks     WorkflowTask[]
   searchSyncEvents  SearchSyncEvent[]
+  publishJobItems   PublishJobItem[]
+  publishHistory    PublishHistory[]
 
   @@unique([organizationId, sku])
   @@index([organizationId, status])
@@ -890,6 +897,228 @@ model SearchReindexRun {
   indexVersion SearchIndexVersion? @relation(fields: [indexVersionId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, status])
+}
+
+// ─── Publishing & Syndication ────────────────────────────────────────────────
+
+enum ChannelType {
+  ECOMMERCE
+  MARKETPLACE
+  B2B
+  CUSTOM
+}
+
+enum ChannelDestinationType {
+  CSV
+  JSON
+  HTTP_WEBHOOK
+  SFTP
+}
+
+enum ChannelTransformType {
+  DIRECT
+  TEMPLATE
+  CONCAT
+  LOOKUP
+  DEFAULT
+}
+
+enum PublishJobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  RETRYING
+}
+
+enum PublishJobMode {
+  DRY_RUN
+  LIVE
+}
+
+enum PublishJobItemStatus {
+  PENDING
+  EXPORTED
+  FAILED
+  SKIPPED
+}
+
+enum PublishHistoryAction {
+  DRY_RUN
+  EXPORT
+  RETRY
+  VALIDATION_FAILED
+}
+
+enum PublishHistoryStatus {
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+
+enum ChannelValidationRuleType {
+  REQUIRED_FIELD
+  ALLOWED_STATUS
+  REQUIRED_ATTRIBUTE
+}
+
+model Channel {
+  id              String                 @id @default(cuid())
+  organizationId  String
+  code            String
+  name            String
+  type            ChannelType            @default(ECOMMERCE)
+  destinationType ChannelDestinationType @default(CSV)
+  configJson      Json?
+  isActive        Boolean                @default(true)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  organization      Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  mappingVersions   ChannelMappingVersion[]
+  fieldMappings     ChannelFieldMapping[]
+  validationRules   ChannelValidationRule[]
+  publishJobs       PublishJob[]
+  publishHistory    PublishHistory[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, isActive])
+}
+
+model ChannelMappingVersion {
+  id        String   @id @default(cuid())
+  channelId String
+  version   Int      @default(1)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  channel       Channel               @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  fieldMappings ChannelFieldMapping[]
+
+  @@unique([channelId, version])
+  @@index([channelId, isActive])
+}
+
+model ChannelFieldMapping {
+  id                 String               @id @default(cuid())
+  channelId          String
+  mappingVersionId   String
+  sourceField        String
+  targetField        String
+  transformType      ChannelTransformType @default(DIRECT)
+  transformConfigJson Json?
+  isRequired         Boolean              @default(false)
+  sortOrder          Int                  @default(0)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  channel        Channel               @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  mappingVersion ChannelMappingVersion @relation(fields: [mappingVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([mappingVersionId, targetField])
+  @@index([channelId, sortOrder])
+}
+
+model ChannelValidationRule {
+  id             String                    @id @default(cuid())
+  organizationId String
+  channelId      String
+  code           String
+  name           String
+  ruleType       ChannelValidationRuleType
+  ruleConfig     Json
+  isActive       Boolean                   @default(true)
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  channel        Channel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, code])
+  @@index([organizationId, isActive])
+}
+
+model PublishJob {
+  id               String           @id @default(cuid())
+  organizationId   String
+  channelId        String
+  status           PublishJobStatus @default(QUEUED)
+  mode             PublishJobMode
+  totalItems       Int              @default(0)
+  successfulItems  Int              @default(0)
+  failedItems      Int              @default(0)
+  attempts         Int              @default(0)
+  maxAttempts      Int              @default(3)
+  errorMessage     String?
+  createdById      String?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  channel        Channel           @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  createdBy      User?             @relation("PublishJobCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  items          PublishJobItem[]
+  artifacts      ExportArtifact[]
+  history        PublishHistory[]
+
+  @@index([organizationId, status])
+  @@index([channelId, createdAt])
+}
+
+model PublishJobItem {
+  id              String               @id @default(cuid())
+  publishJobId    String
+  productId       String
+  status          PublishJobItemStatus @default(PENDING)
+  exportedPayload Json?
+  errorMessage    String?
+  processedAt     DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  publishJob PublishJob @relation(fields: [publishJobId], references: [id], onDelete: Cascade)
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([publishJobId, productId])
+  @@index([publishJobId, status])
+}
+
+model ExportArtifact {
+  id           String   @id @default(cuid())
+  publishJobId String
+  fileName     String
+  filePath     String
+  fileType     String
+  byteSize     Int      @default(0)
+  generatedAt  DateTime @default(now())
+
+  publishJob PublishJob @relation(fields: [publishJobId], references: [id], onDelete: Cascade)
+
+  @@index([publishJobId])
+}
+
+model PublishHistory {
+  id             String               @id @default(cuid())
+  organizationId String
+  channelId      String
+  publishJobId   String
+  productId      String?
+  action         PublishHistoryAction
+  status         PublishHistoryStatus
+  details        Json?
+  createdAt      DateTime             @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  channel        Channel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  publishJob     PublishJob   @relation(fields: [publishJobId], references: [id], onDelete: Cascade)
+  product        Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, channelId, createdAt])
+  @@index([publishJobId])
+  @@index([productId])
 }
 
 // ─── Audit ───────────────────────────────────────────────────────────────────

@@ -59,6 +59,9 @@ importers:
       '@productinfoman/inheritance-engine':
         specifier: workspace:*
         version: link:../../packages/inheritance-engine
+      '@productinfoman/publish-engine':
+        specifier: workspace:*
+        version: link:../../packages/publish-engine
       '@productinfoman/search-projection':
         specifier: workspace:*
         version: link:../../packages/search-projection
@@ -159,6 +162,15 @@ importers:
       '@productinfoman/contracts':
         specifier: workspace:*
         version: link:../contracts
+    devDependencies:
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.6(@types/node@24.13.2)(jiti@2.7.0)(tsx@4.22.4)
+
+  packages/publish-engine:
     devDependencies:
       typescript:
         specifier: ^5.9.2

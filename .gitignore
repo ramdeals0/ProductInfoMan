@@ -14,3 +14,4 @@ prisma/dev.db
 # Docker volumes
 docker/data
 uploads/
+exports/
