@@ -5,14 +5,21 @@ import clsx from "clsx";
 import { adminUrl, resolveDocUrls, storefrontUrl } from "@/config/docs-urls";
 
 type CodeBlockProps = {
-  children: string;
+  children: ReactNode;
   language?: string;
   title?: string;
 };
 
+function normalizeCodeChildren(children: ReactNode): string {
+  if (typeof children === "string") return children;
+  if (Array.isArray(children)) return children.map((child) => normalizeCodeChildren(child)).join("");
+  if (children == null) return "";
+  return String(children);
+}
+
 export function CodeBlock({ children, language = "text", title }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
-  const content = resolveDocUrls(children.trim());
+  const content = resolveDocUrls(normalizeCodeChildren(children).trim());
 
   async function copy() {
     await navigator.clipboard.writeText(content);
