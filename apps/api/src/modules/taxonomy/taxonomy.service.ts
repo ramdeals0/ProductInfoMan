@@ -13,7 +13,9 @@ import type {
   UpdateCategoryInput,
 } from "@productinfoman/validation";
 import { prisma } from "@productinfoman/db";
+import { loadApiEnv } from "@productinfoman/config";
 import { appError, writeAudit } from "@productinfoman/shared";
+import { cacheDelete, cacheGet, cacheSet } from "../../lib/cache.js";
 import { createEvent } from "@productinfoman/contracts";
 import { emitEvent } from "../../lib/events.js";
 import { emitAuditRecordEvent } from "../../lib/audit-events.js";
@@ -168,6 +170,8 @@ export async function createCategory(
     }),
   );
 
+  await invalidateCategoryTreeCache(organizationId);
+
   return toCategoryDto(category);
 }
 
@@ -214,6 +218,8 @@ export async function updateCategory(
     changes: input as Record<string, unknown>,
   });
 
+  await invalidateCategoryTreeCache(organizationId);
+
   return toCategoryDto(category);
 }
 
@@ -226,8 +232,18 @@ export async function listCategories(organizationId: string): Promise<CategoryEn
 }
 
 export async function getCategoryTree(organizationId: string): Promise<CategoryTreeNode[]> {
+  const { CACHE_CATEGORY_TREE_TTL_SEC } = loadApiEnv();
+  const cached = await cacheGet<CategoryTreeNode[]>("category-tree", organizationId);
+  if (cached) return cached;
+
   const categories = await listCategories(organizationId);
-  return buildCategoryTree(categories);
+  const tree = buildCategoryTree(categories);
+  await cacheSet("category-tree", organizationId, tree, CACHE_CATEGORY_TREE_TTL_SEC);
+  return tree;
+}
+
+export async function invalidateCategoryTreeCache(organizationId: string): Promise<void> {
+  await cacheDelete("category-tree", organizationId);
 }
 
 export async function createAttributeGroup(

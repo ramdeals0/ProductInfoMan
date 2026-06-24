@@ -38,6 +38,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     refresh().finally(() => setLoading(false));
   }, [refresh]);
 
+  useEffect(() => {
+    if (loading || user) return;
+    if (typeof window === "undefined") return;
+    if (window.location.pathname.startsWith("/admin")) {
+      window.location.href = "/login";
+    }
+  }, [loading, user]);
+
   const api = useMemo(
     () =>
       createApiClient({

@@ -29,6 +29,8 @@ import { createProduct, setProductAttributes } from "../product-core/product.ser
 import { processImportRowThroughMdm } from "../mdm/mdm.service.js";
 import { normalizeSourcePayload } from "@productinfoman/mdm-engine";
 import { enqueueImportJob } from "./import.queue.js";
+import { assertHeavyJobCapacity } from "../../lib/queue-backpressure.js";
+import { loadApiEnv } from "@productinfoman/config";
 
 const UPLOAD_ROOT = path.resolve(process.cwd(), "../../uploads");
 
@@ -348,6 +350,8 @@ export async function startImport(
     throw appError("Import has no valid rows to commit", 400);
   }
 
+  await assertHeavyJobCapacity("import-jobs");
+
   const updated = await prisma.importJob.update({
     where: { id: job.id },
     data: { status: "QUEUED" },
@@ -397,9 +401,12 @@ export async function processImportJob(importJobId: string, organizationId: stri
 
   let committedRows = 0;
   let skippedRows = 0;
+  const { IMPORT_BATCH_SIZE } = loadApiEnv();
+  let processedInBatch = 0;
 
   try {
-    for (const row of sortedRows) {
+    for (let rowIndex = 0; rowIndex < sortedRows.length; rowIndex += 1) {
+      const row = sortedRows[rowIndex]!;
       const normalized = row.normalizedData as NormalizedImportRow | null;
       if (!normalized) continue;
 
@@ -491,6 +498,12 @@ export async function processImportJob(importJobId: string, organizationId: stri
         where: { id: row.id },
         data: { status: "COMMITTED", entityId: skuToProductId.get(normalized.sku) },
       });
+
+      processedInBatch += 1;
+      if (processedInBatch >= IMPORT_BATCH_SIZE) {
+        processedInBatch = 0;
+        await new Promise((resolve) => setImmediate(resolve));
+      }
     }
 
     await prisma.importRunSummary.update({

@@ -25,6 +25,8 @@ High-performance ecommerce Product Information Management (PIM) platform.
 
 See **[docs/deployment/railway.md](./docs/deployment/railway.md)** for Postgres + API + Admin + Storefront setup.
 
+**Production API:** `https://pim-api.up.railway.app` — see **[docs/deployment/railway-production.md](./docs/deployment/railway-production.md)** for exact variables and verify steps.
+
 ## Quick Start
 
 ```bash
@@ -51,6 +53,12 @@ Health: `GET /health`
 Products: `GET /api/v1/products`
 
 Header: `X-Organization-Slug: demo` (default)
+
+## User guide
+
+End-user documentation for the Admin console, storefront, roles, and workflows:
+
+**[docs/user-guide.md](./docs/user-guide.md)**
 
 ## Phase 1 API
 
