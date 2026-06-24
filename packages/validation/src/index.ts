@@ -147,6 +147,49 @@ export const ListFacetRulesQuerySchema = z.object({
   facetDefinitionId: z.string().cuid().optional(),
 });
 
+export const UploadImportSchema = z.object({
+  importTemplateId: z.string().cuid().optional(),
+  importType: z.enum(["CREATE", "UPDATE", "UPSERT"]).optional(),
+  duplicatePolicy: z.enum(["REJECT", "UPDATE", "SKIP"]).optional(),
+  blankCellPolicy: z.enum(["IGNORE", "CLEAR"]).optional(),
+});
+
+export const ListImportsQuerySchema = z.object({
+  status: z
+    .enum([
+      "UPLOADED",
+      "VALIDATING",
+      "VALIDATED",
+      "VALIDATION_FAILED",
+      "QUEUED",
+      "PROCESSING",
+      "COMPLETED",
+      "FAILED",
+      "CANCELLED",
+    ])
+    .optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export const ImportTemplateMappingSchema = z.object({
+  sourceColumn: z.string().min(1).max(64),
+  targetField: z.string().min(1).max(64),
+  transform: z.string().max(64).optional(),
+  isRequired: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+});
+
+export const CreateImportTemplateSchema = z.object({
+  code: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/),
+  name: z.string().min(1).max(128),
+  entityType: z.enum(["PRODUCT", "VARIANT", "CATEGORY"]).optional(),
+  sourceFormat: z.string().max(32).optional(),
+  configJson: z.record(z.unknown()).optional(),
+  isDefault: z.boolean().optional(),
+  mappings: z.array(ImportTemplateMappingSchema).min(1),
+});
+
 export type CreateProductInput = z.infer<typeof CreateProductSchema>;
 export type UpdateProductInput = z.infer<typeof UpdateProductSchema>;
 export type CreateVariantInput = z.infer<typeof CreateVariantSchema>;
@@ -162,3 +205,6 @@ export type CreateFacetDefinitionInput = z.infer<typeof CreateFacetDefinitionSch
 export type ListFacetDefinitionsQuery = z.infer<typeof ListFacetDefinitionsQuerySchema>;
 export type CreateFacetRuleInput = z.infer<typeof CreateFacetRuleSchema>;
 export type ListFacetRulesQuery = z.infer<typeof ListFacetRulesQuerySchema>;
+export type UploadImportInput = z.infer<typeof UploadImportSchema>;
+export type ListImportsQuery = z.infer<typeof ListImportsQuerySchema>;
+export type CreateImportTemplateInput = z.infer<typeof CreateImportTemplateSchema>;

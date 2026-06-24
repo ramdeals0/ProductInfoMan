@@ -24,6 +24,9 @@ model Organization {
   facetDefinitions    FacetDefinition[]
   facetRules          FacetRule[]
   auditLogs           AuditLog[]
+  importTemplates     ImportTemplate[]
+  importJobs          ImportJob[]
+  validationRules     ValidationRule[]
 
   @@index([slug])
 }
@@ -38,6 +41,7 @@ model User {
   updatedAt      DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  importJobs     ImportJob[] @relation("ImportJobCreator")
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -420,6 +424,192 @@ model FacetValue {
 
   @@unique([facetDefinitionId, value])
   @@index([facetDefinitionId, isActive])
+}
+
+// ─── Import & Validation ────────────────────────────────────────────────────
+
+enum ImportJobStatus {
+  UPLOADED
+  VALIDATING
+  VALIDATED
+  VALIDATION_FAILED
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ImportType {
+  CREATE
+  UPDATE
+  UPSERT
+}
+
+enum ImportEntityType {
+  PRODUCT
+  VARIANT
+  CATEGORY
+}
+
+enum DuplicatePolicy {
+  REJECT
+  UPDATE
+  SKIP
+}
+
+enum BlankCellPolicy {
+  IGNORE
+  CLEAR
+}
+
+enum ValidationRuleType {
+  REQUIRED_FIELD
+  DUPLICATE_KEY
+  DATA_TYPE
+  PARENT_REFERENCE
+  CATEGORY_REFERENCE
+  CUSTOM
+}
+
+enum ImportRowStatus {
+  PENDING
+  VALID
+  INVALID
+  COMMITTED
+  SKIPPED
+}
+
+model ImportTemplate {
+  id             String           @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  entityType     ImportEntityType @default(PRODUCT)
+  sourceFormat   String           @default("CSV")
+  configJson     Json?
+  isDefault      Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  mappings     ImportTemplateMapping[]
+  jobs         ImportJob[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, isDefault])
+}
+
+model ImportTemplateMapping {
+  id               String  @id @default(cuid())
+  importTemplateId String
+  sourceColumn     String
+  targetField      String
+  transform        String?
+  isRequired       Boolean @default(false)
+  sortOrder        Int     @default(0)
+
+  importTemplate ImportTemplate @relation(fields: [importTemplateId], references: [id], onDelete: Cascade)
+
+  @@unique([importTemplateId, sourceColumn])
+  @@index([importTemplateId])
+}
+
+model ImportJob {
+  id               String           @id @default(cuid())
+  organizationId   String
+  importTemplateId String?
+  fileName         String
+  filePath         String
+  importType       ImportType       @default(CREATE)
+  status           ImportJobStatus  @default(UPLOADED)
+  duplicatePolicy  DuplicatePolicy  @default(REJECT)
+  blankCellPolicy  BlankCellPolicy  @default(IGNORE)
+  totalRows        Int              @default(0)
+  validRows        Int              @default(0)
+  invalidRows      Int              @default(0)
+  committedRows    Int              @default(0)
+  createdById      String?
+  errorMessage     String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  importTemplate ImportTemplate? @relation(fields: [importTemplateId], references: [id], onDelete: SetNull)
+  createdBy      User?           @relation("ImportJobCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  rows           ImportJobRow[]
+  errors         ImportJobError[]
+  summary        ImportRunSummary?
+
+  @@index([organizationId, status])
+  @@index([organizationId, createdAt])
+}
+
+model ImportJobRow {
+  id             String          @id @default(cuid())
+  importJobId    String
+  rowNumber      Int
+  rawData        Json
+  normalizedData Json?
+  status         ImportRowStatus @default(PENDING)
+  entityId       String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  importJob ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+
+  @@unique([importJobId, rowNumber])
+  @@index([importJobId, status])
+}
+
+model ImportJobError {
+  id           String  @id @default(cuid())
+  importJobId  String
+  rowNumber    Int
+  fieldName    String
+  errorCode    String
+  errorMessage String
+  rawValue     String?
+
+  importJob ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+
+  @@index([importJobId, rowNumber])
+  @@index([importJobId, errorCode])
+}
+
+model ValidationRule {
+  id             String             @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  entityType     ImportEntityType   @default(PRODUCT)
+  ruleType       ValidationRuleType
+  ruleConfig     Json?
+  isActive       Boolean            @default(true)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, code])
+  @@index([organizationId, entityType, isActive])
+}
+
+model ImportRunSummary {
+  id            String    @id @default(cuid())
+  importJobId   String    @unique
+  totalRows     Int
+  validRows     Int
+  invalidRows   Int
+  committedRows Int       @default(0)
+  skippedRows   Int       @default(0)
+  duplicateRows Int       @default(0)
+  summaryJson   Json?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  importJob ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
 }
 
 // ─── Audit ───────────────────────────────────────────────────────────────────

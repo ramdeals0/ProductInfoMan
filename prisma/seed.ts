@@ -435,8 +435,103 @@ async function main() {
     });
   }
 
+  const importTemplate = await prisma.importTemplate.upsert({
+    where: { organizationId_code: { organizationId: org.id, code: "mvp-product-csv" } },
+    create: {
+      organizationId: org.id,
+      code: "mvp-product-csv",
+      name: "MVP Product CSV",
+      entityType: "PRODUCT",
+      sourceFormat: "CSV",
+      isDefault: true,
+      configJson: {
+        blankCellPolicy: "IGNORE",
+        duplicatePolicy: "REJECT",
+      },
+    },
+    update: { isDefault: true },
+  });
+
+  const templateMappings = [
+    ["sku", "sku", true],
+    ["product_type", "product_type", true],
+    ["title", "title", true],
+    ["description", "description", false],
+    ["brand", "brand", false],
+    ["parent_sku", "parent_sku", false],
+    ["category_code", "category_code", false],
+    ["color", "color", false],
+    ["size", "size", false],
+  ] as const;
+
+  for (const [index, [sourceColumn, targetField, isRequired]] of templateMappings.entries()) {
+    await prisma.importTemplateMapping.upsert({
+      where: {
+        importTemplateId_sourceColumn: {
+          importTemplateId: importTemplate.id,
+          sourceColumn,
+        },
+      },
+      create: {
+        importTemplateId: importTemplate.id,
+        sourceColumn,
+        targetField,
+        isRequired,
+        sortOrder: index,
+      },
+      update: { targetField, isRequired, sortOrder: index },
+    });
+  }
+
+  const validationRuleDefs = [
+    {
+      code: "product-title-required",
+      name: "Product title required",
+      ruleType: "REQUIRED_FIELD" as const,
+      ruleConfig: { productType: "SIMPLE", fields: ["sku", "product_type", "title"] },
+    },
+    {
+      code: "parent-title-required",
+      name: "Parent title required",
+      ruleType: "REQUIRED_FIELD" as const,
+      ruleConfig: { productType: "PARENT", fields: ["sku", "product_type", "title"] },
+    },
+    {
+      code: "variant-parent-required",
+      name: "Variant parent required",
+      ruleType: "REQUIRED_FIELD" as const,
+      ruleConfig: { productType: "VARIANT", fields: ["sku", "product_type", "parent_sku"] },
+    },
+    {
+      code: "product-sku-unique",
+      name: "Reject duplicate SKUs",
+      ruleType: "DUPLICATE_KEY" as const,
+      ruleConfig: { field: "sku", policy: "REJECT" },
+    },
+  ];
+
+  for (const rule of validationRuleDefs) {
+    await prisma.validationRule.upsert({
+      where: { organizationId_code: { organizationId: org.id, code: rule.code } },
+      create: {
+        organizationId: org.id,
+        code: rule.code,
+        name: rule.name,
+        entityType: "PRODUCT",
+        ruleType: rule.ruleType,
+        ruleConfig: rule.ruleConfig,
+      },
+      update: {
+        name: rule.name,
+        ruleType: rule.ruleType,
+        ruleConfig: rule.ruleConfig,
+        isActive: true,
+      },
+    });
+  }
+
   console.log(
-    "Seed complete: demo org, apparel/mens/shirts taxonomy, color+size facets, SHIRT-001 + 3 variants",
+    "Seed complete: demo org, taxonomy, facets, import template, SHIRT-001 + 3 variants",
   );
 }
 

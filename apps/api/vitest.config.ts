@@ -9,5 +9,8 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts"],
     fileParallelism: false,
+    env: {
+      IMPORT_SYNC: "true",
+    },
   },
 });

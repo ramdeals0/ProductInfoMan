@@ -146,3 +146,86 @@ export interface CategoryFacetEntity {
     sortOrder: number;
   }>;
 }
+
+export type ImportJobStatus =
+  | "UPLOADED"
+  | "VALIDATING"
+  | "VALIDATED"
+  | "VALIDATION_FAILED"
+  | "QUEUED"
+  | "PROCESSING"
+  | "COMPLETED"
+  | "FAILED"
+  | "CANCELLED";
+export type ImportType = "CREATE" | "UPDATE" | "UPSERT";
+export type ImportEntityType = "PRODUCT" | "VARIANT" | "CATEGORY";
+export type DuplicatePolicy = "REJECT" | "UPDATE" | "SKIP";
+export type BlankCellPolicy = "IGNORE" | "CLEAR";
+
+export interface ImportTemplateMappingEntity {
+  id: string;
+  sourceColumn: string;
+  targetField: string;
+  transform: string | null;
+  isRequired: boolean;
+  sortOrder: number;
+}
+
+export interface ImportTemplateEntity {
+  id: string;
+  organizationId: string;
+  code: string;
+  name: string;
+  entityType: ImportEntityType;
+  sourceFormat: string;
+  configJson: Record<string, unknown> | null;
+  isDefault: boolean;
+  mappings: ImportTemplateMappingEntity[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImportJobEntity {
+  id: string;
+  organizationId: string;
+  importTemplateId: string | null;
+  fileName: string;
+  filePath: string;
+  importType: ImportType;
+  status: ImportJobStatus;
+  duplicatePolicy: DuplicatePolicy;
+  blankCellPolicy: BlankCellPolicy;
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  committedRows: number;
+  createdById: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImportJobErrorEntity {
+  id: string;
+  importJobId: string;
+  rowNumber: number;
+  fieldName: string;
+  errorCode: string;
+  errorMessage: string;
+  rawValue: string | null;
+}
+
+export interface ImportRunSummaryEntity {
+  id: string;
+  importJobId: string;
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  committedRows: number;
+  skippedRows: number;
+  duplicateRows: number;
+  summaryJson: Record<string, unknown> | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
