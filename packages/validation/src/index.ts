@@ -167,6 +167,80 @@ export const ListFacetDefinitionsQuerySchema = z.object({
   includeInactive: z.coerce.boolean().optional(),
 });
 
+export const FacetRuleWorkflowStateSchema = z.enum([
+  "draft",
+  "in_review",
+  "approved",
+  "deprecated",
+]);
+
+const FacetRangeBucketSchema = z.object({
+  value: z.string().optional(),
+  code: z.string().optional(),
+  label: z.string(),
+  min: z.number().nullable(),
+  max: z.number().nullable(),
+});
+
+const FacetRuleConfigSchemas = {
+  DIRECT: z.record(z.unknown()).optional(),
+  NORMALIZE: z
+    .object({
+      trim: z.boolean().optional(),
+      case: z.enum(["lower", "upper", "title"]).optional(),
+      aliases: z.record(z.string()).optional(),
+    })
+    .passthrough()
+    .optional(),
+  RANGE_BUCKET: z.object({
+    buckets: z.array(FacetRangeBucketSchema).min(1),
+  }),
+  COMPOSITE: z
+    .object({
+      sources: z.array(z.string()).min(1),
+      separator: z.string().optional(),
+    })
+    .passthrough()
+    .optional(),
+} as const;
+
+export function validateFacetRuleConfig(
+  ruleType: z.infer<typeof CreateFacetRuleSchema>["ruleType"],
+  ruleConfig: Record<string, unknown> | null | undefined,
+): void {
+  if (ruleType === "DIRECT" && (ruleConfig == null || Object.keys(ruleConfig).length === 0)) {
+    return;
+  }
+  const schema = FacetRuleConfigSchemas[ruleType];
+  const parsed = schema.safeParse(ruleConfig ?? {});
+  if (!parsed.success) {
+    throw new z.ZodError(parsed.error.issues);
+  }
+  if (ruleType === "RANGE_BUCKET" && ruleConfig?.buckets) {
+    validateRangeBuckets(ruleConfig.buckets as Array<{ min: number | null; max: number | null }>);
+  }
+}
+
+function validateRangeBuckets(
+  buckets: Array<{ min: number | null; max: number | null; label?: string }>,
+): void {
+  const sorted = [...buckets].sort((a, b) => (a.min ?? -Infinity) - (b.min ?? -Infinity));
+  for (let i = 0; i < sorted.length; i++) {
+    const bucket = sorted[i]!;
+    if (bucket.min != null && bucket.max != null && bucket.min >= bucket.max) {
+      throw new Error(`Range bucket min must be less than max (index ${i})`);
+    }
+    if (i > 0) {
+      const prev = sorted[i - 1]!;
+      const prevMax = prev.max ?? Infinity;
+      const currMin = bucket.min ?? -Infinity;
+      if (currMin < prevMax) {
+        throw new Error(`Range buckets must not overlap (index ${i})`);
+      }
+    }
+  }
+}
+
 export const CreateFacetRuleSchema = z.object({
   facetDefinitionId: z.string().cuid(),
   categoryId: z.string().cuid().nullable().optional(),
@@ -174,11 +248,25 @@ export const CreateFacetRuleSchema = z.object({
   ruleType: z.enum(["DIRECT", "NORMALIZE", "RANGE_BUCKET", "COMPOSITE"]).default("DIRECT"),
   ruleConfig: z.record(z.unknown()).nullable().optional(),
   priority: z.number().int().optional(),
+  notes: z.string().max(2000).nullable().optional(),
+});
+
+export const UpdateFacetRuleSchema = z.object({
+  ruleType: z.enum(["DIRECT", "NORMALIZE", "RANGE_BUCKET", "COMPOSITE"]).optional(),
+  ruleConfig: z.record(z.unknown()).nullable().optional(),
+  priority: z.number().int().optional(),
+  categoryId: z.string().cuid().nullable().optional(),
+  notes: z.string().max(2000).nullable().optional(),
 });
 
 export const ListFacetRulesQuerySchema = z.object({
   categoryId: z.string().cuid().optional(),
   facetDefinitionId: z.string().cuid().optional(),
+  state: FacetRuleWorkflowStateSchema.optional(),
+});
+
+export const FacetRuleWorkflowNotesSchema = z.object({
+  notes: z.string().max(2000).optional(),
 });
 
 export const UploadImportSchema = z.object({
@@ -500,7 +588,9 @@ export type CreateFacetDefinitionInput = z.infer<typeof CreateFacetDefinitionSch
 export type UpdateFacetDefinitionInput = z.infer<typeof UpdateFacetDefinitionSchema>;
 export type ListFacetDefinitionsQuery = z.infer<typeof ListFacetDefinitionsQuerySchema>;
 export type CreateFacetRuleInput = z.infer<typeof CreateFacetRuleSchema>;
+export type UpdateFacetRuleInput = z.infer<typeof UpdateFacetRuleSchema>;
 export type ListFacetRulesQuery = z.infer<typeof ListFacetRulesQuerySchema>;
+export type FacetRuleWorkflowNotesInput = z.infer<typeof FacetRuleWorkflowNotesSchema>;
 export type UploadImportInput = z.infer<typeof UploadImportSchema>;
 export type ListImportsQuery = z.infer<typeof ListImportsQuerySchema>;
 export type ListImportRowsQuery = z.infer<typeof ListImportRowsQuerySchema>;

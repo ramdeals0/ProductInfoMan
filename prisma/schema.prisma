@@ -573,6 +573,12 @@ model FacetRule {
   ruleType              FacetRuleType @default(DIRECT)
   ruleConfig            Json?
   priority              Int           @default(0)
+  workflowStateCode     String        @default("approved") @map("workflow_state_code")
+  createdBy             String?       @map("created_by")
+  updatedBy             String?       @map("updated_by")
+  reviewedBy            String?       @map("reviewed_by")
+  reviewedAt            DateTime?     @map("reviewed_at")
+  notes                 String?       @db.Text
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
@@ -583,6 +589,7 @@ model FacetRule {
 
   @@index([organizationId, categoryId])
   @@index([facetDefinitionId])
+  @@index([workflowStateCode])
 }
 
 enum FacetRuleType {

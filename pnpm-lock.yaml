@@ -107,7 +107,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.2.4
-        version: 3.2.6(@types/debug@4.1.13)(@types/node@24.13.2)(jiti@2.7.0)(tsx@4.22.4)
+        version: 3.2.6(@types/debug@4.1.13)(@types/node@24.13.2)(jiti@1.21.7)(tsx@4.22.4)
 
   apps/api:
     dependencies:
@@ -254,7 +254,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.2.4
-        version: 3.2.6(@types/debug@4.1.13)(@types/node@24.13.2)(jiti@1.21.7)(tsx@4.22.4)
+        version: 3.2.6(@types/debug@4.1.13)(@types/node@24.13.2)(jiti@2.7.0)(tsx@4.22.4)
 
   apps/storefront:
     dependencies:
@@ -445,6 +445,9 @@ importers:
       '@productinfoman/domain':
         specifier: workspace:*
         version: link:../domain
+      '@productinfoman/facet-engine':
+        specifier: workspace:*
+        version: link:../facet-engine
     devDependencies:
       typescript:
         specifier: ^5.9.2

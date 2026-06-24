@@ -81,6 +81,39 @@ describe("buildSearchDocument", () => {
     expect(doc!.storefront_active).toBe(true);
   });
 
+  it("applies approved RANGE_BUCKET facet rules when projecting facet fields", () => {
+    const doc = buildSearchDocument({
+      ...baseInput,
+      attributes: [
+        { key: "price", attributeDefinitionId: "attr-price", value: 49.99 },
+      ],
+      attributeDefinitions: [
+        {
+          id: "attr-price",
+          key: "price",
+          dataType: "NUMBER",
+          isVariantAxis: false,
+          isFilterable: true,
+          isSearchable: false,
+        },
+      ],
+      facetDefinitions: [
+        {
+          key: "price",
+          sourceAttributeKey: "price",
+          ruleType: "RANGE_BUCKET",
+          ruleConfig: {
+            buckets: [
+              { code: "under_25", label: "Under $25", min: null, max: 25 },
+              { code: "25_to_50", label: "$25 to $50", min: 25, max: 50 },
+            ],
+          },
+        },
+      ],
+    });
+    expect(doc!.facet_fields.price).toBe("25_to_50");
+  });
+
   it("uses parent id as group key for variants", () => {
     const doc = buildSearchDocument({
       ...baseInput,

@@ -169,14 +169,32 @@ async function loadFacetDefinitions(
       isActive: true,
       key: { in: facetKeys },
     },
-    include: { sourceAttribute: true },
+    include: {
+      sourceAttribute: true,
+      rules: {
+        where: { workflowStateCode: "approved" },
+        orderBy: { priority: "desc" },
+        take: 1,
+      },
+    },
     orderBy: { sortOrder: "asc" },
   });
 
-  return facets.map((facet) => ({
-    key: facet.key,
-    sourceAttributeKey: facet.sourceAttribute.key,
-  }));
+  return facets.map((facet) => {
+    const activeRule = facet.rules[0];
+    const ruleConfig =
+      activeRule?.ruleConfig &&
+      typeof activeRule.ruleConfig === "object" &&
+      !Array.isArray(activeRule.ruleConfig)
+        ? (activeRule.ruleConfig as Record<string, unknown>)
+        : null;
+    return {
+      key: facet.key,
+      sourceAttributeKey: facet.sourceAttribute.key,
+      ruleType: activeRule?.ruleType,
+      ruleConfig,
+    };
+  });
 }
 
 export async function resolveFacetKeys(organizationId: string, categoryId?: string): Promise<string[]> {

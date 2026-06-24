@@ -21,6 +21,15 @@ export type AllowedValuesType = "FREE_TEXT" | "CONTROLLED_LIST" | "NUMERIC_RANGE
 export type CategoryStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED";
 export type FacetScope = "GLOBAL" | "CATEGORY";
 export type FacetRuleType = "DIRECT" | "NORMALIZE" | "RANGE_BUCKET" | "COMPOSITE";
+
+export type FacetRuleWorkflowState = "draft" | "in_review" | "approved" | "deprecated";
+
+export const FACET_RULE_WORKFLOW_STATES: readonly FacetRuleWorkflowState[] = [
+  "draft",
+  "in_review",
+  "approved",
+  "deprecated",
+] as const;
 export type ProductRelationshipType =
   | "VARIANT_OF"
   | "BUNDLE_COMPONENT"
@@ -133,6 +142,12 @@ export interface FacetRuleEntity {
   ruleType: FacetRuleType;
   ruleConfig: Record<string, unknown> | null;
   priority: number;
+  workflowStateCode: FacetRuleWorkflowState;
+  createdBy: string | null;
+  updatedBy: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  notes: string | null;
   createdAt: string;
   updatedAt: string;
 }

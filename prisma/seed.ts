@@ -683,6 +683,7 @@ async function main() {
           attributeDefinitionId: attr.id,
           facetDefinitionId: facet.id,
           ruleType: "DIRECT",
+          workflowStateCode: "approved",
         },
       });
     }
@@ -699,6 +700,7 @@ async function main() {
         attributeDefinitionId: priceAttr.id,
         ruleType: "RANGE_BUCKET",
         ruleConfig: { buckets: PRICE_FACET_BUCKETS },
+        workflowStateCode: "approved",
       },
     });
   }

@@ -17,7 +17,9 @@ import {
 import { AppError } from "@productinfoman/shared";
 import { resolveTenant } from "../../plugins/tenant.js";
 import { authenticateJwt, assertRoles, ROLE_GROUPS } from "../../plugins/rbac.js";
+import { resolveActor, requireActor } from "../../plugins/actor.js";
 import * as facetService from "./facet.service.js";
+import * as facetWorkflowService from "./facet-workflow.service.js";
 import * as taxonomyService from "./taxonomy.service.js";
 
 function handleError(error: unknown): { statusCode: number; message: string } {
@@ -36,8 +38,13 @@ function handleError(error: unknown): { statusCode: number; message: string } {
 export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", resolveTenant);
   app.addHook("preHandler", authenticateJwt);
+  app.addHook("preHandler", resolveActor);
   app.addHook("preHandler", async (request) => {
     if (["POST", "PATCH", "PUT", "DELETE"].includes(request.method)) {
+      const path = request.url.split("?")[0] ?? "";
+      if (path.includes("/facet-rules")) {
+        return;
+      }
       assertRoles(request, ROLE_GROUPS.TAXONOMY_WRITE);
     }
   });
@@ -266,8 +273,14 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/facet-rules", async (request, reply) => {
     try {
+      assertRoles(request, ROLE_GROUPS.FACET_RULE_WRITE);
       const body = CreateFacetRuleSchema.parse(request.body);
-      const rule = await facetService.createFacetRule(request.organizationId, body);
+      requireActor(request);
+      const rule = await facetWorkflowService.createFacetRule(
+        request.organizationId,
+        body,
+        { userId: request.actorUserId },
+      );
       return reply.code(201).send(rule);
     } catch (e) {
       const { statusCode, message } = handleError(e);
@@ -278,7 +291,11 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
   app.get("/facet-rules", async (request, reply) => {
     try {
       const query = ListFacetRulesQuerySchema.parse(request.query ?? {});
-      const rules = await facetService.listFacetRules(request.organizationId, query);
+      const rules = await facetWorkflowService.listFacetRules(request.organizationId, {
+        categoryId: query.categoryId,
+        facetDefinitionId: query.facetDefinitionId,
+        state: query.state,
+      });
       return reply.send({ items: rules });
     } catch (e) {
       const { statusCode, message } = handleError(e);

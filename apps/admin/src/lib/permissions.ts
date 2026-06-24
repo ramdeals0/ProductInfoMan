@@ -17,8 +17,16 @@ export function canApproveWorkflow(roles: string[]): boolean {
   return hasCapabilityGroup(roles, "WORKFLOW_APPROVE");
 }
 
-export function canManageTaxonomy(roles: string[]): boolean {
-  return hasCapabilityGroup(roles, "TAXONOMY_WRITE");
+export function canManageFacetRules(roles: string[]): boolean {
+  return hasCapabilityGroup(roles, "FACET_RULE_WRITE") || hasCapabilityGroup(roles, "FACET_RULE_APPROVE");
+}
+
+export function canEditFacetRules(roles: string[]): boolean {
+  return hasCapabilityGroup(roles, "FACET_RULE_WRITE");
+}
+
+export function canApproveFacetRules(roles: string[]): boolean {
+  return hasCapabilityGroup(roles, "FACET_RULE_APPROVE");
 }
 
 export function canManageImports(roles: string[]): boolean {
@@ -49,6 +57,9 @@ export function canAccessAdminRoute(pathname: string, roles: string[]): boolean 
   if (!canReadCatalog(roles)) return false;
   if (pathname.startsWith("/admin/users")) return canManageUsers(roles);
   if (pathname.startsWith("/admin/security")) return canViewSecuritySettings(roles);
+  if (pathname.startsWith("/admin/taxonomy/facets")) {
+    return canManageFacetRules(roles) || canManageTaxonomy(roles);
+  }
   if (pathname.startsWith("/admin/taxonomy")) return canManageTaxonomy(roles);
   if (pathname.startsWith("/admin/imports")) return canManageImports(roles) || canReadCatalog(roles);
   if (pathname.startsWith("/admin/publishing")) return canManagePublishing(roles) || canReadCatalog(roles);

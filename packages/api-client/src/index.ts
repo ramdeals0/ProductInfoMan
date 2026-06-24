@@ -212,7 +212,55 @@ export class ApiClient {
 
   listFacetRules(query: Record<string, string> = {}) {
     const params = new URLSearchParams(query);
-    return this.request<{ items: Array<Record<string, unknown>> }>(`/api/v1/facet-rules?${params}`);
+    return this.request<{ items: Array<Record<string, unknown>> }>(`/api/v1/facets/rules?${params}`);
+  }
+
+  createFacetRule(body: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>("/api/v1/facets/rules", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateFacetRule(id: string, body: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>(`/api/v1/facets/rules/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  }
+
+  submitFacetRule(id: string, body: Record<string, unknown> = {}) {
+    return this.request<Record<string, unknown>>(`/api/v1/facets/rules/${id}/submit`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  approveFacetRule(id: string, body: Record<string, unknown> = {}) {
+    return this.request<Record<string, unknown>>(`/api/v1/facets/rules/${id}/approve`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  rejectFacetRule(id: string, body: Record<string, unknown> = {}) {
+    return this.request<Record<string, unknown>>(`/api/v1/facets/rules/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  deprecateFacetRule(id: string, body: Record<string, unknown> = {}) {
+    return this.request<Record<string, unknown>>(`/api/v1/facets/rules/${id}/deprecate`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  cloneFacetRule(id: string) {
+    return this.request<Record<string, unknown>>(`/api/v1/facets/rules/${id}/clone`, {
+      method: "POST",
+    });
   }
 
   // Imports
