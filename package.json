@@ -7,26 +7,37 @@
   "scripts": {
     "dev": "pnpm --filter @productinfoman/api dev",
     "dev:admin": "pnpm --filter @productinfoman/admin dev",
-    "dev:all": "pnpm --parallel --filter @productinfoman/api --filter @productinfoman/admin dev",
+    "dev:storefront": "pnpm --filter @productinfoman/storefront dev",
+    "dev:devportal": "pnpm --filter @productinfoman/devportal dev",
+    "dev:all": "pnpm --parallel --filter @productinfoman/api --filter @productinfoman/admin --filter @productinfoman/storefront dev",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "seed:demo-catalog": "SEARCH_SYNC=true tsx tools/seed-demo-catalog.ts",
+    "seed:demo-catalog:live": "SEARCH_SYNC=true tsx tools/seed-demo-catalog.ts --live",
+    "seed:attributes-facets": "tsx tools/seed-attributes-and-facets.ts",
+    "test:fleetfarm-seed": "pnpm exec vitest run --config tools/vitest.config.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
-    "test": "pnpm --filter @productinfoman/inheritance-engine test && pnpm --filter @productinfoman/facet-engine test && pnpm --filter @productinfoman/import-engine test && pnpm --filter @productinfoman/workflow-engine test && pnpm --filter @productinfoman/search-projection test && pnpm --filter @productinfoman/publish-engine test && pnpm --filter @productinfoman/eventing test && pnpm --filter @productinfoman/api-client test && pnpm --filter @productinfoman/api test && pnpm --filter @productinfoman/admin test",
+    "test": "pnpm --filter @productinfoman/inheritance-engine test && pnpm --filter @productinfoman/facet-engine test && pnpm --filter @productinfoman/import-engine test && pnpm --filter @productinfoman/workflow-engine test && pnpm --filter @productinfoman/search-projection test && pnpm --filter @productinfoman/publish-engine test && pnpm --filter @productinfoman/eventing test && pnpm --filter @productinfoman/mdm-engine test && pnpm test:fleetfarm-seed && pnpm --filter @productinfoman/api-client test && pnpm --filter @productinfoman/api test && pnpm --filter @productinfoman/admin test && pnpm --filter @productinfoman/storefront test && pnpm --filter @productinfoman/devportal test",
     "docker:up": "docker compose -f docker/docker-compose.yml up -d",
-    "docker:down": "docker compose -f docker/docker-compose.yml down"
+    "docker:down": "docker compose -f docker/docker-compose.yml down",
+    "test:load-smoke": "k6 run --vus 5 --duration 30s tools/load-tests/k6/search.js"
   },
   "devDependencies": {
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^24.3.0",
     "@types/pg": "^8.15.5",
+    "bcryptjs": "^2.4.3",
     "pg": "^8.16.3",
     "prisma": "^7.8.0",
     "tsx": "^4.20.5",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -1,0 +1,90 @@
+export const metadata = {
+  title: "Authentication",
+};
+
+import { CodeBlock } from "@/components/docs/mdx";
+
+# Authentication
+
+ProductInfoMan uses **organization-scoped** requests with **JWT bearer tokens** for authenticated admin and API access.
+
+## Required: organization context
+
+Every request must include the organization slug header:
+
+| Header | Required | Description |
+|--------|----------|-------------|
+| `X-Organization-Slug` | Yes* | Tenant slug (`demo` locally when omitted) |
+
+\* Defaults to `demo` in local development when omitted.
+
+## JWT login
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/auth/login` | POST | Email + password login; returns JWT and user profile |
+| `/api/v1/auth/me` | GET | Returns current user profile and RBAC roles |
+
+Login body:
+
+```json
+{
+  "email": "admin@demo.local",
+  "password": "admin123",
+  "organizationSlug": "demo"
+}
+```
+
+JWT claims include `sub` (user id), `email`, `organizationId`, `organizationSlug`, and `roles` (array of RBAC codes).
+
+Send the token on subsequent requests:
+
+| Header | Purpose |
+|--------|---------|
+| `Authorization` | `Bearer <token>` |
+
+## RBAC roles
+
+| Code | Typical use |
+|------|-------------|
+| `admin` | Full platform access |
+| `product_editor` | Create/edit products, submit for review |
+| `product_approver` | Approve, reject, publish workflow |
+| `ops` | Imports, publishing, search reindex, events |
+| `readonly` | Read-only catalog, audit, and reports |
+
+Storefront catalog reads (`GET /products`, `/categories`, `/search`) allow anonymous access within the tenant scope.
+
+<Callout variant="info">
+  Legacy headers `X-User-Email` and `X-Actor-Role` are still supported for local tooling, but JWT is the recommended production pattern.
+</Callout>
+
+## Examples
+
+<CodeBlock language="bash" title="Login">
+{`curl -X POST "https://api.yourpim.com/api/v1/auth/login" \\
+  -H "Content-Type: application/json" \\
+  -d '{"email":"admin@demo.local","password":"admin123","organizationSlug":"demo"}'`}
+</CodeBlock>
+
+<CodeBlock language="bash" title="Authenticated product list">
+{`curl "https://api.yourpim.com/api/v1/products?page=1&pageSize=10" \\
+  -H "X-Organization-Slug: demo" \\
+  -H "Authorization: Bearer YOUR_JWT"`}
+</CodeBlock>
+
+<CodeBlock language="bash" title="Workflow submit (product_editor or admin)">
+{`curl -X POST "https://api.yourpim.com/api/v1/products/PRODUCT_ID/workflow/submit" \\
+  -H "Content-Type: application/json" \\
+  -H "X-Organization-Slug: demo" \\
+  -H "Authorization: Bearer YOUR_JWT" \\
+  -d '{"comment":"Ready for review"}'`}
+</CodeBlock>
+
+## Admin UI session
+
+The admin app (`/login`) stores the JWT in an **httpOnly cookie**. Next.js middleware protects `/admin/*` routes and injects `Authorization` on proxied `/api/v1/*` requests.
+
+Default seeded admin (local): `admin@demo.local` / `admin123` (override with `ADMIN_EMAIL` / `ADMIN_PASSWORD`).
+
+Set `JWT_SECRET` consistently on the API and admin app.

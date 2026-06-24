@@ -195,6 +195,7 @@ export interface ImportJobEntity {
   status: ImportJobStatus;
   duplicatePolicy: DuplicatePolicy;
   blankCellPolicy: BlankCellPolicy;
+  sourceSystem: string | null;
   totalRows: number;
   validRows: number;
   invalidRows: number;
@@ -597,9 +598,112 @@ export interface AuditLogEntity {
   productId: string | null;
   action: AuditAction;
   actorId: string | null;
+  source: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  changedFields: Record<string, unknown> | null;
   changes: Record<string, unknown> | null;
   correlationId: string | null;
   createdAt: string;
+}
+
+export type EntityChangeType = "SNAPSHOT" | "CREATE" | "UPDATE" | "DELETE";
+
+export interface EntityChangeHistoryEntity {
+  id: string;
+  organizationId: string;
+  entityType: string;
+  entityId: string;
+  versionNumber: number;
+  changeType: EntityChangeType;
+  snapshot: Record<string, unknown>;
+  createdById: string | null;
+  createdAt: string;
+}
+
+export interface DashboardReportEntity {
+  generatedAt: string;
+  periodStart: string;
+  periodEnd: string;
+  totalProducts: number;
+  approvedProducts: number;
+  publishedProducts: number;
+  averageCompletenessScore: number;
+  imports: {
+    totalJobs: number;
+    completedJobs: number;
+    failedJobs: number;
+    successRate: number;
+  };
+  publishing: {
+    totalJobs: number;
+    completedJobs: number;
+    failedJobs: number;
+    successRate: number;
+  };
+}
+
+export interface CompletenessReportEntity {
+  generatedAt: string;
+  periodStart: string;
+  periodEnd: string;
+  globalScore: number;
+  totalProducts: number;
+  byCategory: Array<{
+    categoryId: string;
+    categoryCode: string;
+    categoryName: string;
+    productCount: number;
+    averageScore: number;
+  }>;
+}
+
+export interface WorkflowReportEntity {
+  generatedAt: string;
+  periodStart: string;
+  periodEnd: string;
+  transitionsToApproved: number;
+  transitionsToPublished: number;
+  totalTransitions: number;
+}
+
+export interface ImportReportEntity {
+  generatedAt: string;
+  periodStart: string;
+  periodEnd: string;
+  totalJobs: number;
+  completedJobs: number;
+  failedJobs: number;
+  successRate: number;
+  averageValidRowRate: number;
+  jobs: Array<{
+    importJobId: string;
+    fileName: string;
+    status: string;
+    totalRows: number;
+    validRows: number;
+    successRate: number;
+  }>;
+}
+
+export interface PublishReportEntity {
+  generatedAt: string;
+  periodStart: string;
+  periodEnd: string;
+  totalJobs: number;
+  completedJobs: number;
+  failedJobs: number;
+  successRate: number;
+  averageItemSuccessRate: number;
+  jobs: Array<{
+    publishJobId: string;
+    channelId: string;
+    mode: string;
+    status: string;
+    totalItems: number;
+    successfulItems: number;
+    successRate: number;
+  }>;
 }
 
 export interface OperationsReportEntity {
@@ -631,4 +735,61 @@ export interface OperationsReportEntity {
     byStatus: Record<string, number>;
     deadLetterCount: number;
   };
+}
+
+// ─── Product MDM ────────────────────────────────────────────────────────────
+
+export type SourceRecordStatus = "UNMATCHED" | "MATCHED" | "REJECTED";
+export type SurvivorshipRuleType = "SOURCE_PRIORITY" | "MOST_RECENT" | "MOST_COMPLETE";
+export type MatchDecisionAction = "link" | "ignore" | "create_new_product";
+
+export interface ProductSystemIdEntity {
+  id: string;
+  organizationId: string;
+  productId: string;
+  systemCode: string;
+  externalKey: string;
+  isPrimary: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductSourceRecordEntity {
+  id: string;
+  organizationId: string;
+  productId: string | null;
+  sourceSystem: string;
+  sourceRecordId: string;
+  rawPayloadJson: Record<string, unknown>;
+  normalizedPayloadJson: Record<string, unknown> | null;
+  status: SourceRecordStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductMatchCandidateEntity {
+  id: string;
+  sourceRecordId: string;
+  candidateProductId: string;
+  matchScore: number;
+  matchReason: string;
+  createdAt: string;
+}
+
+export interface SurvivorshipRuleEntity {
+  id: string;
+  organizationId: string;
+  code: string;
+  name: string;
+  entityType: string;
+  attributeCode: string;
+  ruleType: SurvivorshipRuleType;
+  ruleConfigJson: Record<string, unknown>;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductSourceRecordDetailEntity extends ProductSourceRecordEntity {
+  matchCandidates: ProductMatchCandidateEntity[];
 }

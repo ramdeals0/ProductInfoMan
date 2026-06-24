@@ -24,11 +24,13 @@ import {
   type ChannelValidationRuleInput,
 } from "@productinfoman/publish-engine";
 import { prisma } from "@productinfoman/db";
-import { appError, writeAudit } from "@productinfoman/shared";
+import { appError, recordChange, writeAudit } from "@productinfoman/shared";
 import type { Prisma } from "../../../../generated/prisma/client.js";
 import { emitEvent } from "../../lib/events.js";
 import { loadCanonicalProduct, loadPublishableProductIds } from "./publish.projection.js";
 import { enqueuePublishJob } from "./publish.queue.js";
+import { assertHeavyJobCapacity } from "../../lib/queue-backpressure.js";
+import { loadApiEnv } from "@productinfoman/config";
 import { readArtifact, storeExportArtifact } from "./publish.storage.js";
 
 function toChannelDto(channel: {
@@ -401,6 +403,8 @@ export async function startDryRun(
     ? input.productIds
     : await loadPublishableProductIds(organizationId);
 
+  await assertHeavyJobCapacity("publish-jobs");
+
   const job = await createPublishJobRecord({
     organizationId,
     channelId: input.channelId,
@@ -438,6 +442,8 @@ export async function startPublishRun(
   const productIds = input.productIds?.length
     ? input.productIds
     : await loadPublishableProductIds(organizationId);
+
+  await assertHeavyJobCapacity("publish-jobs");
 
   const job = await createPublishJobRecord({
     organizationId,
@@ -530,6 +536,8 @@ export async function processPublishJob(publishJobId: string, organizationId: st
 
     let successfulItems = 0;
     let failedItems = 0;
+    const { PUBLISH_BATCH_SIZE, PUBLISH_BATCH_DELAY_MS } = loadApiEnv();
+    let batchCount = 0;
 
     for (const item of job.items) {
       const row = rowByProductId.get(item.productId);
@@ -580,6 +588,14 @@ export async function processPublishJob(publishJobId: string, organizationId: st
         status: "SUCCESS",
         details: { fields: row.fields },
       });
+
+      batchCount += 1;
+      if (batchCount >= PUBLISH_BATCH_SIZE) {
+        batchCount = 0;
+        if (PUBLISH_BATCH_DELAY_MS > 0) {
+          await new Promise((resolve) => setTimeout(resolve, PUBLISH_BATCH_DELAY_MS));
+        }
+      }
     }
 
     const successfulRows = exportRows.filter((row) => row.errors.length === 0);
@@ -654,16 +670,44 @@ export async function processPublishJob(publishJobId: string, organizationId: st
       },
     });
 
-    await emitEvent(
-      createEvent("publish.job.completed", organizationId, {
-        publishJobId: job.id,
-        channelId: job.channelId,
-        mode: job.mode,
+    if (finalStatus === "FAILED") {
+      await emitEvent(
+        createEvent("publish.job.failed", organizationId, {
+          publishJobId: job.id,
+          channelId: job.channelId,
+          mode: job.mode,
+          status: finalStatus,
+          errorMessage: `${failedItems} item(s) failed; ${skippedItems} skipped`,
+        }),
+      );
+    } else {
+      await emitEvent(
+        createEvent("publish.job.completed", organizationId, {
+          publishJobId: job.id,
+          channelId: job.channelId,
+          mode: job.mode,
+          successfulItems,
+          failedItems,
+          status: finalStatus,
+        }),
+      );
+    }
+
+    await recordChange({
+      organizationId,
+      entityType: "PublishJob",
+      entityId: job.id,
+      action: "EXPORT",
+      source: "publishing",
+      after: {
+        status: finalStatus,
         successfulItems,
         failedItems,
-        status: finalStatus,
-      }),
-    );
+        totalItems: job.items.length,
+        mode: job.mode,
+        channelId: job.channelId,
+      },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Publish job failed";
     const current = await prisma.publishJob.findUnique({ where: { id: job.id } });
@@ -679,6 +723,16 @@ export async function processPublishJob(publishJobId: string, organizationId: st
     });
 
     if (shouldRetry) throw error;
+
+    await emitEvent(
+      createEvent("publish.job.failed", organizationId, {
+        publishJobId: job.id,
+        channelId: job.channelId,
+        mode: job.mode,
+        status: "FAILED",
+        errorMessage: message,
+      }),
+    );
   }
 }
 

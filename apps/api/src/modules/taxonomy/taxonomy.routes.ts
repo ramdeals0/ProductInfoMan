@@ -13,6 +13,7 @@ import {
 } from "@productinfoman/validation";
 import { AppError } from "@productinfoman/shared";
 import { resolveTenant } from "../../plugins/tenant.js";
+import { authenticateJwt, assertRoles, ROLE_GROUPS } from "../../plugins/rbac.js";
 import * as facetService from "./facet.service.js";
 import * as taxonomyService from "./taxonomy.service.js";
 
@@ -31,6 +32,12 @@ function handleError(error: unknown): { statusCode: number; message: string } {
 
 export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", resolveTenant);
+  app.addHook("preHandler", authenticateJwt);
+  app.addHook("preHandler", async (request) => {
+    if (["POST", "PATCH", "PUT", "DELETE"].includes(request.method)) {
+      assertRoles(request, ROLE_GROUPS.TAXONOMY_WRITE);
+    }
+  });
 
   app.post("/categories", async (request, reply) => {
     try {

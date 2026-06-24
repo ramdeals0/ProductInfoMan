@@ -1,0 +1,85 @@
+export const metadata = {
+  title: "Imports",
+};
+
+import { CodeBlock } from "@/components/docs/mdx";
+
+# Import API
+
+Bulk ingest products from CSV with validation, error reporting, and commit.
+
+<Callout variant="tip">
+  Admin UI: `/admin/imports` and job detail `/admin/imports/[id]`
+</Callout>
+
+## Endpoints
+
+<Endpoint method="POST" path="/api/v1/imports/upload" description="Upload a CSV file and create an import job." adminLink="http://localhost:3000/admin/imports" />
+<Endpoint method="POST" path="/api/v1/imports/:id/validate" description="Parse and validate rows against templates and rules." />
+<Endpoint method="POST" path="/api/v1/imports/:id/start" description="Commit valid rows to the catalog." />
+<Endpoint method="GET" path="/api/v1/imports" description="List import jobs." adminLink="http://localhost:3000/admin/imports" />
+<Endpoint method="GET" path="/api/v1/imports/:id" description="Get job status and counters." />
+<Endpoint method="GET" path="/api/v1/imports/:id/errors" description="Row-level validation errors." />
+<Endpoint method="GET" path="/api/v1/imports/:id/report" description="Summary report after completion." />
+
+## CSV example
+
+```csv
+sku,title,brand,category_code,price,tool_type,power_source
+FF-DRILL-01,20V Cordless Drill,DEWALT,tools,129.99,Drill,Cordless
+FF-SAW-01,7.25in Circular Saw,Ryobi,tools,89.00,Saw,Corded
+```
+
+## Full import flow
+
+<CodeBlock language="bash" title="1. Upload CSV">
+{`curl -X POST "https://api.yourpim.com/api/v1/imports/upload" \\
+  -H "X-Organization-Slug: demo" \\
+  -F "file=@products.csv" \\
+  -F "entityType=PRODUCT"`}
+</CodeBlock>
+
+<CodeBlock language="bash" title="2. Validate">
+{`curl -X POST "https://api.yourpim.com/api/v1/imports/IMPORT_ID/validate" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>
+
+<CodeBlock language="bash" title="3. Start commit">
+{`curl -X POST "https://api.yourpim.com/api/v1/imports/IMPORT_ID/start" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>
+
+<CodeBlock language="bash" title="4. Check errors">
+{`curl "https://api.yourpim.com/api/v1/imports/IMPORT_ID/errors" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>
+
+## Response: job status
+
+<CodeBlock language="json">
+{`{
+  "id": "imp_123",
+  "status": "COMPLETED",
+  "totalRows": 100,
+  "validRows": 98,
+  "invalidRows": 2,
+  "committedRows": 98
+}`}
+</CodeBlock>
+
+## JavaScript upload
+
+<CodeBlock language="typescript">
+{`const form = new FormData();
+form.append("file", file);
+form.append("entityType", "PRODUCT");
+
+const res = await fetch("https://api.yourpim.com/api/v1/imports/upload", {
+  method: "POST",
+  headers: { "X-Organization-Slug": "demo" },
+  body: form,
+});
+const job = await res.json();`}
+</CodeBlock>
+
+Import templates: `GET /api/v1/import-templates`, `POST /api/v1/import-templates`.

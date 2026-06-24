@@ -53,3 +53,8 @@ export async function publishDomainEvent(
 
   return outbox.id;
 }
+
+/** EventPublisher facade for domain services */
+export const EventPublisher = {
+  publish: publishDomainEvent,
+};

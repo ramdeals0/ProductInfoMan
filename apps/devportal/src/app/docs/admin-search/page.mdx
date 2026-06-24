@@ -1,0 +1,87 @@
+export const metadata = {
+  title: "Search Projection",
+};
+
+import { CodeBlock } from "@/components/docs/mdx";
+
+# Search Projection API
+
+Index products for fast catalog search and faceted navigation. Admin endpoints manage the projection; customer-facing search uses the same index.
+
+<Callout variant="tip">
+  Customer-facing usage is documented in [Storefront Catalog](/docs/storefront-catalog).
+</Callout>
+
+## Admin / ops endpoints
+
+<Endpoint method="POST" path="/api/v1/search/reindex" description="Queue a full organization reindex." />
+<Endpoint method="POST" path="/api/v1/search/index-product/:id" description="Index or refresh a single product." />
+<Endpoint method="POST" path="/api/v1/search/remove-product/:id" description="Remove a product from the search index." />
+<Endpoint method="GET" path="/api/v1/search/debug/:id" description="Compare DB product vs projected search document." />
+
+## Query endpoints (storefront + admin)
+
+<Endpoint method="GET" path="/api/v1/search" description="Search products with text, category, and facet filters." storefrontLink="http://localhost:3002/search" />
+<Endpoint method="GET" path="/api/v1/search/facets" description="Facet counts for the current filter context." storefrontLink="http://localhost:3002/category/tools" />
+<Endpoint method="GET" path="/api/v1/search/categories/:id" description="Search within a category subtree." storefrontLink="http://localhost:3002/category/tools" />
+
+## Reindex
+
+<CodeBlock language="bash">
+{`curl -X POST "https://api.yourpim.com/api/v1/search/reindex" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>
+
+## Search with facets
+
+<ParamsTable
+  rows={[
+    { name: "q", in: "query", type: "string", description: "Search text" },
+    { name: "categoryId", in: "query", type: "string", description: "Category filter" },
+    { name: "filters[brand]", in: "query", type: "string", description: "Facet filter (repeat for multi-select)" },
+    { name: "filters[price]", in: "query", type: "string", description: "Price bucket code (e.g. 25_to_50)" },
+    { name: "page", in: "query", type: "integer", description: "Page number" },
+    { name: "pageSize", in: "query", type: "integer", description: "Results per page" },
+    { name: "sortBy", in: "query", type: "string", description: "Sort field" },
+    { name: "sortOrder", in: "query", type: "asc | desc", description: "Sort direction" },
+  ]}
+/>
+
+<CodeBlock language="bash" title="Faceted search (powers storefront category pages)">
+{`curl "https://api.yourpim.com/api/v1/search?q=drill&categoryId=CATEGORY_ID&filters[brand]=DEWALT&filters[price]=50_to_100&page=1&pageSize=24" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>
+
+<CodeBlock language="json" title="Search response">
+{`{
+  "total": 12,
+  "page": 1,
+  "pageSize": 24,
+  "items": [
+    {
+      "product_id": "clx…",
+      "sku": "FF-…",
+      "title": "20V Cordless Drill Kit",
+      "facet_fields": { "brand": ["DEWALT"], "tool_type": ["Drill"] }
+    }
+  ]
+}`}
+</CodeBlock>
+
+## Facet sidebar
+
+<CodeBlock language="bash">
+{`curl "https://api.yourpim.com/api/v1/search/facets?categoryId=CATEGORY_ID" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>
+
+<Callout variant="info">
+  Numeric `price` attributes are bucketed at index time using facet rules (`RANGE_BUCKET`). See `packages/config/facets.config.ts`.
+</Callout>
+
+## Debug projection
+
+<CodeBlock language="bash">
+{`curl "https://api.yourpim.com/api/v1/search/debug/PRODUCT_ID" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>

@@ -1,15 +1,27 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ColumnDef } from "@tanstack/react-table";
 import { useParams } from "next/navigation";
+import { useMemo } from "react";
 import { Breadcrumb, PageHeader } from "@/components/layout/AdminShell";
+import { DataTable } from "@/components/ui/DataTable";
 import { ErrorState, LoadingState } from "@/components/ui/States";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { useToast } from "@/components/ui/Toast";
 import { useSession } from "@/lib/session";
+
+type PublishJobItem = {
+  id: string;
+  productId: string;
+  status: string;
+  errorMessage?: string | null;
+};
 
 export default function PublishJobDetailPage() {
   const params = useParams<{ id: string }>();
   const { api } = useSession();
+  const { pushToast } = useToast();
   const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
@@ -25,14 +37,39 @@ export default function PublishJobDetailPage() {
 
   const retryMutation = useMutation({
     mutationFn: () => api.retryPublishJob(params.id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["publish-job", params.id] }),
+    onSuccess: () => {
+      pushToast("Publish job retry queued", "success");
+      queryClient.invalidateQueries({ queryKey: ["publish-job", params.id] });
+    },
+    onError: (err) => pushToast((err as Error).message, "error"),
   });
+
+  const itemColumns = useMemo<ColumnDef<PublishJobItem>[]>(
+    () => [
+      {
+        header: "Product",
+        cell: ({ row }) => (
+          <span className="font-mono text-xs">{row.original.productId.slice(0, 12)}…</span>
+        ),
+      },
+      {
+        header: "Status",
+        cell: ({ row }) => <StatusChip status={row.original.status} />,
+      },
+      {
+        header: "Error",
+        cell: ({ row }) => row.original.errorMessage ?? "—",
+      },
+    ],
+    [],
+  );
 
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState message={(error as Error).message} />;
 
   const job = data!;
   const artifact = job.artifacts[0];
+  const items = (job.items ?? []) as PublishJobItem[];
 
   return (
     <div>
@@ -75,6 +112,13 @@ export default function PublishJobDetailPage() {
           <a className="btn-primary mt-3 inline-flex" href={api.getPublishArtifactUrl(job.id)}>
             Download {artifact.fileType.toUpperCase()}
           </a>
+        </div>
+      ) : null}
+
+      {items.length > 0 ? (
+        <div className="card mb-6 overflow-hidden p-5">
+          <h2 className="mb-4 font-medium">Job items</h2>
+          <DataTable data={items} columns={itemColumns} />
         </div>
       ) : null}
 

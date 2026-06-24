@@ -1,16 +1,29 @@
+export { CatalogClient, createCatalogClient, type CatalogClientConfig, type SearchProductsParams } from "./catalog";
+
 import type {
   AuditLogEntity,
   CategoryEntity,
   CategoryTreeNode,
   ChannelEntity,
+  CompletenessReportEntity,
+  DashboardReportEntity,
+  EntityChangeHistoryEntity,
   ExportArtifactEntity,
   ImportJobEntity,
   ImportJobErrorEntity,
+  ImportReportEntity,
   OperationsReportEntity,
   OutboxEventEntity,
   ProductEntity,
+  ProductMatchCandidateEntity,
+  ProductSourceRecordDetailEntity,
+  ProductSourceRecordEntity,
+  ProductSystemIdEntity,
   PublishJobEntity,
+  SurvivorshipRuleEntity,
+  PublishReportEntity,
   WorkflowHistoryEntity,
+  WorkflowReportEntity,
   WorkflowTaskEntity,
   WorkflowTransitionResult,
 } from "@productinfoman/domain";
@@ -18,6 +31,7 @@ import type {
 export type ApiClientConfig = {
   baseUrl: string;
   organizationSlug: string;
+  accessToken?: string;
   userEmail?: string;
   actorRole?: string;
 };
@@ -39,6 +53,7 @@ export class ApiClient {
     return {
       "Content-Type": "application/json",
       "X-Organization-Slug": this.config.organizationSlug,
+      ...(this.config.accessToken ? { Authorization: `Bearer ${this.config.accessToken}` } : {}),
       ...(this.config.userEmail ? { "X-User-Email": this.config.userEmail } : {}),
       ...(this.config.actorRole ? { "X-Actor-Role": this.config.actorRole } : {}),
       ...extra,
@@ -262,8 +277,58 @@ export class ApiClient {
     return this.request<{ items: AuditLogEntity[]; total: number }>(`/api/v1/audit?${params}`);
   }
 
+  getAuditLog(id: string) {
+    return this.request<AuditLogEntity>(`/api/v1/audit/${id}`);
+  }
+
   getReportsSummary() {
     return this.request<OperationsReportEntity>("/api/v1/reports/summary");
+  }
+
+  getReportsDashboard(query: Record<string, string | undefined> = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value) params.set(key, value);
+    }
+    return this.request<DashboardReportEntity>(`/api/v1/reports/dashboard?${params}`);
+  }
+
+  getReportsCompleteness(query: Record<string, string | undefined> = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value) params.set(key, value);
+    }
+    return this.request<CompletenessReportEntity>(`/api/v1/reports/completeness?${params}`);
+  }
+
+  getReportsWorkflow(query: Record<string, string | undefined> = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value) params.set(key, value);
+    }
+    return this.request<WorkflowReportEntity>(`/api/v1/reports/workflow?${params}`);
+  }
+
+  getReportsImports(query: Record<string, string | undefined> = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value) params.set(key, value);
+    }
+    return this.request<ImportReportEntity>(`/api/v1/reports/imports?${params}`);
+  }
+
+  getReportsPublishes(query: Record<string, string | undefined> = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value) params.set(key, value);
+    }
+    return this.request<PublishReportEntity>(`/api/v1/reports/publishes?${params}`);
+  }
+
+  getEntityHistory(entityType: string, entityId: string) {
+    return this.request<{ items: EntityChangeHistoryEntity[] }>(
+      `/api/v1/entities/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}/history`,
+    );
   }
 
   listOutboxEvents(query: Record<string, string | number | undefined> = {}) {
@@ -274,8 +339,97 @@ export class ApiClient {
     return this.request<{ items: OutboxEventEntity[]; total: number }>(`/api/v1/events/outbox?${params}`);
   }
 
+  // Product MDM
+  listProductSystemIds(productId: string) {
+    return this.request<{ items: ProductSystemIdEntity[] }>(`/api/v1/mdm/products/${productId}/systems`);
+  }
+
+  upsertProductSystemId(productId: string, body: Record<string, unknown>) {
+    return this.request<ProductSystemIdEntity>(`/api/v1/mdm/products/${productId}/systems`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  listMdmSourceRecords(query: Record<string, string | number | undefined> = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value != null && value !== "") params.set(key, String(value));
+    }
+    return this.request<{ items: ProductSourceRecordEntity[]; total: number; page: number; pageSize: number }>(
+      `/api/v1/mdm/source-records?${params}`,
+    );
+  }
+
+  getMdmSourceRecord(id: string) {
+    return this.request<ProductSourceRecordDetailEntity>(`/api/v1/mdm/source-records/${id}`);
+  }
+
+  resolveMdmMatch(id: string, body: Record<string, unknown>) {
+    return this.request<ProductSourceRecordEntity>(`/api/v1/mdm/source-records/${id}/match`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  listSurvivorshipRules() {
+    return this.request<{ items: SurvivorshipRuleEntity[] }>("/api/v1/mdm/survivorship-rules");
+  }
+
+  createSurvivorshipRule(body: Record<string, unknown>) {
+    return this.request<SurvivorshipRuleEntity>("/api/v1/mdm/survivorship-rules", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  inboundMdmProduct(body: Record<string, unknown>) {
+    return this.request<{ sourceRecord: ProductSourceRecordEntity; productId: string | null }>(
+      "/api/v1/mdm/products/inbound",
+      { method: "POST", body: JSON.stringify(body) },
+    );
+  }
+
   health() {
     return this.request<{ status: string }>("/health");
+  }
+
+  listUsers() {
+    return this.request<{ items: Array<Record<string, unknown>> }>("/api/v1/users");
+  }
+
+  createUser(body: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>("/api/v1/users", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateUserRoles(userId: string, roleCodes: string[]) {
+    return this.request<Record<string, unknown>>(`/api/v1/users/${userId}/roles`, {
+      method: "PUT",
+      body: JSON.stringify({ roleCodes }),
+    });
+  }
+
+  unlockUser(userId: string) {
+    return this.request<{ id: string; unlocked: boolean }>(`/api/v1/users/${userId}/unlock`, {
+      method: "POST",
+    });
+  }
+
+  getSecurityPolicy() {
+    return this.request<Record<string, unknown>>("/api/v1/auth/security-policy");
+  }
+
+  listSecurityAudit(query: Record<string, string | number | undefined> = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value != null && value !== "") params.set(key, String(value));
+    }
+    return this.request<{ items: Array<Record<string, unknown>>; total: number }>(
+      `/api/v1/audit/security?${params}`,
+    );
   }
 }
 

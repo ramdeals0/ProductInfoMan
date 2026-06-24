@@ -1,7 +1,9 @@
 import "dotenv/config";
+import bcrypt from "bcryptjs";
 import pg from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client.js";
+import { ROLE_SEEDS } from "../packages/shared/src/rbac.js";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -12,6 +14,53 @@ const pool = new pg.Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
+async function seedRoles() {
+  for (const roleSeed of ROLE_SEEDS) {
+    await prisma.role.upsert({
+      where: { code: roleSeed.code },
+      create: {
+        code: roleSeed.code,
+        name: roleSeed.name,
+        description: roleSeed.description,
+      },
+      update: {
+        name: roleSeed.name,
+        description: roleSeed.description,
+      },
+    });
+  }
+}
+
+async function seedAdminUser(organizationId: string) {
+  const adminEmail = process.env.ADMIN_EMAIL ?? "admin@demo.local";
+  const adminPassword = process.env.ADMIN_PASSWORD ?? "Admin123!@#demo";
+  const passwordHash = await bcrypt.hash(adminPassword, 10);
+
+  const adminUser = await prisma.user.upsert({
+    where: { organizationId_email: { organizationId, email: adminEmail } },
+    create: {
+      organizationId,
+      email: adminEmail,
+      name: "Demo Admin",
+      role: "ADMIN",
+      passwordHash,
+      isActive: true,
+    },
+    update: {
+      passwordHash,
+      isActive: true,
+      role: "ADMIN",
+    },
+  });
+
+  const adminRole = await prisma.role.findUniqueOrThrow({ where: { code: "admin" } });
+  await prisma.userRoleMembership.upsert({
+    where: { userId_roleId: { userId: adminUser.id, roleId: adminRole.id } },
+    create: { userId: adminUser.id, roleId: adminRole.id },
+    update: {},
+  });
+}
+
 async function main() {
   const org = await prisma.organization.upsert({
     where: { slug: "demo" },
@@ -19,16 +68,8 @@ async function main() {
     update: {},
   });
 
-  await prisma.user.upsert({
-    where: { organizationId_email: { organizationId: org.id, email: "admin@demo.local" } },
-    create: {
-      organizationId: org.id,
-      email: "admin@demo.local",
-      name: "Demo Admin",
-      role: "ADMIN",
-    },
-    update: {},
-  });
+  await seedRoles();
+  await seedAdminUser(org.id);
 
   const specsGroup = await prisma.attributeGroup.upsert({
     where: { organizationId_code: { organizationId: org.id, code: "specifications" } },
@@ -868,6 +909,74 @@ async function main() {
         });
       }
     }
+  }
+
+  const survivorshipRules = [
+    {
+      code: "title",
+      name: "Product title",
+      attributeCode: "title",
+      ruleType: "SOURCE_PRIORITY" as const,
+      ruleConfigJson: { source_priority: ["PLM", "ERP", "SUPPLIER_FEED"] },
+    },
+    {
+      code: "brand",
+      name: "Brand",
+      attributeCode: "brand",
+      ruleType: "SOURCE_PRIORITY" as const,
+      ruleConfigJson: { source_priority: ["PLM", "ERP", "SUPPLIER_FEED"] },
+    },
+    {
+      code: "description",
+      name: "Description",
+      attributeCode: "description",
+      ruleType: "MOST_RECENT" as const,
+      ruleConfigJson: {},
+    },
+    {
+      code: "gtin",
+      name: "GTIN",
+      attributeCode: "gtin",
+      ruleType: "SOURCE_PRIORITY" as const,
+      ruleConfigJson: { source_priority: ["PLM", "ERP", "SUPPLIER_FEED"] },
+    },
+  ];
+
+  for (const rule of survivorshipRules) {
+    await prisma.survivorshipRule.upsert({
+      where: { organizationId_code: { organizationId: org.id, code: rule.code } },
+      create: {
+        organizationId: org.id,
+        ...rule,
+      },
+      update: {
+        name: rule.name,
+        attributeCode: rule.attributeCode,
+        ruleType: rule.ruleType,
+        ruleConfigJson: rule.ruleConfigJson,
+        isActive: true,
+      },
+    });
+  }
+
+  if (parentProduct) {
+    await prisma.productSystemId.upsert({
+      where: {
+        organizationId_systemCode_externalKey: {
+          organizationId: org.id,
+          systemCode: "ERP",
+          externalKey: "ERP-SHIRT-001",
+        },
+      },
+      create: {
+        organizationId: org.id,
+        productId: parentProduct.id,
+        systemCode: "ERP",
+        externalKey: "ERP-SHIRT-001",
+        isPrimary: true,
+      },
+      update: { productId: parentProduct.id, isPrimary: true },
+    });
   }
 }
 

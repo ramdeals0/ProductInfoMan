@@ -8,6 +8,7 @@ import {
 import { AppError } from "@productinfoman/shared";
 import { resolveActor, requireActor } from "../../plugins/actor.js";
 import { resolveTenant } from "../../plugins/tenant.js";
+import { authenticateJwt, assertRoles, ROLE_GROUPS } from "../../plugins/rbac.js";
 import * as workflowService from "./workflow.service.js";
 
 function handleError(error: unknown): { statusCode: number; message: string } {
@@ -25,10 +26,12 @@ function handleError(error: unknown): { statusCode: number; message: string } {
 
 export async function workflowRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", resolveTenant);
+  app.addHook("preHandler", authenticateJwt);
   app.addHook("preHandler", resolveActor);
 
   app.post("/workflow/definitions", async (request, reply) => {
     try {
+      assertRoles(request, ROLE_GROUPS.ADMIN_ONLY);
       const body = CreateWorkflowDefinitionSchema.parse(request.body);
       const definition = await workflowService.createWorkflowDefinition(
         request.organizationId,
@@ -53,6 +56,7 @@ export async function workflowRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/products/:id/workflow/submit", async (request, reply) => {
     try {
+      assertRoles(request, ROLE_GROUPS.WORKFLOW_SUBMIT);
       const { id } = request.params as { id: string };
       const body = WorkflowDecisionSchema.parse(request.body ?? {});
       const actor = requireActor(request);
@@ -66,6 +70,7 @@ export async function workflowRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/products/:id/workflow/approve", async (request, reply) => {
     try {
+      assertRoles(request, ROLE_GROUPS.WORKFLOW_APPROVE);
       const { id } = request.params as { id: string };
       const body = WorkflowDecisionSchema.parse(request.body ?? {});
       const actor = requireActor(request);
@@ -79,6 +84,7 @@ export async function workflowRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/products/:id/workflow/reject", async (request, reply) => {
     try {
+      assertRoles(request, ROLE_GROUPS.WORKFLOW_APPROVE);
       const { id } = request.params as { id: string };
       const body = WorkflowRejectSchema.parse(request.body);
       const actor = requireActor(request);
@@ -92,6 +98,7 @@ export async function workflowRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/products/:id/workflow/publish", async (request, reply) => {
     try {
+      assertRoles(request, ROLE_GROUPS.WORKFLOW_APPROVE);
       const { id } = request.params as { id: string };
       const body = WorkflowDecisionSchema.parse(request.body ?? {});
       const actor = requireActor(request);

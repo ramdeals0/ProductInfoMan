@@ -1,0 +1,145 @@
+export const metadata = {
+  title: "Storefront Catalog",
+};
+
+import { CodeBlock } from "@/components/docs/mdx";
+
+# Storefront Catalog API
+
+Read-only catalog endpoints used by the headless demo storefront. There is no separate `/storefront/*` prefix — the storefront uses the same `/api/v1` routes with organization context.
+
+<Callout variant="tip">
+  These endpoints power:
+  - `/search` — site search
+  - `/category/[slug]` — category browse with facets
+  - `/product/[id]` — product detail
+</Callout>
+
+## Endpoints
+
+<Endpoint
+  method="GET"
+  path="/api/v1/search"
+  description="Full-text search with facet filters."
+  storefrontLink="http://localhost:3002/search"
+/>
+<Endpoint
+  method="GET"
+  path="/api/v1/search/facets"
+  description="Facet counts for filter UI."
+  storefrontLink="http://localhost:3002/category/tools"
+/>
+<Endpoint
+  method="GET"
+  path="/api/v1/search/categories/:id"
+  description="Search scoped to a category."
+  storefrontLink="http://localhost:3002/category/tools"
+/>
+<Endpoint
+  method="GET"
+  path="/api/v1/categories"
+  description="Flat category list."
+  storefrontLink="http://localhost:3002/"
+/>
+<Endpoint
+  method="GET"
+  path="/api/v1/categories/tree"
+  description="Navigation category tree."
+  storefrontLink="http://localhost:3002/"
+/>
+<Endpoint
+  method="GET"
+  path="/api/v1/products/:id"
+  description="Product detail with attributes and variants."
+  storefrontLink="http://localhost:3002/product/PRODUCT_ID"
+/>
+<Endpoint
+  method="GET"
+  path="/api/v1/products/:parentId/variants"
+  description="Variant picker options."
+  storefrontLink="http://localhost:3002/product/PRODUCT_ID"
+/>
+
+## Authentication
+
+Storefront calls only need:
+
+```
+X-Organization-Slug: demo
+```
+
+No actor headers required for read-only catalog access.
+
+## Search with facets
+
+<CodeBlock language="bash" title="Amazon-style faceted search">
+{`curl "https://api.yourpim.com/api/v1/search?q=drill&categoryId=CATEGORY_ID&filters[brand]=DEWALT&filters[tool_type]=Drill&page=1&pageSize=24" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>
+
+Legacy-style query (documented alias — use `filters[key]` in this API):
+
+```bash
+# Equivalent facet filter
+curl "https://api.yourpim.com/api/v1/search?q=drill&filters[brand]=DEWALT&page=1&pageSize=24" \
+  -H "X-Organization-Slug: demo"
+```
+
+## Category tree
+
+<CodeBlock language="bash">
+{`curl "https://api.yourpim.com/api/v1/categories/tree" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>
+
+## Product detail
+
+<CodeBlock language="bash">
+{`curl "https://api.yourpim.com/api/v1/products/PRODUCT_ID" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>
+
+<CodeBlock language="json" title="Product response">
+{`{
+  "id": "clx…",
+  "sku": "FF-…",
+  "title": "20V Cordless Drill Kit",
+  "brand": "DEWALT",
+  "status": "PUBLISHED",
+  "attributes": [
+    { "key": "price", "value": 129.99 },
+    { "key": "tool_type", "value": "Drill" }
+  ]
+}`}
+</CodeBlock>
+
+## Storefront JavaScript client
+
+The demo storefront uses `@productinfoman/api-client` `CatalogClient`:
+
+<CodeBlock language="typescript">
+{`import { createCatalogClient } from "@productinfoman/api-client";
+
+const catalog = createCatalogClient({
+  baseUrl: "https://api.yourpim.com/api/v1",
+  organizationSlug: "demo",
+});
+
+const results = await catalog.searchProducts({
+  q: "drill",
+  categoryId: "CATEGORY_ID",
+  filters: { brand: "DEWALT" },
+  page: 1,
+  pageSize: 24,
+});
+
+const product = await catalog.getProduct("PRODUCT_ID");`}
+</CodeBlock>
+
+## Checkout
+
+Checkout is handled by the storefront Next.js route `POST /api/checkout` (Stripe or mock). That is **not** part of the PIM API — see the storefront app.
+
+## Index freshness
+
+If search results are empty after seeding, run a reindex — see [Search Projection](/docs/admin-search).

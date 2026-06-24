@@ -1,0 +1,75 @@
+export const metadata = {
+  title: "Workflow",
+};
+
+import { CodeBlock } from "@/components/docs/mdx";
+
+# Workflow API
+
+Govern product lifecycle: draft → in review → approved → published.
+
+<Callout variant="warning">
+  Workflow transitions require actor headers. See [Authentication](/docs/authentication).
+</Callout>
+
+<Callout variant="tip">
+  Admin UI: `/admin/workflow` and task detail `/admin/workflow/tasks/[id]`
+</Callout>
+
+## Product transitions
+
+<Endpoint method="POST" path="/api/v1/products/:id/workflow/submit" description="Submit product for review." adminLink="http://localhost:3000/admin/workflow" />
+<Endpoint method="POST" path="/api/v1/products/:id/workflow/approve" description="Approve a submitted product." />
+<Endpoint method="POST" path="/api/v1/products/:id/workflow/reject" description="Reject with comment." />
+<Endpoint method="POST" path="/api/v1/products/:id/workflow/publish" description="Mark publish-ready / published." />
+<Endpoint method="GET" path="/api/v1/products/:id/workflow/history" description="Transition history for a product." />
+
+## Tasks
+
+<Endpoint method="GET" path="/api/v1/workflow/tasks" description="List open workflow tasks." adminLink="http://localhost:3000/admin/workflow" />
+<Endpoint method="GET" path="/api/v1/workflow/tasks/:id" description="Get a single task." />
+
+## Definitions
+
+<Endpoint method="GET" path="/api/v1/workflow/definitions" description="List workflow definitions." />
+<Endpoint method="POST" path="/api/v1/workflow/definitions" description="Create a workflow definition." />
+
+## Example: submit → approve
+
+<CodeBlock language="bash" title="Submit for review">
+{`curl -X POST "https://api.yourpim.com/api/v1/products/PRODUCT_ID/workflow/submit" \\
+  -H "Content-Type: application/json" \\
+  -H "X-Organization-Slug: demo" \\
+  -H "X-User-Email: editor@demo.local" \\
+  -H "X-Actor-Role: EDITOR" \\
+  -d '{"comment":"Ready for merchandising review"}'`}
+</CodeBlock>
+
+<CodeBlock language="bash" title="Approve">
+{`curl -X POST "https://api.yourpim.com/api/v1/products/PRODUCT_ID/workflow/approve" \\
+  -H "Content-Type: application/json" \\
+  -H "X-Organization-Slug: demo" \\
+  -H "X-User-Email: reviewer@demo.local" \\
+  -H "X-Actor-Role: REVIEWER" \\
+  -d '{"comment":"Looks good"}'`}
+</CodeBlock>
+
+<CodeBlock language="json" title="Transition response">
+{`{
+  "productId": "clx…",
+  "fromStatus": "IN_REVIEW",
+  "toStatus": "APPROVED",
+  "performedAt": "2026-06-23T12:00:00.000Z"
+}`}
+</CodeBlock>
+
+## List tasks
+
+<CodeBlock language="bash">
+{`curl "https://api.yourpim.com/api/v1/workflow/tasks?status=OPEN" \\
+  -H "X-Organization-Slug: demo" \\
+  -H "X-User-Email: reviewer@demo.local" \\
+  -H "X-Actor-Role: REVIEWER"`}
+</CodeBlock>
+
+Published products appear in [Search](/docs/admin-search) and the [Storefront](/docs/storefront-catalog).

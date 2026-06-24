@@ -1,0 +1,115 @@
+export const metadata = {
+  title: "Products & Variants",
+};
+
+import { CodeBlock } from "@/components/docs/mdx";
+
+# Products & Variants API
+
+Manage the product golden record: simple products, variant parents, attributes, and hierarchy.
+
+<Callout variant="tip">
+  Also see products in the **Admin UI** at `/admin/products` and product detail at `/admin/products/[id]`.
+</Callout>
+
+## Endpoints
+
+<Endpoint method="GET" path="/api/v1/products" description="List products with pagination and filters." adminLink="http://localhost:3000/admin/products" />
+<Endpoint method="POST" path="/api/v1/products" description="Create a simple or parent product." adminLink="http://localhost:3000/admin/products" />
+<Endpoint method="GET" path="/api/v1/products/:id" description="Get product by ID with attributes." adminLink="http://localhost:3000/admin/products" />
+<Endpoint method="PATCH" path="/api/v1/products/:id" description="Update core fields (title, brand, status, category)." />
+<Endpoint method="DELETE" path="/api/v1/products/:id" description="Soft-delete a product." />
+<Endpoint method="PUT" path="/api/v1/products/:id/attributes" description="Replace attribute values on a product." />
+<Endpoint method="GET" path="/api/v1/products/:id/variants" description="List child variants for a parent." />
+<Endpoint method="POST" path="/api/v1/products/:id/variants" description="Create a variant under a parent." />
+<Endpoint method="GET" path="/api/v1/products/:id/tree" description="Return parent + variants as a tree." />
+
+## List products
+
+<ParamsTable
+  rows={[
+    { name: "page", in: "query", type: "integer", description: "Page number" },
+    { name: "pageSize", in: "query", type: "integer", description: "Page size" },
+    { name: "status", in: "query", type: "string", description: "DRAFT, IN_REVIEW, APPROVED, PUBLISHED, etc." },
+    { name: "categoryId", in: "query", type: "string", description: "Filter by primary category" },
+    { name: "q", in: "query", type: "string", description: "Search SKU/title" },
+  ]}
+/>
+
+<CodeBlock language="bash" title="curl">
+{`curl "https://api.yourpim.com/api/v1/products?page=1&pageSize=20&status=PUBLISHED" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>
+
+## Create a product
+
+<CodeBlock language="bash" title="curl — create product">
+{`curl -X POST "https://api.yourpim.com/api/v1/products" \\
+  -H "Content-Type: application/json" \\
+  -H "X-Organization-Slug: demo" \\
+  -d '{
+    "productType": "SIMPLE",
+    "sku": "SKU-1001",
+    "title": "20V Cordless Drill Kit",
+    "brand": "DEWALT",
+    "primaryCategoryId": "CATEGORY_ID",
+    "status": "DRAFT"
+  }'`}
+</CodeBlock>
+
+<CodeBlock language="json" title="Response 201">
+{`{
+  "id": "clx123…",
+  "sku": "SKU-1001",
+  "title": "20V Cordless Drill Kit",
+  "productType": "SIMPLE",
+  "status": "DRAFT",
+  "brand": "DEWALT",
+  "attributes": []
+}`}
+</CodeBlock>
+
+## Set attributes
+
+<CodeBlock language="bash">
+{`curl -X PUT "https://api.yourpim.com/api/v1/products/PRODUCT_ID/attributes" \\
+  -H "Content-Type: application/json" \\
+  -H "X-Organization-Slug: demo" \\
+  -d '{
+    "attributes": [
+      { "key": "price", "value": 129.99 },
+      { "key": "tool_type", "value": "Drill" },
+      { "key": "brand", "value": "DEWALT" }
+    ]
+  }'`}
+</CodeBlock>
+
+## Create a variant
+
+<CodeBlock language="bash">
+{`curl -X POST "https://api.yourpim.com/api/v1/products/PARENT_ID/variants" \\
+  -H "Content-Type: application/json" \\
+  -H "X-Organization-Slug: demo" \\
+  -d '{
+    "sku": "SKU-1001-RED-L",
+    "title": "Drill Kit — Red / L",
+    "variantAxes": { "color": "Red", "apparel_size": "L" }
+  }'`}
+</CodeBlock>
+
+## JavaScript example
+
+<CodeBlock language="typescript">
+{`const res = await fetch("https://api.yourpim.com/api/v1/products?page=1&pageSize=10", {
+  headers: { "X-Organization-Slug": "demo" },
+});
+const { items, total } = await res.json();`}
+</CodeBlock>
+
+## Workflow integration
+
+After editing, submit for approval via [Workflow API](/docs/admin-workflow):
+
+```
+POST /api/v1/products/:id/workflow/submit
+```

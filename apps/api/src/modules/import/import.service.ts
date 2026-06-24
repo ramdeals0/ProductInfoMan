@@ -26,7 +26,11 @@ import { createEvent } from "@productinfoman/contracts";
 import { emitEvent } from "../../lib/events.js";
 import { emitAuditRecordEvent } from "../../lib/audit-events.js";
 import { createProduct, setProductAttributes } from "../product-core/product.service.js";
+import { processImportRowThroughMdm } from "../mdm/mdm.service.js";
+import { normalizeSourcePayload } from "@productinfoman/mdm-engine";
 import { enqueueImportJob } from "./import.queue.js";
+import { assertHeavyJobCapacity } from "../../lib/queue-backpressure.js";
+import { loadApiEnv } from "@productinfoman/config";
 
 const UPLOAD_ROOT = path.resolve(process.cwd(), "../../uploads");
 
@@ -46,6 +50,7 @@ function toImportJobDto(job: {
   status: ImportJobEntity["status"];
   duplicatePolicy: ImportJobEntity["duplicatePolicy"];
   blankCellPolicy: ImportJobEntity["blankCellPolicy"];
+  sourceSystem: string | null;
   totalRows: number;
   validRows: number;
   invalidRows: number;
@@ -65,6 +70,7 @@ function toImportJobDto(job: {
     status: job.status,
     duplicatePolicy: job.duplicatePolicy,
     blankCellPolicy: job.blankCellPolicy,
+    sourceSystem: job.sourceSystem,
     totalRows: job.totalRows,
     validRows: job.validRows,
     invalidRows: job.invalidRows,
@@ -183,6 +189,7 @@ export async function uploadImport(
       importType: input.importType ?? "CREATE",
       duplicatePolicy: input.duplicatePolicy ?? "REJECT",
       blankCellPolicy: input.blankCellPolicy ?? "IGNORE",
+      sourceSystem: input.sourceSystem,
       status: "UPLOADED",
     },
   });
@@ -202,6 +209,7 @@ export async function uploadImport(
     entityType: "ImportJob",
     entityId: job.id,
     action: "IMPORT",
+    source: "import",
     changes: { fileName: input.fileName, importType: updated.importType },
   });
 
@@ -342,6 +350,8 @@ export async function startImport(
     throw appError("Import has no valid rows to commit", 400);
   }
 
+  await assertHeavyJobCapacity("import-jobs");
+
   const updated = await prisma.importJob.update({
     where: { id: job.id },
     data: { status: "QUEUED" },
@@ -391,11 +401,53 @@ export async function processImportJob(importJobId: string, organizationId: stri
 
   let committedRows = 0;
   let skippedRows = 0;
+  const { IMPORT_BATCH_SIZE } = loadApiEnv();
+  let processedInBatch = 0;
 
   try {
-    for (const row of sortedRows) {
+    for (let rowIndex = 0; rowIndex < sortedRows.length; rowIndex += 1) {
+      const row = sortedRows[rowIndex]!;
       const normalized = row.normalizedData as NormalizedImportRow | null;
       if (!normalized) continue;
+
+      if (job.sourceSystem && normalized.productType !== "VARIANT") {
+        const rawPayload = row.rawData as Record<string, unknown>;
+        const mdmResult = await processImportRowThroughMdm({
+          organizationId,
+          sourceSystem: job.sourceSystem,
+          sourceRecordId: `${job.id}:${row.rowNumber}`,
+          rawPayload,
+          normalizedPayload: normalizeSourcePayload({
+            ...rawPayload,
+            sku: normalized.sku,
+            title: normalized.title,
+            description: normalized.description,
+            brand: normalized.brand,
+            external_id:
+              (rawPayload.external_id as string | undefined) ??
+              (rawPayload.erp_id as string | undefined) ??
+              normalized.sku,
+            attributes: normalized.attributes,
+          }),
+          createIfUnmatched: job.importType === "CREATE" || job.importType === "UPSERT",
+        });
+
+        if (mdmResult.productId) {
+          committedRows++;
+          skuToProductId.set(normalized.sku, mdmResult.productId);
+          await prisma.importJobRow.update({
+            where: { id: row.id },
+            data: { status: "COMMITTED", entityId: mdmResult.productId },
+          });
+        } else {
+          skippedRows++;
+          await prisma.importJobRow.update({
+            where: { id: row.id },
+            data: { status: "SKIPPED" },
+          });
+        }
+        continue;
+      }
 
       let product;
       if (normalized.productType === "VARIANT") {
@@ -446,6 +498,12 @@ export async function processImportJob(importJobId: string, organizationId: stri
         where: { id: row.id },
         data: { status: "COMMITTED", entityId: skuToProductId.get(normalized.sku) },
       });
+
+      processedInBatch += 1;
+      if (processedInBatch >= IMPORT_BATCH_SIZE) {
+        processedInBatch = 0;
+        await new Promise((resolve) => setImmediate(resolve));
+      }
     }
 
     await prisma.importRunSummary.update({
@@ -470,7 +528,8 @@ export async function processImportJob(importJobId: string, organizationId: stri
       entityType: "ImportJob",
       entityId: job.id,
       action: "IMPORT",
-      changes: { committedRows, skippedRows, status: "COMPLETED" },
+      source: "import",
+      after: { committedRows, skippedRows, status: "COMPLETED" },
     });
 
     await emitAuditRecordEvent({
@@ -490,13 +549,32 @@ export async function processImportJob(importJobId: string, organizationId: stri
       }),
     );
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Import processing failed";
     await prisma.importJob.update({
       where: { id: job.id },
       data: {
         status: "FAILED",
-        errorMessage: error instanceof Error ? error.message : "Import processing failed",
+        errorMessage: message,
       },
     });
+
+    await writeAudit({
+      organizationId,
+      entityType: "ImportJob",
+      entityId: job.id,
+      action: "IMPORT",
+      source: "import",
+      after: { status: "FAILED", errorMessage: message },
+    });
+
+    await emitEvent(
+      createEvent("import.job.failed", organizationId, {
+        importJobId: job.id,
+        status: "FAILED",
+        errorMessage: message,
+      }),
+    );
+
     throw error;
   }
 }

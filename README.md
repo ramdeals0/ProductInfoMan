@@ -13,10 +13,19 @@ High-performance ecommerce Product Information Management (PIM) platform.
 | Phase 4 — Workflow/Approval | **Implemented** ([spec alignment](./docs/implementation/phase-4-workflow-approval-spec.md)) |
 | Phase 5 — Search Projection | **Implemented** ([spec alignment](./docs/implementation/phase-5-search-projection-spec.md)) |
 | Phase 6 — Publishing/Syndication | **Implemented** ([spec alignment](./docs/implementation/phase-6-publishing-syndication-spec.md)) |
+| Phase 7 — Audit/Reporting | **Implemented** ([spec alignment](./docs/implementation/phase-7-audit-reporting-spec.md)) |
+| Phase 8 — Integration/Eventing | **Implemented** ([spec alignment](./docs/implementation/phase-8-integration-eventing-spec.md)) |
+| Phase 9 — Admin UI | **Implemented** ([spec alignment](./docs/implementation/phase-9-admin-ui-spec.md), [admin README](./apps/admin/README.md)) |
+| Phase 11 — Headless Storefront | **Implemented** ([spec alignment](./docs/implementation/phase-11-storefront-spec.md)) |
+| Product MDM Layer | **Implemented** ([spec alignment](./docs/implementation/product-mdm-layer-spec.md)) |
+| Fleet Farm Demo Catalog | **Implemented** ([spec](./docs/implementation/fleetfarm-demo-catalog-spec.md)) |
+| Developer Portal | **Implemented** ([apps/devportal](./apps/devportal/README.md)) |
 
-## Stack
+## Deploy on Railway
 
-Next.js (Phase 8) · Fastify · PostgreSQL · Redis/BullMQ · OpenSearch · S3 · Zod · Prisma
+See **[docs/deployment/railway.md](./docs/deployment/railway.md)** for Postgres + API + Admin + Storefront setup.
+
+**Production (lovely-success-production):** API at `https://lovely-success-production-e534.up.railway.app` — see **[docs/deployment/railway-production.md](./docs/deployment/railway-production.md)** for exact variables and verify steps.
 
 ## Quick Start
 
@@ -37,10 +46,19 @@ pnpm dev
 ```
 
 API: http://localhost:3001  
+Admin: http://localhost:3000  
+Storefront: http://localhost:3002  
+Developer Portal: http://localhost:3003  
 Health: `GET /health`  
 Products: `GET /api/v1/products`
 
 Header: `X-Organization-Slug: demo` (default)
+
+## User guide
+
+End-user documentation for the Admin console, storefront, roles, and workflows:
+
+**[docs/user-guide.md](./docs/user-guide.md)**
 
 ## Phase 1 API
 

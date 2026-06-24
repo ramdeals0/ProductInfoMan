@@ -1,0 +1,47 @@
+export const metadata = {
+  title: "Overview",
+};
+
+# Overview
+
+ProductInfoMan is a high-performance ecommerce **Product Information Management (PIM)** platform. It provides APIs for catalog authoring, taxonomy, imports, workflow, search projection, publishing, audit, and eventing.
+
+## Base URLs
+
+| Environment | API base | Admin UI | Storefront |
+|-------------|----------|----------|------------|
+| Local | `http://localhost:3001/api/v1` | `http://localhost:3000` | `http://localhost:3002` |
+| Production | `https://api.yourpim.com/api/v1` | `https://admin.yourpim.com` | `https://shop.yourpim.com` |
+| Sandbox | `https://sandbox-api.yourpim.com/api/v1` | `https://sandbox-admin.yourpim.com` | `https://sandbox-shop.yourpim.com` |
+
+Health check (no auth): `GET /health` on the API host root.
+
+## API domains
+
+- **Products & Variants** — create, update, attribute values, variant trees
+- **Taxonomy & Facets** — categories, attributes, facet definitions and rules
+- **Imports** — CSV upload, validation, commit
+- **Workflow** — submit, approve, reject, publish transitions
+- **Search** — index management and customer-facing search/facets
+- **Publishing** — channels, field mappings, export jobs
+- **Audit & Reporting** — change logs and operational dashboards
+- **Events** — outbox, dead-letter queue, replay
+- **Storefront catalog** — read-only search, categories, and product detail (same API, org-scoped)
+
+## Quick start
+
+<Callout variant="tip">
+  All tenant-scoped routes require the `X-Organization-Slug` header. Local dev defaults to `demo` when omitted.
+</Callout>
+
+```bash
+curl -s "http://localhost:3001/api/v1/products?page=1&pageSize=5" \
+  -H "X-Organization-Slug: demo"
+```
+
+## Related apps
+
+- [Admin UI](/docs/admin-products) — operational console at `/admin/*`
+- [Storefront](/docs/storefront-catalog) — headless demo shop powered by search + catalog APIs
+- [Authentication](/docs/authentication) — headers, roles, and patterns
+- [Conventions](/docs/conventions) — pagination, filtering, errors
