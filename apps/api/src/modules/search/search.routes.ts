@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { SearchQuerySchema } from "@productinfoman/validation";
+import { parseSearchQuery } from "@productinfoman/validation";
 import { AppError } from "@productinfoman/shared";
 import { resolveTenant } from "../../plugins/tenant.js";
 import { authenticateJwt, assertRoles, ROLE_GROUPS } from "../../plugins/rbac.js";
@@ -61,7 +61,7 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/search", async (request, reply) => {
     try {
-      const query = SearchQuerySchema.parse(request.query ?? {});
+      const query = parseSearchQuery((request.query ?? {}) as Record<string, unknown>);
       const result = await searchService.searchProducts(request.organizationId, query);
       return reply.send(result);
     } catch (e) {
@@ -72,7 +72,7 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/search/facets", async (request, reply) => {
     try {
-      const query = SearchQuerySchema.parse(request.query ?? {});
+      const query = parseSearchQuery((request.query ?? {}) as Record<string, unknown>);
       const result = await searchService.getSearchFacets(request.organizationId, query);
       return reply.send(result);
     } catch (e) {
@@ -84,7 +84,7 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
   app.get("/search/categories/:id", async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
-      const query = SearchQuerySchema.parse(request.query ?? {});
+      const query = parseSearchQuery((request.query ?? {}) as Record<string, unknown>);
       const result = await searchService.getCategorySearchResults(id, request.organizationId, query);
       return reply.send(result);
     } catch (e) {
