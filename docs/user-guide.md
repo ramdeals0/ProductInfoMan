@@ -40,6 +40,16 @@ All catalog data belongs to an **organization** (tenant). The default organizati
 
 When deploying to production (e.g. Railway), use your assigned Admin and Storefront domains instead of localhost.
 
+### Production (Railway)
+
+| Surface | URL |
+|---------|-----|
+| **API** | https://lovely-success-production-e534.up.railway.app |
+| **API health** | https://lovely-success-production-e534.up.railway.app/health/ready |
+| **Admin** | Deploy a separate Admin service; set `API_URL` to the API URL above |
+
+Setup details: [deployment/railway-production.md](./deployment/railway-production.md)
+
 ---
 
 ## 2. Signing in
@@ -439,7 +449,7 @@ Password requirements are enforced on login and user creation.
 | **Empty dashboard metrics** | Run `pnpm db:seed` and optional demo catalog seeds in your environment. |
 | **Facets missing on storefront** | Run `pnpm seed:attributes-facets` and `pnpm seed:demo-catalog`, then reindex. |
 
-For deployment issues, see [deployment/railway.md](./deployment/railway.md).
+For deployment issues, see [deployment/railway.md](./deployment/railway.md) or [deployment/railway-production.md](./deployment/railway-production.md) for the live `lovely-success-production` environment.
 
 For API integration details, see the [Developer portal](http://localhost:3003) or `apps/devportal`.
 
