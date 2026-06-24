@@ -40,6 +40,7 @@ export interface ValidationContext {
   existingSkus: Set<string>;
   parentSkusInDb: Set<string>;
   categoryCodes: Set<string>;
+  attributeKeys: Set<string>;
   requiredFieldsByType: Partial<Record<ProductType, string[]>>;
 }
 
@@ -254,6 +255,19 @@ function validateRow(
       errorMessage: `Unknown category code: ${row.categoryCode}`,
       rawValue: row.categoryCode,
     });
+  }
+
+  for (const [attributeKey, attributeValue] of Object.entries(row.attributes)) {
+    if (attributeValue === "") continue;
+    if (!context.attributeKeys.has(attributeKey)) {
+      errors.push({
+        rowNumber: row.rowNumber,
+        fieldName: attributeKey,
+        errorCode: "UNKNOWN_ATTRIBUTE",
+        errorMessage: `Unknown attribute key: ${attributeKey}`,
+        rawValue: attributeValue,
+      });
+    }
   }
 
   return errors;

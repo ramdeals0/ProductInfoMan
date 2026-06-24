@@ -122,7 +122,7 @@ async function buildValidationContext(organizationId: string, job: {
   duplicatePolicy: "REJECT" | "UPDATE" | "SKIP";
   importType: "CREATE" | "UPDATE" | "UPSERT";
 }) {
-  const [products, categories, rules] = await Promise.all([
+  const [products, categories, attributes, rules] = await Promise.all([
     prisma.product.findMany({
       where: { organizationId, deletedAt: null },
       select: { sku: true, productType: true },
@@ -130,6 +130,10 @@ async function buildValidationContext(organizationId: string, job: {
     prisma.category.findMany({
       where: { organizationId, isActive: true },
       select: { code: true },
+    }),
+    prisma.attributeDefinition.findMany({
+      where: { organizationId },
+      select: { key: true },
     }),
     prisma.validationRule.findMany({
       where: { organizationId, isActive: true, entityType: "PRODUCT" },
@@ -161,6 +165,7 @@ async function buildValidationContext(organizationId: string, job: {
       products.filter((product) => product.productType === "PARENT").map((product) => product.sku),
     ),
     categoryCodes: new Set(categories.map((category) => category.code)),
+    attributeKeys: new Set(attributes.map((attribute) => attribute.key)),
     requiredFieldsByType,
   };
 }
