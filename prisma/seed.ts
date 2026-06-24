@@ -5,6 +5,10 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client.js";
 import { PRICE_FACET_BUCKETS } from "../packages/config/facets.config.js";
 import { ROLE_SEEDS } from "../packages/shared/src/rbac.js";
+import {
+  buildProductMerchandisingCopy,
+  defaultStorefrontAvailability,
+} from "../tools/lib/product-merchandising-copy.js";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -633,6 +637,9 @@ async function main() {
     });
   }
 
+  const shirtCopy = buildProductMerchandisingCopy("Classic Oxford Shirt", "Shirts", 1);
+  const shirtDates = defaultStorefrontAvailability(1);
+
   const parent = await prisma.product.upsert({
     where: { organizationId_sku: { organizationId: org.id, sku: "SHIRT-001" } },
     create: {
@@ -640,11 +647,23 @@ async function main() {
       productType: "PARENT",
       sku: "SHIRT-001",
       title: "Classic Oxford Shirt",
-      description: "Long sleeve oxford shirt",
+      description: shirtCopy.description,
+      summary: shirtCopy.summary,
+      sellingPoints: shirtCopy.sellingPoints,
       brand: "Acme",
       primaryCategoryId: shirts.id,
+      startDate: shirtDates.startDate,
+      discontinueDate: shirtDates.discontinueDate,
+      status: "PUBLISHED",
     },
-    update: {},
+    update: {
+      description: shirtCopy.description,
+      summary: shirtCopy.summary,
+      sellingPoints: shirtCopy.sellingPoints,
+      startDate: shirtDates.startDate,
+      discontinueDate: shirtDates.discontinueDate,
+      status: "PUBLISHED",
+    },
   });
 
   await upsertProductAttribute(parent.id, brandAttr.id, "Acme");
@@ -662,7 +681,9 @@ async function main() {
     { sku: "SHIRT-001-WH-M", color: "White", size: "M", price: 47.99 },
   ];
 
-  for (const v of variants) {
+  for (const [variantIndex, v] of variants.entries()) {
+    const variantCopy = buildProductMerchandisingCopy(parent.title, "Shirts", variantIndex + 2);
+    const variantDates = defaultStorefrontAvailability(variantIndex + 2);
     const variant = await prisma.product.upsert({
       where: { organizationId_sku: { organizationId: org.id, sku: v.sku } },
       create: {
@@ -671,11 +692,23 @@ async function main() {
         sku: v.sku,
         parentId: parent.id,
         title: parent.title,
-        description: parent.description,
+        description: variantCopy.description,
+        summary: variantCopy.summary,
+        sellingPoints: variantCopy.sellingPoints,
         brand: parent.brand,
         primaryCategoryId: shirts.id,
+        startDate: variantDates.startDate,
+        discontinueDate: variantDates.discontinueDate,
+        status: "PUBLISHED",
       },
-      update: {},
+      update: {
+        description: variantCopy.description,
+        summary: variantCopy.summary,
+        sellingPoints: variantCopy.sellingPoints,
+        startDate: variantDates.startDate,
+        discontinueDate: variantDates.discontinueDate,
+        status: "PUBLISHED",
+      },
     });
 
     await upsertProductAttribute(variant.id, colorAttr.id, v.color);

@@ -26,18 +26,26 @@ export const CreateProductSchema = z.object({
   sku: z.string().min(1).max(64),
   title: z.string().min(1).max(255),
   description: z.string().optional(),
+  summary: z.string().max(500).optional(),
+  sellingPoints: z.array(z.string().min(1).max(240)).max(10).optional(),
   brand: z.string().optional(),
   primaryCategoryId: z.string().cuid().optional(),
   parentId: z.string().cuid().optional(),
   secondaryCategoryIds: z.array(z.string().cuid()).optional(),
+  startDate: z.coerce.date().optional(),
+  discontinueDate: z.coerce.date().optional(),
 });
 
 export const UpdateProductSchema = z.object({
   title: z.string().min(1).max(255).optional(),
   description: z.string().optional(),
+  summary: z.string().max(500).nullable().optional(),
+  sellingPoints: z.array(z.string().min(1).max(240)).max(10).optional(),
   brand: z.string().optional(),
   primaryCategoryId: z.string().cuid().nullable().optional(),
   secondaryCategoryIds: z.array(z.string().cuid()).optional(),
+  startDate: z.coerce.date().nullable().optional(),
+  discontinueDate: z.coerce.date().nullable().optional(),
 });
 
 export const CreateVariantSchema = z.object({
@@ -273,6 +281,7 @@ export const SearchQuerySchema = z.object({
   categoryPath: z.string().optional(),
   filters: z.record(z.union([z.string(), z.array(z.string())])).optional(),
   groupByParent: z.coerce.boolean().optional(),
+  storefront: z.coerce.boolean().optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   sortBy: z.string().optional(),

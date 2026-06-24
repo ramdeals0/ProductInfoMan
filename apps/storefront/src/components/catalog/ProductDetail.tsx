@@ -73,8 +73,26 @@ export function ProductDetail({ product, variants }: ProductDetailProps) {
           <p className="text-sm uppercase tracking-wide text-slate-500">{selected.brand}</p>
         ) : null}
         <h1 className="mt-2 text-3xl font-bold text-slate-900">{product.title}</h1>
-        {product.description ? (
+        {product.summary ? (
+          <p className="mt-4 text-lg text-slate-700">{product.summary}</p>
+        ) : product.description ? (
           <p className="mt-4 text-slate-600">{product.description}</p>
+        ) : null}
+
+        {product.sellingPoints.length > 0 ? (
+          <div className="mt-6">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+              Why you&apos;ll love it
+            </h2>
+            <ul className="mt-3 space-y-2">
+              {product.sellingPoints.map((point) => (
+                <li key={point} className="flex gap-2 text-sm text-slate-700">
+                  <span className="mt-1 text-brand-600">•</span>
+                  <span>{point}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
 
         <p className="mt-6 text-2xl font-semibold text-brand-700">{formatPrice(price)}</p>

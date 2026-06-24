@@ -11,6 +11,10 @@ import {
   BIGBOX_CATEGORY_ATTRIBUTES,
   seedBigBoxAttributesAndFacets,
 } from "./seed-bigbox-attributes-facets.js";
+import {
+  buildProductMerchandisingCopy,
+  defaultStorefrontAvailability,
+} from "./product-merchandising-copy.js";
 import { merchandisingValuesForIndex, pickFrom } from "./product-attribute-values.js";
 import { upsertProductAttribute } from "./upsert-product-attribute.js";
 
@@ -115,7 +119,8 @@ export async function seedBigBoxProducts(
       const sku = padSku(skuPrefix, category.skuCode, index);
       const brand = pick(BIGBOX_BRANDS, index + total);
       const title = buildTitle(category, index);
-      const description = `${title} — ${category.name} aisle at the Big Box Store demo catalog.`;
+      const copy = buildProductMerchandisingCopy(title, category.name, total + index);
+      const dates = defaultStorefrontAvailability(total + index);
       const merch = merchandisingValuesForIndex(total + index);
 
       const existing = await prisma.product.findUnique({
@@ -129,16 +134,24 @@ export async function seedBigBoxProducts(
           productType: "SIMPLE",
           sku,
           title,
-          description,
+          description: copy.description,
+          summary: copy.summary,
+          sellingPoints: copy.sellingPoints,
           brand,
           primaryCategoryId: categoryId,
+          startDate: dates.startDate,
+          discontinueDate: dates.discontinueDate,
           status: publish ? "PUBLISHED" : "DRAFT",
         },
         update: {
           title,
-          description,
+          description: copy.description,
+          summary: copy.summary,
+          sellingPoints: copy.sellingPoints,
           brand,
           primaryCategoryId: categoryId,
+          startDate: dates.startDate,
+          discontinueDate: dates.discontinueDate,
           status: publish ? "PUBLISHED" : "DRAFT",
           deletedAt: null,
         },

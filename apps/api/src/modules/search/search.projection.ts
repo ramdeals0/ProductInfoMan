@@ -264,8 +264,14 @@ export async function buildProductSearchDocument(productId: string, organization
     title: product.title,
     brand: product.brand,
     description: product.description,
+    summary: product.summary,
+    sellingPoints: Array.isArray(product.sellingPoints)
+      ? product.sellingPoints.filter((entry): entry is string => typeof entry === "string")
+      : [],
     status: product.status,
     publishedAt,
+    startDate: product.startDate,
+    discontinueDate: product.discontinueDate,
     primaryCategory: toCategory(product.primaryCategory),
     secondaryCategories: product.secondaryCategories
       .map((entry) => toCategory(entry.category))
