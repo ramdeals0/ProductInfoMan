@@ -6,13 +6,15 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @productinfoman/api dev",
+    "dev:admin": "pnpm --filter @productinfoman/admin dev",
+    "dev:all": "pnpm --parallel --filter @productinfoman/api --filter @productinfoman/admin dev",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
-    "test": "pnpm --filter @productinfoman/inheritance-engine test && pnpm --filter @productinfoman/facet-engine test && pnpm --filter @productinfoman/import-engine test && pnpm --filter @productinfoman/workflow-engine test && pnpm --filter @productinfoman/search-projection test && pnpm --filter @productinfoman/publish-engine test && pnpm --filter @productinfoman/eventing test && pnpm --filter @productinfoman/api test",
+    "test": "pnpm --filter @productinfoman/inheritance-engine test && pnpm --filter @productinfoman/facet-engine test && pnpm --filter @productinfoman/import-engine test && pnpm --filter @productinfoman/workflow-engine test && pnpm --filter @productinfoman/search-projection test && pnpm --filter @productinfoman/publish-engine test && pnpm --filter @productinfoman/eventing test && pnpm --filter @productinfoman/api-client test && pnpm --filter @productinfoman/api test && pnpm --filter @productinfoman/admin test",
     "docker:up": "docker compose -f docker/docker-compose.yml up -d",
     "docker:down": "docker compose -f docker/docker-compose.yml down"
   },
