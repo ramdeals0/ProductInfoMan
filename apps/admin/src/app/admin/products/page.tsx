@@ -2,28 +2,35 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ProductEntity } from "@productinfoman/domain";
 import { PageHeader } from "@/components/layout/AdminShell";
 import { DataTable } from "@/components/ui/DataTable";
+import { Pagination } from "@/components/ui/Pagination";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/States";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { useSession } from "@/lib/session";
+
+const PAGE_SIZE = 20;
 
 export default function ProductsPage() {
   const router = useRouter();
   const { api } = useSession();
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [status, search]);
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["products", status, search],
+    queryKey: ["products", status, search, page],
     queryFn: () =>
       api.listProducts({
-        page: 1,
-        pageSize: 50,
+        page,
+        pageSize: PAGE_SIZE,
         ...(status ? { status } : {}),
         ...(search ? { title: search } : {}),
       }),
@@ -85,7 +92,12 @@ export default function ProductsPage() {
             columns={columns}
             onRowClick={(row) => router.push(`/admin/products/${row.id}`)}
           />
-          <p className="mt-3 text-sm text-slate-500">{data.total} products total</p>
+          <Pagination
+            page={data.page}
+            pageSize={data.pageSize}
+            total={data.total}
+            onPageChange={setPage}
+          />
         </>
       ) : null}
     </div>
