@@ -52,6 +52,12 @@ Products: `GET /api/v1/products`
 
 Header: `X-Organization-Slug: demo` (default)
 
+## User guide
+
+End-user documentation for the Admin console, storefront, roles, and workflows:
+
+**[docs/user-guide.md](./docs/user-guide.md)**
+
 ## Phase 1 API
 
 | Method | Path |
