@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   transpilePackages: [
     "@productinfoman/api-client",
     "@productinfoman/domain",
+    "@productinfoman/shared",
     "@productinfoman/validation",
   ],
   async rewrites() {

@@ -3,36 +3,48 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
+import { useSession } from "@/lib/session";
+import {
+  canManageMdm,
+  canManageTaxonomy,
+  canReadCatalog,
+} from "@/lib/permissions";
 
 const NAV = [
-  { href: "/admin/dashboard", label: "Dashboard" },
-  { href: "/admin/products", label: "Products" },
+  { href: "/admin/dashboard", label: "Dashboard", visible: () => true },
+  { href: "/admin/products", label: "Products", visible: canReadCatalog },
   {
     href: "/admin/taxonomy",
     label: "Taxonomy",
+    visible: canManageTaxonomy,
     children: [
       { href: "/admin/taxonomy/categories", label: "Categories" },
       { href: "/admin/taxonomy/attributes", label: "Attributes" },
       { href: "/admin/taxonomy/facets", label: "Facets" },
     ],
   },
-  { href: "/admin/imports", label: "Imports" },
-  { href: "/admin/workflow", label: "Workflow" },
-  { href: "/admin/publishing", label: "Publishing" },
+  { href: "/admin/imports", label: "Imports", visible: canReadCatalog },
+  { href: "/admin/workflow", label: "Workflow", visible: canReadCatalog },
+  { href: "/admin/publishing", label: "Publishing", visible: canReadCatalog },
   {
     href: "/admin/mdm",
     label: "MDM",
+    visible: (roles: string[]) => canManageMdm(roles) || canReadCatalog(roles),
     children: [
       { href: "/admin/mdm/source-records", label: "Source records" },
       { href: "/admin/mdm/survivorship-rules", label: "Survivorship rules" },
     ],
   },
-  { href: "/admin/audit", label: "Audit" },
-  { href: "/admin/reports", label: "Reports" },
-];
+  { href: "/admin/audit", label: "Audit", visible: canReadCatalog },
+  { href: "/admin/reports", label: "Reports", visible: canReadCatalog },
+] as const;
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const { user } = useSession();
+  const roles = user?.roles ?? [];
+
+  const items = NAV.filter((item) => item.visible(roles));
 
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-slate-200 bg-white lg:block">
@@ -42,7 +54,7 @@ export function AdminSidebar() {
         </Link>
       </div>
       <nav className="space-y-1 p-4">
-        {NAV.map((item) => (
+        {items.map((item) => (
           <div key={item.href}>
             <Link
               href={item.href}
@@ -55,7 +67,7 @@ export function AdminSidebar() {
             >
               {item.label}
             </Link>
-            {item.children ? (
+            {"children" in item && item.children ? (
               <div className="ml-3 mt-1 space-y-1 border-l border-slate-200 pl-3">
                 {item.children.map((child) => (
                   <Link

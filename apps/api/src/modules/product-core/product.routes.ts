@@ -8,6 +8,7 @@ import {
 } from "@productinfoman/validation";
 import { AppError } from "@productinfoman/shared";
 import { resolveTenant } from "../../plugins/tenant.js";
+import { authenticateJwt, requireRoles, ROLE_GROUPS } from "../../plugins/rbac.js";
 import * as productService from "./product.service.js";
 
 function handleError(error: unknown): { statusCode: number; message: string } {
@@ -25,8 +26,12 @@ function handleError(error: unknown): { statusCode: number; message: string } {
 
 export async function productRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", resolveTenant);
+  app.addHook("preHandler", authenticateJwt);
 
-  app.post("/products", async (request, reply) => {
+  app.post(
+    "/products",
+    { preHandler: requireRoles(ROLE_GROUPS.PRODUCT_WRITE) },
+    async (request, reply) => {
     try {
       const body = CreateProductSchema.parse(request.body);
       const product = await productService.createProduct(request.organizationId, body);
@@ -37,7 +42,10 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
-  app.get("/products", async (request, reply) => {
+  app.get(
+    "/products",
+    { preHandler: requireRoles(ROLE_GROUPS.READ) },
+    async (request, reply) => {
     try {
       const query = ListProductsQuerySchema.parse(request.query);
       const result = await productService.listProducts(request.organizationId, query);
@@ -48,7 +56,10 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
-  app.get("/products/:id/tree", async (request, reply) => {
+  app.get(
+    "/products/:id/tree",
+    { preHandler: requireRoles(ROLE_GROUPS.READ) },
+    async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
       const tree = await productService.getProductTree(id, request.organizationId);
@@ -59,7 +70,10 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
-  app.get("/products/:id/variants", async (request, reply) => {
+  app.get(
+    "/products/:id/variants",
+    { preHandler: requireRoles(ROLE_GROUPS.READ) },
+    async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
       const variants = await productService.listVariants(id, request.organizationId);
@@ -70,7 +84,10 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
-  app.post("/products/:id/variants", async (request, reply) => {
+  app.post(
+    "/products/:id/variants",
+    { preHandler: requireRoles(ROLE_GROUPS.PRODUCT_WRITE) },
+    async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
       const body = CreateVariantSchema.parse(request.body);
@@ -82,7 +99,10 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
-  app.get("/products/:id", async (request, reply) => {
+  app.get(
+    "/products/:id",
+    { preHandler: requireRoles(ROLE_GROUPS.READ) },
+    async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
       const product = await productService.getProduct(id, request.organizationId);
@@ -93,7 +113,10 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
-  app.patch("/products/:id", async (request, reply) => {
+  app.patch(
+    "/products/:id",
+    { preHandler: requireRoles(ROLE_GROUPS.PRODUCT_WRITE) },
+    async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
       const body = UpdateProductSchema.parse(request.body);
@@ -105,7 +128,10 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
-  app.delete("/products/:id", async (request, reply) => {
+  app.delete(
+    "/products/:id",
+    { preHandler: requireRoles(ROLE_GROUPS.PRODUCT_WRITE) },
+    async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
       await productService.deleteProduct(id, request.organizationId);
@@ -116,7 +142,10 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
-  app.put("/products/:id/attributes", async (request, reply) => {
+  app.put(
+    "/products/:id/attributes",
+    { preHandler: requireRoles(ROLE_GROUPS.PRODUCT_WRITE) },
+    async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
       const body = SetAttributesSchema.parse(request.body);

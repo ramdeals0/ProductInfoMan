@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { SearchQuerySchema } from "@productinfoman/validation";
 import { AppError } from "@productinfoman/shared";
 import { resolveTenant } from "../../plugins/tenant.js";
+import { authenticateJwt, assertRoles, ROLE_GROUPS } from "../../plugins/rbac.js";
 import * as searchService from "./search.service.js";
 
 function handleError(error: unknown): { statusCode: number; message: string } {
@@ -19,6 +20,12 @@ function handleError(error: unknown): { statusCode: number; message: string } {
 
 export async function searchRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", resolveTenant);
+  app.addHook("preHandler", authenticateJwt);
+  app.addHook("preHandler", async (request) => {
+    if (request.method === "POST") {
+      assertRoles(request, ROLE_GROUPS.SEARCH_OPS);
+    }
+  });
 
   app.post("/search/reindex", async (request, reply) => {
     try {
@@ -88,6 +95,7 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/search/debug/:id", async (request, reply) => {
     try {
+      assertRoles(request, ROLE_GROUPS.SEARCH_OPS);
       const { id } = request.params as { id: string };
       const debug = await searchService.getSearchDebug(id, request.organizationId);
       return reply.send(debug);

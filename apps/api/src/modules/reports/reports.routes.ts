@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { ReportPeriodQuerySchema } from "@productinfoman/validation";
 import { AppError } from "@productinfoman/shared";
 import { resolveTenant } from "../../plugins/tenant.js";
+import { authenticateJwt } from "../../plugins/rbac.js";
 import * as reportsService from "./reports.service.js";
 
 function handleError(error: unknown): { statusCode: number; message: string } {
@@ -13,6 +14,7 @@ function handleError(error: unknown): { statusCode: number; message: string } {
 
 export async function reportsRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", resolveTenant);
+  app.addHook("preHandler", authenticateJwt);
 
   app.get("/reports/summary", async (request, reply) => {
     try {

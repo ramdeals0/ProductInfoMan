@@ -14,7 +14,7 @@ import { useSession } from "@/lib/session";
 export default function WorkflowTaskDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { api, session } = useSession();
+  const { api, user } = useSession();
   const { pushToast } = useToast();
   const queryClient = useQueryClient();
   const [reason, setReason] = useState("");
@@ -61,7 +61,7 @@ export default function WorkflowTaskDetailPage() {
 
   const task = data!;
   const canAct =
-    canApproveWorkflow(session.actorRole) &&
+    canApproveWorkflow(user?.roles ?? []) &&
     task.status === "OPEN" &&
     !!task.productId;
 

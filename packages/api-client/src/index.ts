@@ -31,6 +31,7 @@ import type {
 export type ApiClientConfig = {
   baseUrl: string;
   organizationSlug: string;
+  accessToken?: string;
   userEmail?: string;
   actorRole?: string;
 };
@@ -52,6 +53,7 @@ export class ApiClient {
     return {
       "Content-Type": "application/json",
       "X-Organization-Slug": this.config.organizationSlug,
+      ...(this.config.accessToken ? { Authorization: `Bearer ${this.config.accessToken}` } : {}),
       ...(this.config.userEmail ? { "X-User-Email": this.config.userEmail } : {}),
       ...(this.config.actorRole ? { "X-Actor-Role": this.config.actorRole } : {}),
       ...extra,

@@ -2,6 +2,14 @@ import { prisma } from "@productinfoman/db";
 
 export { AppError, appError } from "./errors.js";
 export {
+  RBAC_ROLE_CODES,
+  ROLE_GROUPS,
+  ROLE_SEEDS,
+  hasAnyRole,
+  primaryLegacyRole,
+  type RbacRoleCode,
+} from "./rbac.js";
+export {
   writeAudit,
   recordChange,
   recordSnapshot,

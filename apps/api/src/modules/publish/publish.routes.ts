@@ -7,6 +7,7 @@ import {
 } from "@productinfoman/validation";
 import { AppError } from "@productinfoman/shared";
 import { resolveTenant } from "../../plugins/tenant.js";
+import { authenticateJwt, assertRoles, ROLE_GROUPS } from "../../plugins/rbac.js";
 import * as publishService from "./publish.service.js";
 
 function handleError(error: unknown): { statusCode: number; message: string } {
@@ -24,6 +25,12 @@ function handleError(error: unknown): { statusCode: number; message: string } {
 
 export async function publishRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", resolveTenant);
+  app.addHook("preHandler", authenticateJwt);
+  app.addHook("preHandler", async (request) => {
+    if (["POST", "PATCH", "PUT", "DELETE"].includes(request.method)) {
+      assertRoles(request, ROLE_GROUPS.PUBLISH_OPS);
+    }
+  });
 
   app.post("/channels", async (request, reply) => {
     try {

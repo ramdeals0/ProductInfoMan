@@ -59,12 +59,15 @@ model User {
   organizationId String
   email          String
   name           String
+  passwordHash   String?
+  isActive       Boolean  @default(true)
   role           UserRole @default(EDITOR)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  importJobs     ImportJob[] @relation("ImportJobCreator")
+  organization    Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  roleMemberships UserRoleMembership[]
+  importJobs      ImportJob[]          @relation("ImportJobCreator")
   workflowTasksAssigned WorkflowTask[] @relation("WorkflowTaskAssignee")
   workflowApprovals     WorkflowApproval[] @relation("WorkflowApprover")
   workflowHistory       WorkflowHistory[] @relation("WorkflowHistoryActor")
@@ -72,6 +75,32 @@ model User {
 
   @@unique([organizationId, email])
   @@index([organizationId])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users UserRoleMembership[]
+}
+
+model UserRoleMembership {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_roles")
 }
 
 enum UserRole {

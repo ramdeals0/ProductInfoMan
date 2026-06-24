@@ -12,10 +12,12 @@
   "dependencies": {
     "@productinfoman/api-client": "workspace:*",
     "@productinfoman/domain": "workspace:*",
+    "@productinfoman/shared": "workspace:*",
     "@productinfoman/validation": "workspace:*",
     "@tanstack/react-query": "^5.85.5",
     "@tanstack/react-table": "^8.21.3",
     "clsx": "^2.1.1",
+    "jose": "^6.1.0",
     "next": "^15.5.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

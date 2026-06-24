@@ -5,28 +5,33 @@ import {
   canManageImports,
   canManagePublishing,
   canSubmitForReview,
-} from "./roles";
+} from "./permissions";
 
-describe("role helpers", () => {
-  it("allows editors to submit products for review", () => {
-    expect(canSubmitForReview("EDITOR")).toBe(true);
-    expect(canApproveWorkflow("EDITOR")).toBe(false);
+describe("permission helpers", () => {
+  it("allows product editors to submit products for review", () => {
+    expect(canSubmitForReview(["product_editor"])).toBe(true);
+    expect(canApproveWorkflow(["product_editor"])).toBe(false);
   });
 
-  it("allows reviewers to approve workflow tasks", () => {
-    expect(canApproveWorkflow("REVIEWER")).toBe(true);
-    expect(canEditProducts("REVIEWER")).toBe(false);
+  it("allows product approvers to approve workflow tasks", () => {
+    expect(canApproveWorkflow(["product_approver"])).toBe(true);
+    expect(canEditProducts(["product_approver"])).toBe(false);
   });
 
-  it("allows operations role to manage imports and publishing", () => {
-    expect(canManageImports("OPERATIONS")).toBe(true);
-    expect(canManagePublishing("OPERATIONS")).toBe(true);
-    expect(canEditProducts("OPERATIONS")).toBe(false);
+  it("allows ops role to manage imports and publishing", () => {
+    expect(canManageImports(["ops"])).toBe(true);
+    expect(canManagePublishing(["ops"])).toBe(true);
+    expect(canEditProducts(["ops"])).toBe(false);
   });
 
   it("grants admin full MVP permissions", () => {
-    expect(canEditProducts("ADMIN")).toBe(true);
-    expect(canApproveWorkflow("ADMIN")).toBe(true);
-    expect(canManagePublishing("ADMIN")).toBe(true);
+    expect(canEditProducts(["admin"])).toBe(true);
+    expect(canApproveWorkflow(["admin"])).toBe(true);
+    expect(canManagePublishing(["admin"])).toBe(true);
+  });
+
+  it("allows readonly users to read but not write", () => {
+    expect(canEditProducts(["readonly"])).toBe(false);
+    expect(canManageImports(["readonly"])).toBe(false);
   });
 });

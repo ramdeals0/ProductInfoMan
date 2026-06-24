@@ -7,15 +7,21 @@ import { useState } from "react";
 import { Breadcrumb, PageHeader } from "@/components/layout/AdminShell";
 import { ErrorState, LoadingState } from "@/components/ui/States";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { canApproveWorkflow, canEditProducts, canSubmitForReview } from "@/lib/roles";
 import { useSession } from "@/lib/session";
 
 export default function ProductDetailPage() {
   const params = useParams<{ id: string }>();
-  const { api, session } = useSession();
+  const { api, user } = useSession();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [brand, setBrand] = useState("");
   const [rejectReason, setRejectReason] = useState("");
+
+  const roles = user?.roles ?? [];
+  const canEdit = canEditProducts(roles);
+  const canSubmit = canSubmitForReview(roles);
+  const canApprove = canApproveWorkflow(roles);
 
   const productQuery = useQuery({
     queryKey: ["product", params.id],
@@ -80,12 +86,13 @@ export default function ProductDetailPage() {
           <h2 className="font-medium">Core data</h2>
           <div>
             <label className="label">Title</label>
-            <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} disabled={!canEdit} />
           </div>
           <div>
             <label className="label">Brand</label>
-            <input className="input" value={brand} onChange={(e) => setBrand(e.target.value)} />
+            <input className="input" value={brand} onChange={(e) => setBrand(e.target.value)} disabled={!canEdit} />
           </div>
+          {canEdit ? (
           <button
             className="btn-primary"
             disabled={updateMutation.isPending}
@@ -93,6 +100,7 @@ export default function ProductDetailPage() {
           >
             Save changes
           </button>
+          ) : null}
 
           <div>
             <h3 className="mb-2 font-medium">Attributes</h3>
@@ -129,19 +137,26 @@ export default function ProductDetailPage() {
           <div className="card p-5">
             <h2 className="font-medium">Workflow</h2>
             <p className="mt-1 text-sm text-slate-600">
-              Acting as {session.actorRole} ({session.userEmail})
+              Signed in as {user?.email} ({roles.join(", ") || "no roles"})
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
+              {canSubmit ? (
               <button className="btn-secondary" onClick={() => workflowMutation.mutate("submit")}>
                 Submit
               </button>
+              ) : null}
+              {canApprove ? (
+              <>
               <button className="btn-primary" onClick={() => workflowMutation.mutate("approve")}>
                 Approve
               </button>
               <button className="btn-primary" onClick={() => workflowMutation.mutate("publish")}>
                 Publish
               </button>
+              </>
+              ) : null}
             </div>
+            {canApprove ? (
             <div className="mt-4">
               <label className="label">Reject reason</label>
               <input
@@ -157,6 +172,7 @@ export default function ProductDetailPage() {
                 Reject
               </button>
             </div>
+            ) : null}
           </div>
 
           <div className="card p-5">

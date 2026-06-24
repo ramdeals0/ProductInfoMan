@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { ListAuditQuerySchema } from "@productinfoman/validation";
 import { AppError } from "@productinfoman/shared";
 import { resolveTenant } from "../../plugins/tenant.js";
+import { authenticateJwt } from "../../plugins/rbac.js";
 import * as auditService from "./audit.service.js";
 
 function handleError(error: unknown): { statusCode: number; message: string } {
@@ -33,6 +34,7 @@ async function listAuditHandler(
 
 export async function auditRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", resolveTenant);
+  app.addHook("preHandler", authenticateJwt);
 
   app.get("/audit", listAuditHandler);
   app.get("/audit/logs", listAuditHandler);

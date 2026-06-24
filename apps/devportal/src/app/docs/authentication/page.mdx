@@ -6,7 +6,7 @@ import { CodeBlock } from "@/components/docs/mdx";
 
 # Authentication
 
-ProductInfoMan uses **organization-scoped** requests. Every API call is resolved to a tenant via headers.
+ProductInfoMan uses **organization-scoped** requests with **JWT bearer tokens** for authenticated admin and API access.
 
 ## Required: organization context
 
@@ -18,56 +18,73 @@ Every request must include the organization slug header:
 
 \* Defaults to `demo` in local development when omitted.
 
-## Actor identity (workflow & write operations)
+## JWT login
 
-Workflow transitions (`submit`, `approve`, `reject`, `publish`) require an actor. The API resolves actors from headers:
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/auth/login` | POST | Email + password login; returns JWT and user profile |
+| `/api/v1/auth/me` | GET | Returns current user profile and RBAC roles |
+
+Login body:
+
+```json
+{
+  "email": "admin@demo.local",
+  "password": "admin123",
+  "organizationSlug": "demo"
+}
+```
+
+JWT claims include `sub` (user id), `email`, `organizationId`, `organizationSlug`, and `roles` (array of RBAC codes).
+
+Send the token on subsequent requests:
 
 | Header | Purpose |
 |--------|---------|
-| `X-User-Email` | Maps to a user in the organization |
-| `X-Actor-Role` | Role override for the request (`ADMIN`, `EDITOR`, `REVIEWER`, etc.) |
+| `Authorization` | `Bearer <token>` |
+
+## RBAC roles
+
+| Code | Typical use |
+|------|-------------|
+| `admin` | Full platform access |
+| `product_editor` | Create/edit products, submit for review |
+| `product_approver` | Approve, reject, publish workflow |
+| `ops` | Imports, publishing, search reindex, events |
+| `readonly` | Read-only catalog, audit, and reports |
+
+Storefront catalog reads (`GET /products`, `/categories`, `/search`) allow anonymous access within the tenant scope.
 
 <Callout variant="info">
-  Bearer token authentication (`Authorization: Bearer &lt;token&gt;`) is the recommended production pattern. Map JWT claims to `X-Organization-Slug`, user email, and role in your API gateway or BFF.
+  Legacy headers `X-User-Email` and `X-Actor-Role` are still supported for local tooling, but JWT is the recommended production pattern.
 </Callout>
-
-## Roles
-
-| Role | Typical use |
-|------|-------------|
-| `ADMIN` | Full platform configuration |
-| `EDITOR` | Create/edit products, submit for review |
-| `REVIEWER` | Approve or reject submissions |
-| `OPS` | Imports, publishing, reindex |
-| `READONLY` | Reports and audit read access |
-| Storefront | Read-only catalog via org slug (no actor headers) |
 
 ## Examples
 
-<CodeBlock language="bash" title="Read products (org only)">
-{`curl "https://api.yourpim.com/api/v1/products?page=1&pageSize=10" \\
-  -H "X-Organization-Slug: demo"`}
+<CodeBlock language="bash" title="Login">
+{`curl -X POST "https://api.yourpim.com/api/v1/auth/login" \\
+  -H "Content-Type: application/json" \\
+  -d '{"email":"admin@demo.local","password":"admin123","organizationSlug":"demo"}'`}
 </CodeBlock>
 
-<CodeBlock language="bash" title="Workflow action (actor headers)">
+<CodeBlock language="bash" title="Authenticated product list">
+{`curl "https://api.yourpim.com/api/v1/products?page=1&pageSize=10" \\
+  -H "X-Organization-Slug: demo" \\
+  -H "Authorization: Bearer YOUR_JWT"`}
+</CodeBlock>
+
+<CodeBlock language="bash" title="Workflow submit (product_editor or admin)">
 {`curl -X POST "https://api.yourpim.com/api/v1/products/PRODUCT_ID/workflow/submit" \\
   -H "Content-Type: application/json" \\
   -H "X-Organization-Slug: demo" \\
-  -H "X-User-Email: editor@demo.local" \\
-  -H "X-Actor-Role: EDITOR" \\
+  -H "Authorization: Bearer YOUR_JWT" \\
   -d '{"comment":"Ready for review"}'`}
-</CodeBlock>
-
-<CodeBlock language="typescript" title="JavaScript fetch">
-{`const res = await fetch("https://api.yourpim.com/api/v1/products?page=1&pageSize=10", {
-  headers: {
-    "X-Organization-Slug": "demo",
-    Authorization: \`Bearer \${token}\`,
-  },
-});
-const data = await res.json();`}
 </CodeBlock>
 
 ## Admin UI session
 
-The admin app proxies `/api/*` to the backend and sends `X-Organization-Slug` from `NEXT_PUBLIC_DEFAULT_ORG_SLUG`. See [Admin UI](http://localhost:3000/admin) when running locally.
+The admin app (`/login`) stores the JWT in an **httpOnly cookie**. Next.js middleware protects `/admin/*` routes and injects `Authorization` on proxied `/api/v1/*` requests.
+
+Default seeded admin (local): `admin@demo.local` / `admin123` (override with `ADMIN_EMAIL` / `ADMIN_PASSWORD`).
+
+Set `JWT_SECRET` consistently on the API and admin app.

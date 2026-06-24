@@ -7,6 +7,7 @@ import {
 } from "@productinfoman/validation";
 import { AppError } from "@productinfoman/shared";
 import { resolveTenant } from "../../plugins/tenant.js";
+import { authenticateJwt, assertRoles, ROLE_GROUPS } from "../../plugins/rbac.js";
 import * as importService from "./import.service.js";
 
 function handleError(error: unknown): { statusCode: number; message: string } {
@@ -28,9 +29,11 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.addHook("preHandler", resolveTenant);
+  app.addHook("preHandler", authenticateJwt);
 
   app.post("/imports/upload", async (request, reply) => {
     try {
+      assertRoles(request, ROLE_GROUPS.IMPORT_OPS);
       const file = await request.file();
       if (!file) {
         return reply.code(400).send({ error: "CSV file is required" });
@@ -61,6 +64,7 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/imports/:id/validate", async (request, reply) => {
     try {
+      assertRoles(request, ROLE_GROUPS.IMPORT_OPS);
       const { id } = request.params as { id: string };
       const job = await importService.validateImport(id, request.organizationId);
       return reply.send(job);
@@ -72,6 +76,7 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/imports/:id/start", async (request, reply) => {
     try {
+      assertRoles(request, ROLE_GROUPS.IMPORT_OPS);
       const { id } = request.params as { id: string };
       const job = await importService.startImport(id, request.organizationId);
       return reply.send(job);
@@ -129,6 +134,7 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/import-templates", async (request, reply) => {
     try {
+      assertRoles(request, ROLE_GROUPS.IMPORT_OPS);
       const body = CreateImportTemplateSchema.parse(request.body);
       const template = await importService.createImportTemplate(request.organizationId, body);
       return reply.code(201).send(template);

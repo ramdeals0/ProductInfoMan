@@ -15,10 +15,12 @@ import { startPublishWorker } from "./modules/publish/publish.queue.js";
 import { taxonomyRoutes } from "./modules/taxonomy/taxonomy.routes.js";
 import { workflowRoutes } from "./modules/workflow/workflow.routes.js";
 import { mdmRoutes } from "./modules/mdm/mdm.routes.js";
+import { authRoutes } from "./modules/auth/auth.routes.js";
 
 const app = Fastify({ logger: true });
 
 await app.register(cors, { origin: true });
+await app.register(authRoutes, { prefix: "/api/v1" });
 await app.register(productRoutes, { prefix: "/api/v1" });
 await app.register(taxonomyRoutes, { prefix: "/api/v1" });
 await app.register(importRoutes, { prefix: "/api/v1" });
