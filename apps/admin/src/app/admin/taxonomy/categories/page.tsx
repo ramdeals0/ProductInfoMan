@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { CategoryTreeNode } from "@productinfoman/domain";
-import { EditPanel } from "@/components/taxonomy/EditPanel";
+import { InlineEditForm } from "@/components/taxonomy/EditPanel";
 import { PageHeader } from "@/components/layout/AdminShell";
 import { ErrorState, LoadingState } from "@/components/ui/States";
 import { StatusChip } from "@/components/ui/StatusChip";
@@ -27,34 +27,120 @@ type EditState = {
 function CategoryNode({
   node,
   depth = 0,
+  editing,
   onEdit,
+  onCloseEdit,
+  onSaveEdit,
+  saving,
+  onEditingChange,
 }: {
   node: CategoryTreeNode;
   depth?: number;
+  editing: EditState | null;
   onEdit: (node: CategoryTreeNode) => void;
+  onCloseEdit: () => void;
+  onSaveEdit: () => void;
+  saving: boolean;
+  onEditingChange: (next: EditState) => void;
 }) {
+  const isEditing = editing?.id === node.id;
+
   return (
     <div>
       <div
-        className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+        className="rounded-lg border border-slate-200 bg-white text-sm"
         style={{ marginLeft: depth * 16 }}
       >
-        <div>
-          <div className="font-medium">{node.name}</div>
-          <div className="text-slate-500">
-            {node.code} · {node.path}
+        {isEditing && editing ? (
+          <div className="p-3">
+            <InlineEditForm onClose={onCloseEdit} onSave={onSaveEdit} saving={saving}>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <label className="label">Name</label>
+                  <input
+                    className="input"
+                    value={editing.name}
+                    onChange={(e) => onEditingChange({ ...editing, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="label">Slug</label>
+                  <input
+                    className="input"
+                    value={editing.slug}
+                    onChange={(e) => onEditingChange({ ...editing, slug: e.target.value })}
+                    onBlur={() =>
+                      onEditingChange({
+                        ...editing,
+                        slug: normalizeCategorySlug(editing.slug),
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="label">Sort order</label>
+                  <input
+                    className="input"
+                    type="number"
+                    value={editing.sortOrder}
+                    onChange={(e) =>
+                      onEditingChange({ ...editing, sortOrder: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="label">Status</label>
+                  <select
+                    className="input"
+                    value={editing.status}
+                    onChange={(e) => onEditingChange({ ...editing, status: e.target.value })}
+                  >
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="INACTIVE">INACTIVE</option>
+                    <option value="ARCHIVED">ARCHIVED</option>
+                  </select>
+                </div>
+                <label className="flex items-center gap-2 text-sm md:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={editing.isActive}
+                    onChange={(e) => onEditingChange({ ...editing, isActive: e.target.checked })}
+                  />
+                  Active in catalog
+                </label>
+              </div>
+            </InlineEditForm>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <StatusChip status={node.status} />
-          <button type="button" className="btn-secondary" onClick={() => onEdit(node)}>
-            Edit
-          </button>
-        </div>
+        ) : (
+          <div className="flex items-center justify-between px-3 py-2">
+            <div>
+              <div className="font-medium">{node.name}</div>
+              <div className="text-slate-500">
+                {node.code} · {node.path}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <StatusChip status={node.status} />
+              <button type="button" className="btn-secondary" onClick={() => onEdit(node)}>
+                Edit
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       <div className="mt-2 space-y-2">
         {node.children.map((child) => (
-          <CategoryNode key={child.id} node={child} depth={depth + 1} onEdit={onEdit} />
+          <CategoryNode
+            key={child.id}
+            node={child}
+            depth={depth + 1}
+            editing={editing}
+            onEdit={onEdit}
+            onCloseEdit={onCloseEdit}
+            onSaveEdit={onSaveEdit}
+            saving={saving}
+            onEditingChange={onEditingChange}
+          />
         ))}
       </div>
     </div>
@@ -173,68 +259,6 @@ export default function CategoriesPage() {
         </button>
       </div>
 
-      {editing ? (
-        <EditPanel
-          title="Edit category"
-          onClose={() => setEditing(null)}
-          onSave={() => updateMutation.mutate()}
-          saving={updateMutation.isPending}
-        >
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <label className="label">Name</label>
-              <input
-                className="input"
-                value={editing.name}
-                onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="label">Slug</label>
-              <input
-                className="input"
-                value={editing.slug}
-                onChange={(e) => setEditing({ ...editing, slug: e.target.value })}
-                onBlur={() =>
-                  setEditing((current) =>
-                    current ? { ...current, slug: normalizeCategorySlug(current.slug) } : current,
-                  )
-                }
-              />
-            </div>
-            <div>
-              <label className="label">Sort order</label>
-              <input
-                className="input"
-                type="number"
-                value={editing.sortOrder}
-                onChange={(e) => setEditing({ ...editing, sortOrder: Number(e.target.value) })}
-              />
-            </div>
-            <div>
-              <label className="label">Status</label>
-              <select
-                className="input"
-                value={editing.status}
-                onChange={(e) => setEditing({ ...editing, status: e.target.value })}
-              >
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-                <option value="ARCHIVED">ARCHIVED</option>
-              </select>
-            </div>
-            <label className="flex items-center gap-2 text-sm md:col-span-2">
-              <input
-                type="checkbox"
-                checked={editing.isActive}
-                onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })}
-              />
-              Active in catalog
-            </label>
-          </div>
-        </EditPanel>
-      ) : null}
-
       {isLoading ? <LoadingState /> : null}
       {error ? <ErrorState message={(error as Error).message} /> : null}
       {data ? (
@@ -243,6 +267,7 @@ export default function CategoriesPage() {
             <CategoryNode
               key={node.id}
               node={node}
+              editing={editing}
               onEdit={(category) =>
                 setEditing({
                   id: category.id,
@@ -253,6 +278,10 @@ export default function CategoriesPage() {
                   isActive: category.isActive,
                 })
               }
+              onCloseEdit={() => setEditing(null)}
+              onSaveEdit={() => updateMutation.mutate()}
+              saving={updateMutation.isPending}
+              onEditingChange={setEditing}
             />
           ))}
         </div>

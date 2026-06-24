@@ -2,8 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
-import { EditPanel } from "@/components/taxonomy/EditPanel";
+import { useCallback, useMemo, useState } from "react";
+import { InlineEditForm } from "@/components/taxonomy/EditPanel";
 import { PageHeader } from "@/components/layout/AdminShell";
 import { DataTable } from "@/components/ui/DataTable";
 import { ErrorState, LoadingState } from "@/components/ui/States";
@@ -195,6 +195,122 @@ export default function FacetsPage() {
     onError: (err) => pushToast((err as Error).message, "error"),
   });
 
+  const renderFacetSubRow = useCallback(
+    (row: FacetRow) => {
+      if (!editing || editing.id !== String(row.id)) return null;
+
+      return (
+        <InlineEditForm
+          onClose={() => setEditing(null)}
+          onSave={() => updateMutation.mutate()}
+          saving={updateMutation.isPending}
+        >
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <label className="label">Label</label>
+              <input
+                className="input"
+                value={editing.label}
+                onChange={(e) => setEditing({ ...editing, label: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="label">Sort order</label>
+              <input
+                className="input"
+                type="number"
+                value={editing.sortOrder}
+                onChange={(e) => setEditing({ ...editing, sortOrder: Number(e.target.value) })}
+              />
+            </div>
+            <div>
+              <label className="label">Category scope</label>
+              <select
+                className="input"
+                value={editing.categoryId}
+                onChange={(e) => setEditing({ ...editing, categoryId: e.target.value })}
+              >
+                <option value="">Global</option>
+                {(categoriesQuery.data?.items ?? []).map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={editing.isDynamic}
+                onChange={(e) => setEditing({ ...editing, isDynamic: e.target.checked })}
+              />
+              Dynamic values
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={editing.isActive}
+                onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })}
+              />
+              Active on storefront
+            </label>
+          </div>
+        </InlineEditForm>
+      );
+    },
+    [categoriesQuery.data?.items, editing, updateMutation],
+  );
+
+  const renderRuleSubRow = useCallback(
+    (row: FacetRuleRow) => {
+      if (!editingRule || editingRule.id !== String(row.id)) return null;
+
+      return (
+        <InlineEditForm
+          onClose={() => setEditingRule(null)}
+          onSave={() => updateRuleMutation.mutate()}
+          saving={updateRuleMutation.isPending}
+        >
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <label className="label">Rule type</label>
+              <select
+                className="input"
+                value={editingRule.ruleType}
+                onChange={(e) => setEditingRule({ ...editingRule, ruleType: e.target.value })}
+              >
+                <option value="DIRECT">DIRECT</option>
+                <option value="NORMALIZE">NORMALIZE</option>
+                <option value="RANGE_BUCKET">RANGE_BUCKET</option>
+                <option value="COMPOSITE">COMPOSITE</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Priority</label>
+              <input
+                className="input"
+                type="number"
+                value={editingRule.priority}
+                onChange={(e) =>
+                  setEditingRule({ ...editingRule, priority: Number(e.target.value) })
+                }
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="label">Rule config (JSON)</label>
+              <textarea
+                className="input min-h-32 font-mono text-sm"
+                value={editingRule.ruleConfig}
+                onChange={(e) => setEditingRule({ ...editingRule, ruleConfig: e.target.value })}
+              />
+            </div>
+          </div>
+        </InlineEditForm>
+      );
+    },
+    [editingRule, updateRuleMutation],
+  );
+
   const facetColumns = useMemo<ColumnDef<FacetRow>[]>(
     () => [
       { header: "Key", accessorKey: "key" },
@@ -220,6 +336,7 @@ export default function FacetsPage() {
               <button
                 type="button"
                 className="btn-secondary"
+                disabled={editing?.id === String(row.original.id)}
                 onClick={() =>
                   setEditing({
                     id: String(row.original.id),
@@ -238,7 +355,7 @@ export default function FacetsPage() {
         ),
       },
     ],
-    [canEditDefs],
+    [canEditDefs, editing?.id],
   );
 
   const ruleColumns = useMemo<ColumnDef<FacetRuleRow>[]>(
@@ -281,6 +398,7 @@ export default function FacetsPage() {
                   <button
                     type="button"
                     className="btn-secondary text-xs"
+                    disabled={editingRule?.id === id}
                     onClick={() =>
                       setEditingRule({
                         id,
@@ -347,7 +465,7 @@ export default function FacetsPage() {
         },
       },
     ],
-    [canEditRules, canApproveRules, workflowMutation],
+    [canEditRules, canApproveRules, workflowMutation, editingRule?.id],
   );
 
   const selectedFacet = (facetsQuery.data?.items ?? []).find((f) => f.id === selectedFacetId);
@@ -408,114 +526,17 @@ export default function FacetsPage() {
         </div>
       ) : null}
 
-      {editing ? (
-        <EditPanel
-          title="Edit facet definition"
-          onClose={() => setEditing(null)}
-          onSave={() => updateMutation.mutate()}
-          saving={updateMutation.isPending}
-        >
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <label className="label">Label</label>
-              <input
-                className="input"
-                value={editing.label}
-                onChange={(e) => setEditing({ ...editing, label: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="label">Sort order</label>
-              <input
-                className="input"
-                type="number"
-                value={editing.sortOrder}
-                onChange={(e) => setEditing({ ...editing, sortOrder: Number(e.target.value) })}
-              />
-            </div>
-            <div>
-              <label className="label">Category scope</label>
-              <select
-                className="input"
-                value={editing.categoryId}
-                onChange={(e) => setEditing({ ...editing, categoryId: e.target.value })}
-              >
-                <option value="">Global</option>
-                {(categoriesQuery.data?.items ?? []).map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={editing.isDynamic}
-                onChange={(e) => setEditing({ ...editing, isDynamic: e.target.checked })}
-              />
-              Dynamic values
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={editing.isActive}
-                onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })}
-              />
-              Active on storefront
-            </label>
-          </div>
-        </EditPanel>
-      ) : null}
-
-      {editingRule ? (
-        <EditPanel
-          title="Edit facet rule (draft)"
-          onClose={() => setEditingRule(null)}
-          onSave={() => updateRuleMutation.mutate()}
-          saving={updateRuleMutation.isPending}
-        >
-          <div className="grid gap-3">
-            <div>
-              <label className="label">Rule type</label>
-              <select
-                className="input"
-                value={editingRule.ruleType}
-                onChange={(e) => setEditingRule({ ...editingRule, ruleType: e.target.value })}
-              >
-                <option value="DIRECT">DIRECT</option>
-                <option value="NORMALIZE">NORMALIZE</option>
-                <option value="RANGE_BUCKET">RANGE_BUCKET</option>
-                <option value="COMPOSITE">COMPOSITE</option>
-              </select>
-            </div>
-            <div>
-              <label className="label">Priority</label>
-              <input
-                className="input"
-                type="number"
-                value={editingRule.priority}
-                onChange={(e) => setEditingRule({ ...editingRule, priority: Number(e.target.value) })}
-              />
-            </div>
-            <div>
-              <label className="label">Rule config (JSON)</label>
-              <textarea
-                className="input min-h-32 font-mono text-sm"
-                value={editingRule.ruleConfig}
-                onChange={(e) => setEditingRule({ ...editingRule, ruleConfig: e.target.value })}
-              />
-            </div>
-          </div>
-        </EditPanel>
-      ) : null}
-
       {facetsQuery.isLoading ? <LoadingState /> : null}
       {facetsQuery.error ? <ErrorState message={(facetsQuery.error as Error).message} /> : null}
       {facetsQuery.data ? (
         <>
           <h2 className="mb-3 font-medium">Definitions</h2>
-          <DataTable data={facetsQuery.data.items} columns={facetColumns} />
+          <DataTable
+            data={facetsQuery.data.items}
+            columns={facetColumns}
+            getRowId={(row) => String(row.id)}
+            renderSubRow={renderFacetSubRow}
+          />
         </>
       ) : null}
 
@@ -575,7 +596,12 @@ export default function FacetsPage() {
           ) : null}
 
           {rulesQuery.data ? (
-            <DataTable data={rulesQuery.data.items} columns={ruleColumns} />
+            <DataTable
+              data={rulesQuery.data.items}
+              columns={ruleColumns}
+              getRowId={(row) => String(row.id)}
+              renderSubRow={renderRuleSubRow}
+            />
           ) : null}
         </div>
       ) : null}
