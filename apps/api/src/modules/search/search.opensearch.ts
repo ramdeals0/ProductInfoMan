@@ -118,11 +118,13 @@ export class OpenSearchStore implements SearchStore {
         },
       });
     }
-    if (query.categoryId) {
-      must.push({ term: { category_ids: query.categoryId } });
-    }
     if (query.categoryPath) {
       must.push({ prefix: { category_paths: query.categoryPath } });
+    } else if (query.categoryId) {
+      must.push({ term: { category_ids: query.categoryId } });
+    }
+    if (query.storefront) {
+      must.push({ term: { storefront_active: true } });
     }
     if (query.filters) {
       for (const [key, value] of Object.entries(query.filters)) {
