@@ -5,9 +5,12 @@ Deploy the PIM monorepo as **four Railway services** from one GitHub repo:
 | Service | Config path | Public URL |
 |---------|-------------|------------|
 | **Postgres** | Railway plugin | internal |
-| **API** | `/apps/api/railway.toml` | `https://api-….up.railway.app` |
-| **Admin** | `/apps/admin/railway.toml` | `https://admin-….up.railway.app` |
-| **Storefront** | `/apps/storefront/railway.toml` | `https://store-….up.railway.app` |
+| **API** | `/apps/api/railway.toml` | `https://pim-api.up.railway.app` |
+| **Admin** | `/apps/admin/railway.toml` | `https://pim-admin.up.railway.app` |
+| **Storefront** | `/apps/storefront/railway.toml` | `https://pim-store.up.railway.app` |
+| **Developer Portal** | `/apps/devportal/railway.toml` | `https://pmi-developer.up.railway.app` |
+
+> **Live production API:** https://pim-api.up.railway.app — see [railway-production.md](./railway-production.md) for the full checklist.
 
 Redis and OpenSearch are optional. Without them the API runs workers in-process (`*_SYNC=true`) and uses an in-memory search index.
 
@@ -91,7 +94,32 @@ NEXT_PUBLIC_SITE_URL=https://${{storefront.RAILWAY_PUBLIC_DOMAIN}}
 
 4. **Generate Domain**.
 
-## 6. Seed demo data (one-time)
+## 6. Developer Portal service
+
+1. **+ New** → same repo.
+2. **Config-as-code** → `/apps/devportal/railway.toml`
+3. **Variables**:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=https://pim-api.up.railway.app/api/v1
+NEXT_PUBLIC_API_SANDBOX_URL=https://pim-api.up.railway.app/api/v1
+NEXT_PUBLIC_ADMIN_URL=https://pim-admin.up.railway.app
+NEXT_PUBLIC_STOREFRONT_URL=https://pim-store.up.railway.app
+NEXT_PUBLIC_DEFAULT_ORG_SLUG=demo
+NODE_ENV=production
+```
+
+If not using config-as-code, set Railpack commands:
+
+```env
+RAILPACK_INSTALL_CMD=corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile
+RAILPACK_BUILD_CMD=pnpm --filter @productinfoman/devportal build
+RAILPACK_START_CMD=pnpm --filter @productinfoman/devportal start
+```
+
+4. **Networking** → assign domain `pmi-developer.up.railway.app`.
+
+## 7. Seed demo data (one-time)
 
 API service → **Shell**:
 
@@ -109,7 +137,7 @@ pnpm seed:demo-catalog
 
 Sign in at Admin with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 
-## 7. Optional: Redis
+## 8. Optional: Redis
 
 For BullMQ job queues instead of in-process workers:
 
@@ -128,6 +156,7 @@ EVENT_SYNC=false
 | `apps/api/railway.toml` | API build, `db push`, start |
 | `apps/admin/railway.toml` | Admin build/start |
 | `apps/storefront/railway.toml` | Storefront build/start |
+| `apps/devportal/railway.toml` | Developer Portal build/start |
 | `.env.railway.example` | Variable template |
 | `scripts/railway-seed.sh` | Post-deploy seed script |
 

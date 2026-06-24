@@ -25,7 +25,11 @@ High-performance ecommerce Product Information Management (PIM) platform.
 
 See **[docs/deployment/railway.md](./docs/deployment/railway.md)** for Postgres + API + Admin + Storefront setup.
 
-**Production (lovely-success-production):** API at `https://lovely-success-production-e534.up.railway.app` — see **[docs/deployment/railway-production.md](./docs/deployment/railway-production.md)** for exact variables and verify steps.
+**Production API:** `https://pim-api.up.railway.app`  
+**Production Admin:** `https://pim-admin.up.railway.app/login`  
+**Production Storefront:** `https://pim-store.up.railway.app`  
+
+See **[docs/deployment/railway-production.md](./docs/deployment/railway-production.md)** for exact variables and verify steps.
 
 ## Quick Start
 

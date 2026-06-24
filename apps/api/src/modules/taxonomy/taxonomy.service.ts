@@ -10,6 +10,8 @@ import type {
   CreateCategoryInput,
   LinkCategoryAttributeGroupsInput,
   LinkCategoryAttributesInput,
+  UpdateAttributeGroupInput,
+  UpdateAttributeInput,
   UpdateCategoryInput,
 } from "@productinfoman/validation";
 import { prisma } from "@productinfoman/db";
@@ -303,6 +305,45 @@ export async function listAttributeGroups(
   }));
 }
 
+export async function updateAttributeGroup(
+  id: string,
+  organizationId: string,
+  input: UpdateAttributeGroupInput,
+): Promise<AttributeGroupEntity> {
+  const existing = await prisma.attributeGroup.findFirst({
+    where: { id, organizationId },
+  });
+  if (!existing) throw appError("Attribute group not found", 404);
+
+  const group = await prisma.attributeGroup.update({
+    where: { id },
+    data: {
+      ...(input.name !== undefined && { name: input.name }),
+      ...(input.description !== undefined && { description: input.description }),
+      ...(input.sortOrder !== undefined && { sortOrder: input.sortOrder }),
+    },
+  });
+
+  await writeAudit({
+    organizationId,
+    entityType: "AttributeGroup",
+    entityId: id,
+    action: "UPDATE",
+    changes: input as Record<string, unknown>,
+  });
+
+  return {
+    id: group.id,
+    organizationId: group.organizationId,
+    code: group.code,
+    name: group.name,
+    description: group.description,
+    sortOrder: group.sortOrder,
+    createdAt: group.createdAt.toISOString(),
+    updatedAt: group.updatedAt.toISOString(),
+  };
+}
+
 export async function createAttribute(
   organizationId: string,
   input: CreateAttributeInput,
@@ -343,6 +384,41 @@ export async function createAttribute(
     entityId: attr.id,
     action: "CREATE",
     changes: { key: attr.key, label: attr.label },
+  });
+
+  return toAttributeDto(attr);
+}
+
+export async function updateAttribute(
+  id: string,
+  organizationId: string,
+  input: UpdateAttributeInput,
+): Promise<AttributeEntity> {
+  const existing = await prisma.attributeDefinition.findFirst({
+    where: { id, organizationId },
+  });
+  if (!existing) throw appError("Attribute not found", 404);
+
+  const attr = await prisma.attributeDefinition.update({
+    where: { id },
+    data: {
+      ...(input.label !== undefined && { label: input.label }),
+      ...(input.description !== undefined && { description: input.description }),
+      ...(input.isGlobal !== undefined && { isGlobal: input.isGlobal }),
+      ...(input.isVariantAxis !== undefined && { isVariantAxis: input.isVariantAxis }),
+      ...(input.isRequired !== undefined && { isRequired: input.isRequired }),
+      ...(input.isFilterable !== undefined && { isFilterable: input.isFilterable }),
+      ...(input.isSearchable !== undefined && { isSearchable: input.isSearchable }),
+      ...(input.allowedValuesType !== undefined && { allowedValuesType: input.allowedValuesType }),
+    },
+  });
+
+  await writeAudit({
+    organizationId,
+    entityType: "AttributeDefinition",
+    entityId: id,
+    action: "UPDATE",
+    changes: input as Record<string, unknown>,
   });
 
   return toAttributeDto(attr);

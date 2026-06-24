@@ -8,6 +8,7 @@ import type {
   CreateFacetRuleInput,
   ListFacetDefinitionsQuery,
   ListFacetRulesQuery,
+  UpdateFacetDefinitionInput,
 } from "@productinfoman/validation";
 import { resolveCategoryFacets } from "@productinfoman/facet-engine";
 import { prisma } from "@productinfoman/db";
@@ -181,7 +182,7 @@ export async function listFacetDefinitions(
   const facets = await prisma.facetDefinition.findMany({
     where: {
       organizationId,
-      isActive: true,
+      ...(query.includeInactive ? {} : { isActive: true }),
       ...(query.categoryId
         ? {
             OR: [{ categoryId: query.categoryId }, { categoryId: null, scope: "GLOBAL" }],
@@ -193,6 +194,57 @@ export async function listFacetDefinitions(
   });
 
   return facets.map(toFacetDefinitionDto);
+}
+
+export async function updateFacetDefinition(
+  id: string,
+  organizationId: string,
+  input: UpdateFacetDefinitionInput,
+): Promise<FacetDefinitionEntity> {
+  const existing = await prisma.facetDefinition.findFirst({
+    where: { id, organizationId },
+  });
+  if (!existing) throw appError("Facet definition not found", 404);
+
+  if (input.categoryId) {
+    const category = await prisma.category.findFirst({
+      where: { id: input.categoryId, organizationId },
+    });
+    if (!category) throw appError("Category not found", 404);
+  }
+
+  const facet = await prisma.facetDefinition.update({
+    where: { id },
+    data: {
+      ...(input.label !== undefined && { label: input.label }),
+      ...(input.sortOrder !== undefined && { sortOrder: input.sortOrder }),
+      ...(input.isDynamic !== undefined && { isDynamic: input.isDynamic }),
+      ...(input.isActive !== undefined && { isActive: input.isActive }),
+      ...(input.categoryId !== undefined && {
+        categoryId: input.categoryId,
+        scope: input.categoryId ? "CATEGORY" : "GLOBAL",
+      }),
+    },
+    include: { sourceAttribute: { select: { key: true } } },
+  });
+
+  await writeAudit({
+    organizationId,
+    entityType: "FacetDefinition",
+    entityId: id,
+    action: "UPDATE",
+    changes: input as Record<string, unknown>,
+  });
+
+  await emitEvent(
+    createEvent("taxonomy.facet.updated", organizationId, {
+      facetDefinitionId: facet.id,
+      key: facet.key,
+      categoryId: facet.categoryId,
+    }),
+  );
+
+  return toFacetDefinitionDto(facet);
 }
 
 export async function createFacetRule(

@@ -38,11 +38,14 @@ export function FacetSidebar({ facets }: { facets: SearchFacetAggregationEntity[
 
   if (facets.length === 0) return null;
 
+  const visibleFacets = facets.filter((facet) => facet.buckets.length > 0);
+  if (visibleFacets.length === 0) return null;
+
   return (
     <aside className="card p-4">
       <h2 className="font-semibold text-slate-900">Filters</h2>
       <div className="mt-4 space-y-6">
-        {facets.map((facet) => (
+        {visibleFacets.map((facet) => (
           <div key={facet.key}>
             <h3 className="text-sm font-medium capitalize text-slate-700">{facet.key}</h3>
             <ul className="mt-2 space-y-1">

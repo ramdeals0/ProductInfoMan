@@ -135,6 +135,20 @@ export class ApiClient {
     return this.request<{ items: CategoryEntity[] }>("/api/v1/categories");
   }
 
+  createCategory(body: Record<string, unknown>) {
+    return this.request<CategoryEntity>("/api/v1/categories", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateCategory(id: string, body: Record<string, unknown>) {
+    return this.request<CategoryEntity>(`/api/v1/categories/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  }
+
   listAttributes() {
     return this.request<{ items: Array<Record<string, unknown>> }>("/api/v1/attributes");
   }
@@ -143,9 +157,56 @@ export class ApiClient {
     return this.request<{ items: Array<Record<string, unknown>> }>("/api/v1/attribute-groups");
   }
 
-  listFacetDefinitions(categoryId?: string) {
-    const params = categoryId ? `?categoryId=${categoryId}` : "";
-    return this.request<{ items: Array<Record<string, unknown>> }>(`/api/v1/facet-definitions${params}`);
+  createAttributeGroup(body: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>("/api/v1/attribute-groups", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateAttributeGroup(id: string, body: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>(`/api/v1/attribute-groups/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  }
+
+  createAttribute(body: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>("/api/v1/attributes", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateAttribute(id: string, body: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>(`/api/v1/attributes/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  }
+
+  listFacetDefinitions(options: { categoryId?: string; includeInactive?: boolean } = {}) {
+    const params = new URLSearchParams();
+    if (options.categoryId) params.set("categoryId", options.categoryId);
+    if (options.includeInactive) params.set("includeInactive", "true");
+    const query = params.toString();
+    return this.request<{ items: Array<Record<string, unknown>> }>(
+      `/api/v1/facet-definitions${query ? `?${query}` : ""}`,
+    );
+  }
+
+  createFacetDefinition(body: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>("/api/v1/facet-definitions", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateFacetDefinition(id: string, body: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>(`/api/v1/facet-definitions/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
   }
 
   listFacetRules(query: Record<string, string> = {}) {

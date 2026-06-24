@@ -18,7 +18,7 @@ Govern product lifecycle: draft → in review → approved → published.
 
 ## Product transitions
 
-<Endpoint method="POST" path="/api/v1/products/:id/workflow/submit" description="Submit product for review." adminLink="http://localhost:3000/admin/workflow" />
+<Endpoint method="POST" path="/api/v1/products/:id/workflow/submit" description="Submit product for review." adminPath="/admin/workflow" />
 <Endpoint method="POST" path="/api/v1/products/:id/workflow/approve" description="Approve a submitted product." />
 <Endpoint method="POST" path="/api/v1/products/:id/workflow/reject" description="Reject with comment." />
 <Endpoint method="POST" path="/api/v1/products/:id/workflow/publish" description="Mark publish-ready / published." />
@@ -26,7 +26,7 @@ Govern product lifecycle: draft → in review → approved → published.
 
 ## Tasks
 
-<Endpoint method="GET" path="/api/v1/workflow/tasks" description="List open workflow tasks." adminLink="http://localhost:3000/admin/workflow" />
+<Endpoint method="GET" path="/api/v1/workflow/tasks" description="List open workflow tasks." adminPath="/admin/workflow" />
 <Endpoint method="GET" path="/api/v1/workflow/tasks/:id" description="Get a single task." />
 
 ## Definitions

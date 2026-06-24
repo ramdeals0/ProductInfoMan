@@ -94,12 +94,29 @@ export const CreateAttributeGroupSchema = z.object({
   sortOrder: z.number().int().optional(),
 });
 
+export const UpdateAttributeGroupSchema = z.object({
+  name: z.string().min(1).max(128).optional(),
+  description: z.string().max(512).nullable().optional(),
+  sortOrder: z.number().int().optional(),
+});
+
 export const CreateAttributeSchema = z.object({
   attributeGroupId: z.string().cuid(),
   key: z.string().min(1).max(64).regex(/^[a-z0-9_]+$/),
   label: z.string().min(1).max(128),
   description: z.string().optional(),
   dataType: AttributeDataTypeSchema,
+  isGlobal: z.boolean().optional(),
+  isVariantAxis: z.boolean().optional(),
+  isRequired: z.boolean().optional(),
+  isFilterable: z.boolean().optional(),
+  isSearchable: z.boolean().optional(),
+  allowedValuesType: z.enum(["FREE_TEXT", "CONTROLLED_LIST", "NUMERIC_RANGE"]).optional(),
+});
+
+export const UpdateAttributeSchema = z.object({
+  label: z.string().min(1).max(128).optional(),
+  description: z.string().nullable().optional(),
   isGlobal: z.boolean().optional(),
   isVariantAxis: z.boolean().optional(),
   isRequired: z.boolean().optional(),
@@ -129,8 +146,17 @@ export const CreateFacetDefinitionSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
+export const UpdateFacetDefinitionSchema = z.object({
+  label: z.string().min(1).max(128).optional(),
+  sortOrder: z.number().int().optional(),
+  isDynamic: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+  categoryId: z.string().cuid().nullable().optional(),
+});
+
 export const ListFacetDefinitionsQuerySchema = z.object({
   categoryId: z.string().cuid().optional(),
+  includeInactive: z.coerce.boolean().optional(),
 });
 
 export const CreateFacetRuleSchema = z.object({
@@ -400,10 +426,13 @@ export type ListProductsQuery = z.infer<typeof ListProductsQuerySchema>;
 export type CreateCategoryInput = z.infer<typeof CreateCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof UpdateCategorySchema>;
 export type CreateAttributeGroupInput = z.infer<typeof CreateAttributeGroupSchema>;
+export type UpdateAttributeGroupInput = z.infer<typeof UpdateAttributeGroupSchema>;
 export type CreateAttributeInput = z.infer<typeof CreateAttributeSchema>;
+export type UpdateAttributeInput = z.infer<typeof UpdateAttributeSchema>;
 export type LinkCategoryAttributesInput = z.infer<typeof LinkCategoryAttributesSchema>;
 export type LinkCategoryAttributeGroupsInput = z.infer<typeof LinkCategoryAttributeGroupsSchema>;
 export type CreateFacetDefinitionInput = z.infer<typeof CreateFacetDefinitionSchema>;
+export type UpdateFacetDefinitionInput = z.infer<typeof UpdateFacetDefinitionSchema>;
 export type ListFacetDefinitionsQuery = z.infer<typeof ListFacetDefinitionsQuerySchema>;
 export type CreateFacetRuleInput = z.infer<typeof CreateFacetRuleSchema>;
 export type ListFacetRulesQuery = z.infer<typeof ListFacetRulesQuerySchema>;

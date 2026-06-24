@@ -21,43 +21,43 @@ Read-only catalog endpoints used by the headless demo storefront. There is no se
   method="GET"
   path="/api/v1/search"
   description="Full-text search with facet filters."
-  storefrontLink="http://localhost:3002/search"
+  storefrontPath="/search"
 />
 <Endpoint
   method="GET"
   path="/api/v1/search/facets"
   description="Facet counts for filter UI."
-  storefrontLink="http://localhost:3002/category/tools"
+  storefrontPath="/category/shirts"
 />
 <Endpoint
   method="GET"
   path="/api/v1/search/categories/:id"
   description="Search scoped to a category."
-  storefrontLink="http://localhost:3002/category/tools"
+  storefrontPath="/category/shirts"
 />
 <Endpoint
   method="GET"
   path="/api/v1/categories"
   description="Flat category list."
-  storefrontLink="http://localhost:3002/"
+  storefrontPath="/"
 />
 <Endpoint
   method="GET"
   path="/api/v1/categories/tree"
   description="Navigation category tree."
-  storefrontLink="http://localhost:3002/"
+  storefrontPath="/"
 />
 <Endpoint
   method="GET"
   path="/api/v1/products/:id"
   description="Product detail with attributes and variants."
-  storefrontLink="http://localhost:3002/product/PRODUCT_ID"
+  storefrontPath="/product/PRODUCT_ID"
 />
 <Endpoint
   method="GET"
   path="/api/v1/products/:parentId/variants"
   description="Variant picker options."
-  storefrontLink="http://localhost:3002/product/PRODUCT_ID"
+  storefrontPath="/product/PRODUCT_ID"
 />
 
 ## Authentication

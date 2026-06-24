@@ -44,9 +44,10 @@ When deploying to production (e.g. Railway), use your assigned Admin and Storefr
 
 | Surface | URL |
 |---------|-----|
-| **API** | https://lovely-success-production-e534.up.railway.app |
-| **API health** | https://lovely-success-production-e534.up.railway.app/health/ready |
-| **Admin** | Deploy a separate Admin service; set `API_URL` to the API URL above |
+| **API** | https://pim-api.up.railway.app |
+| **API health** | https://pim-api.up.railway.app/health/ready |
+| **Admin** | https://pim-admin.up.railway.app/login |
+| **Storefront** | https://pim-store.up.railway.app |
 
 Setup details: [deployment/railway-production.md](./deployment/railway-production.md)
 
@@ -329,20 +330,37 @@ After large catalog changes, operations may trigger a **reindex** (automatic via
 | **Cart** | Review line items and quantities |
 | **Checkout** | Place order (Stripe if configured, otherwise mock checkout) |
 
+### Taxonomy (categories, attributes, facets)
+
+**Admin → Taxonomy** provides list and edit views for categories, attribute groups, attributes, and facet definitions. Use **Edit** on any row to update labels, status, filter flags, or facet scope. Create new categories, attribute groups, attributes, and facets from the forms at the top of each page.
+
+After changing facet definitions, trigger a search reindex (`POST /api/v1/search/reindex` or `pnpm reseed:demo`) so storefront filters reflect the updated configuration.
+
 ### Faceted filters
 
 On category and search pages, the sidebar shows facets (brand, price range, category-specific attributes) with result counts. Filters update the URL so results are shareable.
 
 ### Demo catalog
 
-For a richer demo (80+ products with Fleet Farm–style facets):
+The default demo catalog includes **500** `DEMO-*` simple products plus the `SHIRT-001` parent and variants. To refresh after deploy:
 
 ```bash
-pnpm seed:attributes-facets
-pnpm seed:demo-catalog
+pnpm reseed:demo
 ```
 
-Categories include Tools, Outdoor Power, Clothing, and Fishing.
+Add or refresh demo products only (without full purge):
+
+```bash
+pnpm seed:demo-products --count=500
+```
+
+Add big-box store departments and products (50 per department, 500 total):
+
+```bash
+pnpm seed:bigbox-products --per-category=50
+```
+
+This removes any Fleet Farm (`FF-*`) products when using `reseed:demo`.
 
 ---
 
@@ -446,10 +464,10 @@ Password requirements are enforced on login and user creation.
 | **Product not on storefront** | Check status is APPROVED or PUBLISHED. Wait for search index update or ask ops to reindex. |
 | **Import validation errors** | Open job detail → review error table → fix CSV → upload again. |
 | **Publish job skipped products** | Product may be DRAFT or missing required channel fields. Check item errors on job detail. |
-| **Empty dashboard metrics** | Run `pnpm db:seed` and optional demo catalog seeds in your environment. |
-| **Facets missing on storefront** | Run `pnpm seed:attributes-facets` and `pnpm seed:demo-catalog`, then reindex. |
+| **Empty dashboard metrics** | Run `pnpm reseed:demo` or `pnpm db:seed` in your environment. |
+| **Facets missing on storefront** | Run `pnpm reseed:demo` to publish and reindex the base catalog. |
 
-For deployment issues, see [deployment/railway.md](./deployment/railway.md) or [deployment/railway-production.md](./deployment/railway-production.md) for the live `lovely-success-production` environment.
+For deployment issues, see [deployment/railway.md](./deployment/railway.md) or [deployment/railway-production.md](./deployment/railway-production.md) for the live `productinfoman-production` environment.
 
 For API integration details, see the [Developer portal](http://localhost:3003) or `apps/devportal`.
 

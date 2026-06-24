@@ -1,7 +1,10 @@
 # Production deployment — Railway
 
-**Project:** `lovely-success-production`  
-**Public domain:** https://lovely-success-production-e534.up.railway.app
+**Project:** `PIM`  
+**Public API domain:** https://pim-api.up.railway.app  
+**Public Admin domain:** https://pim-admin.up.railway.app  
+**Public Storefront domain:** https://pim-store.up.railway.app  
+**Public Developer Portal domain:** https://pmi-developer.up.railway.app
 
 Use this document when configuring the live Railway environment. The monorepo normally runs as **separate services** (API, Admin, Storefront). If you only have one public domain so far, assign it to the **API** service first.
 
@@ -11,10 +14,25 @@ Use this document when configuring the live Railway environment. The monorepo no
 
 | Service | Config path | Suggested domain |
 |---------|-------------|------------------|
-| **API** | `/apps/api/railway.toml` | `lovely-success-production-e534.up.railway.app` |
-| **Admin** | `/apps/admin/railway.toml` | Generate a second domain in Railway |
-| **Storefront** | `/apps/storefront/railway.toml` | Generate a third domain (optional) |
+| **API** | `/apps/api/railway.toml` | `pim-api.up.railway.app` |
+| **Admin** | `/apps/admin/railway.toml` | `pim-admin.up.railway.app` |
+| **Storefront** | `/apps/storefront/railway.toml` | `pim-store.up.railway.app` |
+| **Developer Portal** | `/apps/devportal/railway.toml` | `pmi-developer.up.railway.app` |
 | **Postgres** | Railway plugin | Internal only |
+
+---
+
+## API service — Railway dashboard checklist
+
+1. **New service** from GitHub repo `ProductInfoMan` (or redeploy existing API service).
+2. **Settings → Root Directory:** leave **empty** (monorepo root).
+3. **Settings → Config-as-code:** `/apps/api/railway.toml`
+4. **Variables** (see below). Generate `JWT_SECRET`: `openssl rand -base64 48`
+5. **Networking → Public domain:** `pim-api.up.railway.app` (or generate and alias).
+6. **Deploy** and watch logs. Pre-deploy runs `pnpm db:push` to sync schema.
+7. When healthy, **Shell** → `bash scripts/railway-seed.sh`
+
+Or with CLI after `railway login`: `bash scripts/railway-deploy-api.sh`
 
 ---
 
@@ -24,6 +42,7 @@ In Railway → **API service** → **Variables**:
 
 ```env
 DATABASE_URL=${{Postgres.DATABASE_URL}}
+NODE_ENV=production
 HOST=0.0.0.0
 JWT_SECRET=<generate with: openssl rand -base64 48>
 IMPORT_SYNC=true
@@ -35,19 +54,17 @@ ADMIN_EMAIL=admin@demo.local
 ADMIN_PASSWORD=<strong password, min 12 chars>
 ```
 
-After Admin has a public domain, add:
-
 ```env
-CORS_ORIGINS=https://<your-admin-domain>.up.railway.app
+CORS_ORIGINS=https://pim-admin.up.railway.app,https://pim-store.up.railway.app
 ```
 
 ### Verify API (after deploy)
 
 ```bash
-curl https://lovely-success-production-e534.up.railway.app/health
-curl https://lovely-success-production-e534.up.railway.app/health/ready
+curl https://pim-api.up.railway.app/health
+curl https://pim-api.up.railway.app/health/ready
 curl -H "X-Organization-Slug: demo" \
-  https://lovely-success-production-e534.up.railway.app/api/v1/products
+  https://pim-api.up.railway.app/api/v1/products
 ```
 
 Expected:
@@ -60,30 +77,76 @@ Expected:
 
 ## Admin service variables
 
-Create a **second** Railway service from the same repo with config `/apps/admin/railway.toml`.
+Railway service **PIM-ADMIN** → `pim-admin.up.railway.app`. Config: `/apps/admin/railway.toml`.
 
 ```env
-API_URL=https://lovely-success-production-e534.up.railway.app
+API_URL=https://pim-api.up.railway.app
 JWT_SECRET=<same value as API>
 NEXT_PUBLIC_DEFAULT_ORG_SLUG=demo
 NEXT_PUBLIC_ADMIN_EMAIL=admin@demo.local
+NODE_ENV=production
+```
+
+If not using config-as-code, set Railpack commands:
+
+```env
+RAILPACK_INSTALL_CMD=corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile
+RAILPACK_BUILD_CMD=pnpm --filter @productinfoman/admin build
+RAILPACK_START_CMD=pnpm --filter @productinfoman/admin start
 ```
 
 **Important:** Set `API_URL` before the first Admin build. Redeploy Admin after changing it.
 
-Sign in at: `https://<admin-domain>/login`
+Sign in at: https://pim-admin.up.railway.app/login
 
 ---
 
-## Storefront service variables (optional)
+## Storefront service variables
 
-Config: `/apps/storefront/railway.toml`
+Railway service **PIM-STORE** → `pim-store.up.railway.app`. Config: `/apps/storefront/railway.toml`.
 
 ```env
-API_URL=https://lovely-success-production-e534.up.railway.app
+API_URL=https://pim-api.up.railway.app
+NEXT_PUBLIC_API_URL=https://pim-api.up.railway.app
 NEXT_PUBLIC_ORG_SLUG=demo
-NEXT_PUBLIC_SITE_URL=https://<storefront-domain>.up.railway.app
+NEXT_PUBLIC_SITE_URL=https://pim-store.up.railway.app
+NODE_ENV=production
 ```
+
+If not using config-as-code, set Railpack commands:
+
+```env
+RAILPACK_INSTALL_CMD=corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile
+RAILPACK_BUILD_CMD=pnpm --filter @productinfoman/storefront build
+RAILPACK_START_CMD=pnpm --filter @productinfoman/storefront start
+```
+
+Set `API_URL` and `NEXT_PUBLIC_*` before the first build.
+
+---
+
+## Developer Portal service variables
+
+Railway service **dev portal** → `pmi-developer.up.railway.app`. Config: `/apps/devportal/railway.toml`.
+
+```env
+NEXT_PUBLIC_API_BASE_URL=https://pim-api.up.railway.app/api/v1
+NEXT_PUBLIC_API_SANDBOX_URL=https://pim-api.up.railway.app/api/v1
+NEXT_PUBLIC_ADMIN_URL=https://pim-admin.up.railway.app
+NEXT_PUBLIC_STOREFRONT_URL=https://pim-store.up.railway.app
+NEXT_PUBLIC_DEFAULT_ORG_SLUG=demo
+NODE_ENV=production
+```
+
+If not using config-as-code, set Railpack commands:
+
+```env
+RAILPACK_INSTALL_CMD=corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile
+RAILPACK_BUILD_CMD=pnpm --filter @productinfoman/devportal build
+RAILPACK_START_CMD=pnpm --filter @productinfoman/devportal start
+```
+
+Set `NEXT_PUBLIC_*` before the first build so docs examples use production URLs.
 
 ---
 
@@ -114,7 +177,7 @@ Then sign in to Admin with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 | `Application not found` (404) | Service not deployed, wrong domain, or deployment failed. Check Railway **Deployments** tab and logs. |
 | API crash on start | Set `JWT_SECRET` (min 32 characters). |
 | Admin **Unauthorized** | `JWT_SECRET` must match on API and Admin. |
-| Admin API calls fail | `API_URL=https://lovely-success-production-e534.up.railway.app` on Admin; rebuild. |
+| Admin API calls fail | `API_URL=https://pim-api.up.railway.app` on Admin; rebuild. |
 | Empty catalog | Run seed script in API shell. |
 
 ---
@@ -123,10 +186,11 @@ Then sign in to Admin with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 
 | Surface | URL |
 |---------|-----|
-| API health | https://lovely-success-production-e534.up.railway.app/health |
-| API ready | https://lovely-success-production-e534.up.railway.app/health/ready |
-| API products | https://lovely-success-production-e534.up.railway.app/api/v1/products |
-| Admin | `https://<admin-domain>/login` (after Admin service is created) |
-| Storefront | `https://<storefront-domain>/` (optional) |
+| API health | https://pim-api.up.railway.app/health |
+| API ready | https://pim-api.up.railway.app/health/ready |
+| API products | https://pim-api.up.railway.app/api/v1/products |
+| Admin login | https://pim-admin.up.railway.app/login |
+| Storefront | https://pim-store.up.railway.app |
+| Developer Portal | https://pmi-developer.up.railway.app |
 
 See also: [railway.md](./railway.md) (general guide), [user-guide.md](../user-guide.md) (end users).

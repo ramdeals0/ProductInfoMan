@@ -9,7 +9,10 @@ import {
   LinkCategoryAttributesSchema,
   ListFacetDefinitionsQuerySchema,
   ListFacetRulesQuerySchema,
+  UpdateAttributeGroupSchema,
+  UpdateAttributeSchema,
   UpdateCategorySchema,
+  UpdateFacetDefinitionSchema,
 } from "@productinfoman/validation";
 import { AppError } from "@productinfoman/shared";
 import { resolveTenant } from "../../plugins/tenant.js";
@@ -182,6 +185,18 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  app.patch("/attribute-groups/:id", async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const body = UpdateAttributeGroupSchema.parse(request.body);
+      const group = await taxonomyService.updateAttributeGroup(id, request.organizationId, body);
+      return reply.send(group);
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
   app.post("/attributes", async (request, reply) => {
     try {
       const body = CreateAttributeSchema.parse(request.body);
@@ -197,6 +212,18 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
     try {
       const attrs = await taxonomyService.listAttributes(request.organizationId);
       return reply.send({ items: attrs });
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
+  app.patch("/attributes/:id", async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const body = UpdateAttributeSchema.parse(request.body);
+      const attr = await taxonomyService.updateAttribute(id, request.organizationId, body);
+      return reply.send(attr);
     } catch (e) {
       const { statusCode, message } = handleError(e);
       return reply.code(statusCode).send({ error: message });
@@ -219,6 +246,18 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       const query = ListFacetDefinitionsQuerySchema.parse(request.query ?? {});
       const facets = await facetService.listFacetDefinitions(request.organizationId, query);
       return reply.send({ items: facets });
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
+  app.patch("/facet-definitions/:id", async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const body = UpdateFacetDefinitionSchema.parse(request.body);
+      const facet = await facetService.updateFacetDefinition(id, request.organizationId, body);
+      return reply.send(facet);
     } catch (e) {
       const { statusCode, message } = handleError(e);
       return reply.code(statusCode).send({ error: message });

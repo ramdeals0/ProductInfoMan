@@ -293,7 +293,7 @@ async function main() {
       sourceAttributeId: colorAttr.id,
       categoryId: shirts.id,
       scope: "CATEGORY",
-      sortOrder: 1,
+      sortOrder: 2,
     },
     update: {},
   });
@@ -307,9 +307,29 @@ async function main() {
       sourceAttributeId: sizeAttr.id,
       categoryId: shirts.id,
       scope: "CATEGORY",
-      sortOrder: 2,
+      sortOrder: 3,
     },
     update: {},
+  });
+
+  const brandFacet = await prisma.facetDefinition.upsert({
+    where: { organizationId_key: { organizationId: org.id, key: "brand" } },
+    create: {
+      organizationId: org.id,
+      key: "brand",
+      label: "Brand",
+      sourceAttributeId: brandAttr.id,
+      categoryId: null,
+      scope: "GLOBAL",
+      sortOrder: 1,
+    },
+    update: {
+      label: "Brand",
+      sourceAttributeId: brandAttr.id,
+      scope: "GLOBAL",
+      categoryId: null,
+      isActive: true,
+    },
   });
 
   for (const [facet, enumValues] of [

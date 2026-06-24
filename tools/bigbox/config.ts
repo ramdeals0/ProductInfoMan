@@ -1,0 +1,203 @@
+export type BigBoxCategorySeed = {
+  code: string;
+  name: string;
+  skuCode: string;
+  productStems: readonly string[];
+};
+
+/** Big-box retail departments (Target / Walmart–style aisles). */
+export const BIGBOX_ROOT = {
+  code: "big-box",
+  name: "Big Box Store",
+  slug: "big-box",
+  path: "/big-box",
+} as const;
+
+export const BIGBOX_CATEGORIES: readonly BigBoxCategorySeed[] = [
+  {
+    code: "electronics",
+    name: "Electronics",
+    skuCode: "ELEC",
+    productStems: [
+      "Wireless Earbuds",
+      "Bluetooth Speaker",
+      "USB-C Charging Cable",
+      "LED Desk Lamp",
+      "Portable Power Bank",
+      "Wireless Mouse",
+      "Mechanical Keyboard",
+      "HD Webcam",
+      "Tablet Stand",
+      "Smart Plug 4-Pack",
+    ],
+  },
+  {
+    code: "home_garden",
+    name: "Home & Garden",
+    skuCode: "HOME",
+    productStems: [
+      "Microfiber Sheet Set",
+      "Memory Foam Pillow",
+      "Shower Curtain Liner",
+      "Indoor Herb Garden Kit",
+      "Ceramic Planter",
+      "LED String Lights",
+      "Storage Ottoman",
+      "Kitchen Towel Set",
+      "Area Rug",
+      "Wall Clock",
+    ],
+  },
+  {
+    code: "tools_hardware",
+    name: "Tools & Hardware",
+    skuCode: "TOOL",
+    productStems: [
+      "Cordless Drill Kit",
+      "Screwdriver Set",
+      "Tape Measure",
+      "Utility Knife",
+      "Adjustable Wrench",
+      "Hammer",
+      "Safety Glasses",
+      "Work Gloves",
+      "Extension Cord",
+      "Toolbox",
+    ],
+  },
+  {
+    code: "sporting_goods",
+    name: "Sporting Goods",
+    skuCode: "SPRT",
+    productStems: [
+      "Yoga Mat",
+      "Insulated Water Bottle",
+      "Camping Chair",
+      "Resistance Band Set",
+      "Basketball",
+      "Soccer Ball",
+      "Tennis Balls 3-Pack",
+      "Bike Helmet",
+      "Cooler Bag",
+      "Jump Rope",
+    ],
+  },
+  {
+    code: "automotive",
+    name: "Automotive",
+    skuCode: "AUTO",
+    productStems: [
+      "Motor Oil 5W-30",
+      "Windshield Washer Fluid",
+      "Car Wash Kit",
+      "Tire Pressure Gauge",
+      "Jumper Cables",
+      "Microfiber Wash Mitt",
+      "Cup Holder Organizer",
+      "Phone Mount",
+      "LED Headlight Bulbs",
+      "Cargo Trunk Organizer",
+    ],
+  },
+  {
+    code: "pet_supplies",
+    name: "Pet Supplies",
+    skuCode: "PET",
+    productStems: [
+      "Dry Dog Food",
+      "Cat Litter",
+      "Pet Bed",
+      "Chew Toy",
+      "Retractable Leash",
+      "Stainless Food Bowl",
+      "Grooming Brush",
+      "Cat Scratching Post",
+      "Pet Waste Bags",
+      "Aquarium Starter Kit",
+    ],
+  },
+  {
+    code: "grocery_pantry",
+    name: "Grocery & Pantry",
+    skuCode: "GROC",
+    productStems: [
+      "Pasta Sauce",
+      "Extra Virgin Olive Oil",
+      "Peanut Butter",
+      "Granola Bars 12-Pack",
+      "Bottled Water 24-Pack",
+      "Ground Coffee",
+      "Cereal Family Size",
+      "Canned Soup",
+      "Rice 5 lb Bag",
+      "Snack Mix Variety Pack",
+    ],
+  },
+  {
+    code: "apparel_family",
+    name: "Clothing & Apparel",
+    skuCode: "APRL",
+    productStems: [
+      "Crew Neck T-Shirt",
+      "Fleece Hoodie",
+      "Denim Jeans",
+      "Athletic Shorts",
+      "Socks 6-Pack",
+      "Baseball Cap",
+      "Rain Jacket",
+      "Pajama Set",
+      "Tank Top",
+      "Windbreaker",
+    ],
+  },
+  {
+    code: "furniture_home",
+    name: "Furniture",
+    skuCode: "FURN",
+    productStems: [
+      "Bookshelf",
+      "TV Stand",
+      "Office Chair",
+      "Dining Chair Set",
+      "Coffee Table",
+      "Nightstand",
+      "Folding Table",
+      "Desk Lamp",
+      "Coat Rack",
+      "Shoe Rack",
+    ],
+  },
+  {
+    code: "toys_games",
+    name: "Toys & Games",
+    skuCode: "TOYS",
+    productStems: [
+      "Building Block Set",
+      "Board Game",
+      "Plush Toy",
+      "Puzzle 500 Pieces",
+      "Remote Control Car",
+      "Art Supply Kit",
+      "Play-Doh Pack",
+      "Card Game",
+      "Outdoor Bubble Machine",
+      "STEM Science Kit",
+    ],
+  },
+] as const;
+
+export const BIGBOX_BRANDS = [
+  "Everyday Essentials",
+  "HomeLine",
+  "ProGrade",
+  "ActiveLife",
+  "FreshMarket",
+  "TechHub",
+  "ComfortZone",
+  "TrailReady",
+  "FamilyChoice",
+  "ValueMax",
+] as const;
+
+export const BIGBOX_APPAREL_COLORS = ["Black", "Blue", "Gray", "Red", "White"] as const;
+export const BIGBOX_APPAREL_SIZES = ["S", "M", "L", "XL"] as const;

@@ -14,10 +14,10 @@ Bulk ingest products from CSV with validation, error reporting, and commit.
 
 ## Endpoints
 
-<Endpoint method="POST" path="/api/v1/imports/upload" description="Upload a CSV file and create an import job." adminLink="http://localhost:3000/admin/imports" />
+<Endpoint method="POST" path="/api/v1/imports/upload" description="Upload a CSV file and create an import job." adminPath="/admin/imports" />
 <Endpoint method="POST" path="/api/v1/imports/:id/validate" description="Parse and validate rows against templates and rules." />
 <Endpoint method="POST" path="/api/v1/imports/:id/start" description="Commit valid rows to the catalog." />
-<Endpoint method="GET" path="/api/v1/imports" description="List import jobs." adminLink="http://localhost:3000/admin/imports" />
+<Endpoint method="GET" path="/api/v1/imports" description="List import jobs." adminPath="/admin/imports" />
 <Endpoint method="GET" path="/api/v1/imports/:id" description="Get job status and counters." />
 <Endpoint method="GET" path="/api/v1/imports/:id/errors" description="Row-level validation errors." />
 <Endpoint method="GET" path="/api/v1/imports/:id/report" description="Summary report after completion." />
