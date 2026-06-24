@@ -293,6 +293,57 @@ export const SearchQuerySchema = z.object({
   sortOrder: z.enum(["asc", "desc"]).optional(),
 });
 
+const BRACKET_PARAM_PATTERN = /^([^[]+)\[(.+)\]$/;
+
+/** Parse flat query keys like filters[brand]=Acme into { brand: "Acme" }. */
+export function parseBracketNotationParams(
+  query: Record<string, unknown>,
+  groupKey: string,
+): Record<string, string | string[]> | undefined {
+  const collected = new Map<string, string[]>();
+
+  for (const [rawKey, rawValue] of Object.entries(query)) {
+    const match = rawKey.match(BRACKET_PARAM_PATTERN);
+    if (!match || match[1] !== groupKey) continue;
+
+    const key = match[2]!;
+    const entries = Array.isArray(rawValue) ? rawValue : [rawValue];
+    const bucket = collected.get(key) ?? [];
+    for (const entry of entries) {
+      if (entry != null && entry !== "") bucket.push(String(entry));
+    }
+    collected.set(key, bucket);
+  }
+
+  if (collected.size === 0) return undefined;
+
+  const normalized: Record<string, string | string[]> = {};
+  for (const [key, values] of collected.entries()) {
+    normalized[key] = values.length === 1 ? values[0]! : values;
+  }
+  return normalized;
+}
+
+export function parseSearchQuery(raw: Record<string, unknown>): z.infer<typeof SearchQuerySchema> {
+  const nestedFilters =
+    raw.filters && typeof raw.filters === "object" && !Array.isArray(raw.filters)
+      ? (raw.filters as Record<string, string | string[]>)
+      : undefined;
+
+  const cleaned: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (key === "filters") continue;
+    const match = key.match(BRACKET_PARAM_PATTERN);
+    if (match?.[1] === "filters") continue;
+    cleaned[key] = value;
+  }
+
+  return SearchQuerySchema.parse({
+    ...cleaned,
+    filters: nestedFilters ?? parseBracketNotationParams(raw, "filters"),
+  });
+}
+
 export const CreateChannelSchema = z.object({
   code: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/),
   name: z.string().min(1).max(128),

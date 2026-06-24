@@ -314,6 +314,62 @@ describe("search projection service", () => {
     expect(grouped.groups?.some((group) => group.group_key === parent.id)).toBe(true);
   });
 
+  it("filters search results by facet values", async () => {
+    const blueProduct = await createProduct(organizationId, {
+      productType: "SIMPLE",
+      sku: `SEARCH-FILTER-BLUE-${Date.now()}`,
+      title: "Facet Filter Blue Shirt",
+      brand: "Acme",
+      primaryCategoryId: shirtsCategoryId,
+    });
+    const whiteProduct = await createProduct(organizationId, {
+      productType: "SIMPLE",
+      sku: `SEARCH-FILTER-WHITE-${Date.now()}`,
+      title: "Facet Filter White Shirt",
+      brand: "Acme",
+      primaryCategoryId: shirtsCategoryId,
+    });
+
+    const colorAttr = await prisma.attributeDefinition.findFirst({
+      where: { organizationId, key: "color" },
+    });
+    if (!colorAttr) throw new Error("Seed attribute color is required");
+
+    await prisma.productAttributeValue.createMany({
+      data: [
+        {
+          productId: blueProduct.id,
+          attributeDefinitionId: colorAttr.id,
+          value: "Blue",
+          source: "LOCAL",
+        },
+        {
+          productId: whiteProduct.id,
+          attributeDefinitionId: colorAttr.id,
+          value: "White",
+          source: "LOCAL",
+        },
+      ],
+      skipDuplicates: true,
+    });
+
+    await approveProductForSearch(blueProduct.id);
+    await approveProductForSearch(whiteProduct.id);
+    await indexProduct(blueProduct.id, organizationId);
+    await indexProduct(whiteProduct.id, organizationId);
+
+    const filtered = await searchProducts(organizationId, {
+      q: "Facet Filter",
+      categoryId: shirtsCategoryId,
+      filters: { color: "Blue" },
+      page: 1,
+      pageSize: 20,
+    });
+
+    expect(filtered.items.some((item) => item.product_id === blueProduct.id)).toBe(true);
+    expect(filtered.items.some((item) => item.product_id === whiteProduct.id)).toBe(false);
+  });
+
   // Phase 5 spec §8: ReindexAll indexes only approved/published products.
   it("runs full reindex for indexable products only", async () => {
     const run = await startReindex(organizationId);
