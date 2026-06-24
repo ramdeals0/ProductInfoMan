@@ -40,6 +40,7 @@ describe("import-engine", () => {
       existingSkus: new Set(),
       parentSkusInDb: new Set(),
       categoryCodes: new Set(),
+      attributeKeys: new Set(),
       requiredFieldsByType: {
         SIMPLE: ["sku", "product_type", "title"],
         PARENT: ["sku", "product_type", "title"],
@@ -67,6 +68,7 @@ describe("import-engine", () => {
       existingSkus: new Set(),
       parentSkusInDb: new Set(),
       categoryCodes: new Set(),
+      attributeKeys: new Set(),
       requiredFieldsByType: {
         VARIANT: ["sku", "product_type", "parent_sku"],
       },
@@ -77,6 +79,38 @@ describe("import-engine", () => {
       errorCode: "INVALID_PARENT_REFERENCE",
       fieldName: "parent_sku",
     });
+  });
+
+  it("rejects unknown category codes and attribute keys", () => {
+    const row = normalizeRow(
+      2,
+      {
+        sku: "S-1",
+        product_type: "SIMPLE",
+        title: "Shirt",
+        category_code: "missing-category",
+        mystery_attr: "value",
+      },
+      [...mappings, { sourceColumn: "mystery_attr", targetField: "mystery_attr" }],
+      "IGNORE",
+    );
+    expect(row).not.toBeNull();
+
+    const result = validateImportRows([row!], {
+      duplicatePolicy: "REJECT",
+      importType: "CREATE",
+      existingSkus: new Set(),
+      parentSkusInDb: new Set(),
+      categoryCodes: new Set(["shirts"]),
+      attributeKeys: new Set(["color", "size"]),
+      requiredFieldsByType: {
+        SIMPLE: ["sku", "product_type", "title"],
+      },
+    });
+
+    expect(result.validRows).toHaveLength(0);
+    expect(result.errors.some((error) => error.errorCode === "INVALID_CATEGORY")).toBe(true);
+    expect(result.errors.some((error) => error.errorCode === "UNKNOWN_ATTRIBUTE")).toBe(true);
   });
 
   it("builds downloadable CSV error reports", () => {

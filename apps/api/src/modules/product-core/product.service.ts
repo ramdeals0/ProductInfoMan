@@ -71,6 +71,31 @@ async function getEffectiveSchema(organizationId: string, categoryId: string | n
   }));
 }
 
+type EffectiveSchema = Awaited<ReturnType<typeof getEffectiveSchema>>;
+type SchemaCache = Map<string, Promise<EffectiveSchema>>;
+
+function schemaCacheKey(organizationId: string, categoryId: string | null): string {
+  return `${organizationId}:${categoryId ?? "none"}`;
+}
+
+async function getEffectiveSchemaCached(
+  organizationId: string,
+  categoryId: string | null,
+  cache?: SchemaCache,
+): Promise<EffectiveSchema> {
+  if (!cache) {
+    return getEffectiveSchema(organizationId, categoryId);
+  }
+
+  const key = schemaCacheKey(organizationId, categoryId);
+  let pending = cache.get(key);
+  if (!pending) {
+    pending = getEffectiveSchema(organizationId, categoryId);
+    cache.set(key, pending);
+  }
+  return pending;
+}
+
 function toStoredValues(product: ProductWithValues): StoredAttributeValue[] {
   return product.attributeValues.map((v) => ({
     attributeDefinitionId: v.attributeDefinition.id,
@@ -106,9 +131,16 @@ function enrichStoredFromCoreFields(
   return stored;
 }
 
-async function toProductDto(product: ProductWithValues): Promise<ProductDto> {
+async function toProductDto(
+  product: ProductWithValues,
+  options?: { schemaCache?: SchemaCache },
+): Promise<ProductDto> {
   const categoryId = product.primaryCategoryId;
-  const schema = await getEffectiveSchema(product.organizationId, categoryId);
+  const schema = await getEffectiveSchemaCached(
+    product.organizationId,
+    categoryId,
+    options?.schemaCache,
+  );
 
   let resolved: ResolvedAttribute[] = [];
 
@@ -283,8 +315,9 @@ export async function listProducts(
     }),
   ]);
 
+  const schemaCache: SchemaCache = new Map();
   const items = await Promise.all(
-    products.map((p) => toProductDto(p as ProductWithValues)),
+    products.map((p) => toProductDto(p as ProductWithValues, { schemaCache })),
   );
 
   return { items, total, page: query.page, pageSize: query.pageSize };

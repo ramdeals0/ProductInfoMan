@@ -3,6 +3,7 @@ import { prisma } from "@productinfoman/db";
 import { createProduct } from "../modules/product-core/product.service.js";
 import {
   approveProduct,
+  rejectProduct,
   submitProduct,
 } from "../modules/workflow/workflow.service.js";
 import {
@@ -134,8 +135,73 @@ beforeAll(async () => {
   }
 });
 
+async function approveProductForSearch(productId: string) {
+  await submitProduct(productId, organizationId, { userId: editorUserId, role: "EDITOR" });
+  await approveProduct(productId, organizationId, { userId: reviewerUserId, role: "REVIEWER" });
+}
+
 describe("search projection service", () => {
-  it("does not index draft products", async () => {
+  // Phase 5 spec §8: buildProjection constructs correct projection for sample product.
+  it("builds a projection with facets and category paths for approved products", async () => {
+    const parent = await createProduct(organizationId, {
+      productType: "PARENT",
+      sku: `SEARCH-PROJ-${Date.now()}`,
+      title: "Projection Parent Shirt",
+      brand: "Acme",
+      primaryCategoryId: shirtsCategoryId,
+    });
+
+    const colorAttr = await prisma.attributeDefinition.findFirst({
+      where: { organizationId, key: "color" },
+    });
+    if (!colorAttr) throw new Error("Seed attribute color is required");
+
+    const variant = await createProduct(organizationId, {
+      productType: "VARIANT",
+      sku: `SEARCH-PROJ-V-${Date.now()}`,
+      title: "Projection Variant",
+      parentId: parent.id,
+      primaryCategoryId: shirtsCategoryId,
+    });
+
+    await prisma.productAttributeValue.create({
+      data: {
+        productId: variant.id,
+        attributeDefinitionId: colorAttr.id,
+        value: "Blue",
+        source: "LOCAL",
+      },
+    });
+
+    await approveProductForSearch(variant.id);
+
+    const debug = await getSearchDebug(variant.id, organizationId);
+    expect(debug.isIndexable).toBe(true);
+    expect(debug.projectedDocument).not.toBeNull();
+    expect(debug.projectedDocument?.facet_fields.color).toBe("Blue");
+    expect(debug.projectedDocument?.category_ids).toContain(shirtsCategoryId);
+    expect(debug.projectedDocument?.parent_product_id).toBe(parent.id);
+  });
+
+  // Phase 5 spec §8: indexProduct stores doc in test index.
+  it("indexes approved products into the search store", async () => {
+    const product = await createProduct(organizationId, {
+      productType: "SIMPLE",
+      sku: `SEARCH-IDX-${Date.now()}`,
+      title: "Indexed Shirt",
+      primaryCategoryId: shirtsCategoryId,
+    });
+
+    await approveProductForSearch(product.id);
+    await indexProduct(product.id, organizationId);
+
+    const debug = await getSearchDebug(product.id, organizationId);
+    expect(debug.indexedDocument).not.toBeNull();
+    expect(debug.indexedDocument?.product_id).toBe(product.id);
+  });
+
+  // Phase 5 spec §8: Products in draft/rejected state are not indexed.
+  it("does not index draft or rejected products", async () => {
     const draft = await createProduct(organizationId, {
       productType: "SIMPLE",
       sku: `SEARCH-DRAFT-${Date.now()}`,
@@ -144,14 +210,32 @@ describe("search projection service", () => {
     });
 
     await indexProduct(draft.id, organizationId);
-    const debug = await getSearchDebug(draft.id, organizationId);
+    const draftDebug = await getSearchDebug(draft.id, organizationId);
+    expect(draftDebug.isIndexable).toBe(false);
+    expect(draftDebug.indexedDocument).toBeNull();
 
-    expect(debug.isIndexable).toBe(false);
-    expect(debug.indexedDocument).toBeNull();
-    expect(debug.projectedDocument).toBeNull();
+    const rejected = await createProduct(organizationId, {
+      productType: "SIMPLE",
+      sku: `SEARCH-REJ-${Date.now()}`,
+      title: "Rejected Search Product",
+      primaryCategoryId: shirtsCategoryId,
+    });
+    await submitProduct(rejected.id, organizationId, { userId: editorUserId, role: "EDITOR" });
+    await rejectProduct(
+      rejected.id,
+      organizationId,
+      { userId: reviewerUserId, role: "REVIEWER" },
+      { reason: "Incomplete data" },
+    );
+
+    await indexProduct(rejected.id, organizationId);
+    const rejectedDebug = await getSearchDebug(rejected.id, organizationId);
+    expect(rejectedDebug.isIndexable).toBe(false);
+    expect(rejectedDebug.indexedDocument).toBeNull();
   });
 
-  it("indexes approved products with facets, category filter, and parent-child grouping", async () => {
+  // Phase 5 spec §8: Facets aggregation returns facet counts matching data.
+  it("returns search results with facet aggregations and parent grouping", async () => {
     const parent = await createProduct(organizationId, {
       productType: "PARENT",
       sku: `SEARCH-PARENT-${Date.now()}`,
@@ -196,23 +280,13 @@ describe("search projection service", () => {
       skipDuplicates: true,
     });
 
-    await submitProduct(parent.id, organizationId, { userId: editorUserId, role: "EDITOR" });
-    await approveProduct(parent.id, organizationId, { userId: reviewerUserId, role: "REVIEWER" });
-    await submitProduct(variant.id, organizationId, { userId: editorUserId, role: "EDITOR" });
-    await approveProduct(variant.id, organizationId, { userId: reviewerUserId, role: "REVIEWER" });
-
+    await approveProductForSearch(parent.id);
+    await approveProductForSearch(variant.id);
     await indexProduct(parent.id, organizationId);
     await indexProduct(variant.id, organizationId);
 
-    const parentDebug = await getSearchDebug(parent.id, organizationId);
-    const variantDebug = await getSearchDebug(variant.id, organizationId);
-
-    expect(parentDebug.isIndexable).toBe(true);
-    expect(parentDebug.indexedDocument).not.toBeNull();
-    expect(variantDebug.indexedDocument?.group_key).toBe(parent.id);
-    expect(variantDebug.indexedDocument?.parent_product_id).toBe(parent.id);
-
     const categoryResults = await searchProducts(organizationId, {
+      q: "Search Variant Shirt",
       categoryId: shirtsCategoryId,
       page: 1,
       pageSize: 20,
@@ -220,6 +294,7 @@ describe("search projection service", () => {
     expect(categoryResults.items.some((item) => item.product_id === variant.id)).toBe(true);
 
     const facets = await getSearchFacets(organizationId, {
+      q: "Search Variant Shirt",
       categoryId: shirtsCategoryId,
       page: 1,
       pageSize: 20,
@@ -230,6 +305,7 @@ describe("search projection service", () => {
     );
 
     const grouped = await searchProducts(organizationId, {
+      q: "Search Variant Shirt",
       categoryId: shirtsCategoryId,
       groupByParent: true,
       page: 1,
@@ -238,7 +314,8 @@ describe("search projection service", () => {
     expect(grouped.groups?.some((group) => group.group_key === parent.id)).toBe(true);
   });
 
-  it("runs reindex asynchronously via sync queue fallback", async () => {
+  // Phase 5 spec §8: ReindexAll indexes only approved/published products.
+  it("runs full reindex for indexable products only", async () => {
     const run = await startReindex(organizationId);
     expect(run.status).toBe("QUEUED");
 

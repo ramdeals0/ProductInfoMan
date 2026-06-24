@@ -580,3 +580,55 @@ export interface IntegrationEndpointEntity {
   createdAt: string;
   updatedAt: string;
 }
+
+export type AuditAction =
+  | "CREATE"
+  | "UPDATE"
+  | "DELETE"
+  | "STATE_CHANGE"
+  | "IMPORT"
+  | "EXPORT";
+
+export interface AuditLogEntity {
+  id: string;
+  organizationId: string;
+  entityType: string;
+  entityId: string;
+  productId: string | null;
+  action: AuditAction;
+  actorId: string | null;
+  changes: Record<string, unknown> | null;
+  correlationId: string | null;
+  createdAt: string;
+}
+
+export interface OperationsReportEntity {
+  generatedAt: string;
+  catalog: {
+    totalProducts: number;
+    approvedProducts: number;
+    completenessPct: number;
+    byStatus: Record<string, number>;
+    categoryCount: number;
+  };
+  imports: {
+    byStatus: Record<string, number>;
+    completed: number;
+    failed: number;
+  };
+  workflow: {
+    byStatus: Record<string, number>;
+    openTasks: number;
+    completedTasks: number;
+  };
+  publishing: {
+    byStatus: Record<string, number>;
+    completed: number;
+    failed: number;
+    activeChannels: number;
+  };
+  eventing: {
+    byStatus: Record<string, number>;
+    deadLetterCount: number;
+  };
+}

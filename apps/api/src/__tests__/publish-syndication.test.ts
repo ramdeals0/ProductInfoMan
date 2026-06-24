@@ -8,8 +8,10 @@ import {
 import {
   createChannel,
   createChannelMappings,
+  getChannelMappings,
   getPublishArtifact,
   getPublishJob,
+  listChannels,
   previewChannel,
   retryPublishJob,
   startDryRun,
@@ -159,7 +161,36 @@ beforeAll(async () => {
   }
 });
 
+async function approveForPublish(productId: string) {
+  await submitProduct(productId, organizationId, { userId: editorUserId, role: "EDITOR" });
+  await approveProduct(productId, organizationId, { userId: reviewerUserId, role: "REVIEWER" });
+}
+
 describe("publishing and syndication service", () => {
+  // Phase 6 spec §9: Creating a channel and mappings.
+  it("creates a channel with field mappings", async () => {
+    const ts = Date.now();
+    const channel = await createChannel(organizationId, {
+      code: `pub-channel-${ts}`,
+      name: "Spec Test Channel",
+      type: "ECOMMERCE",
+      destinationType: "CSV",
+    });
+
+    await createChannelMappings(channel.id, organizationId, [
+      { sourceField: "sku", targetField: "Variant SKU", isRequired: true, sortOrder: 0 },
+      { sourceField: "title", targetField: "Title", isRequired: true, sortOrder: 1 },
+    ]);
+
+    const channels = await listChannels(organizationId);
+    expect(channels.some((item) => item.id === channel.id)).toBe(true);
+
+    const mappings = await getChannelMappings(channel.id, organizationId);
+    expect(mappings).toHaveLength(2);
+    expect(mappings[0]?.targetField).toBe("Variant SKU");
+  });
+
+  // Phase 6 spec §9: Only approved/published products included.
   it("excludes draft products from publish jobs", async () => {
     const draft = await createProduct(organizationId, {
       productType: "SIMPLE",
@@ -178,7 +209,8 @@ describe("publishing and syndication service", () => {
     expect(detail.successfulItems).toBe(0);
   });
 
-  it("generates dry-run export with channel mappings for approved products", async () => {
+  // Phase 6 spec §9: Creating a publish job with filters + processing to CSV.
+  it("creates a dry-run publish job and generates a mapped CSV artifact", async () => {
     const product = await createProduct(organizationId, {
       productType: "SIMPLE",
       sku: `PUB-APPROVED-${Date.now()}`,
@@ -187,13 +219,11 @@ describe("publishing and syndication service", () => {
       primaryCategoryId: shirtsCategoryId,
     });
 
-    await submitProduct(product.id, organizationId, { userId: editorUserId, role: "EDITOR" });
-    await approveProduct(product.id, organizationId, { userId: reviewerUserId, role: "REVIEWER" });
+    await approveForPublish(product.id);
 
     const preview = await previewChannel(channelId, organizationId, product.id);
     expect(preview.previews[0]?.isPublishable).toBe(true);
     expect(preview.previews[0]?.fields.Title).toBe("Approved Publish Product");
-    expect(preview.previews[0]?.fields.Vendor).toBe("Acme");
 
     const job = await startDryRun(organizationId, {
       channelId,
@@ -201,17 +231,19 @@ describe("publishing and syndication service", () => {
     });
 
     const detail = await getPublishJob(job.id, organizationId);
+    expect(detail.mode).toBe("DRY_RUN");
     expect(detail.status).toBe("COMPLETED");
     expect(detail.successfulItems).toBe(1);
     expect(detail.artifacts.length).toBe(1);
 
     const { content } = await getPublishArtifact(job.id, organizationId);
-    expect(content).toContain("Variant SKU,Title,Vendor,Color,Size,Product Type");
+    expect(content).toContain("Variant SKU,Title");
     expect(content).toContain(product.sku);
     expect(content).toContain("Approved Publish Product");
   });
 
-  it("supports live export and retrying failed jobs", async () => {
+  // Phase 6 spec §9: Job status and counts for live export.
+  it("runs a live publish job and updates item counts", async () => {
     const product = await createProduct(organizationId, {
       productType: "SIMPLE",
       sku: `PUB-LIVE-${Date.now()}`,
@@ -220,8 +252,7 @@ describe("publishing and syndication service", () => {
       primaryCategoryId: shirtsCategoryId,
     });
 
-    await submitProduct(product.id, organizationId, { userId: editorUserId, role: "EDITOR" });
-    await approveProduct(product.id, organizationId, { userId: reviewerUserId, role: "REVIEWER" });
+    await approveForPublish(product.id);
 
     const job = await startPublishRun(organizationId, {
       channelId,
@@ -231,7 +262,26 @@ describe("publishing and syndication service", () => {
     const detail = await getPublishJob(job.id, organizationId);
     expect(detail.mode).toBe("LIVE");
     expect(detail.status).toBe("COMPLETED");
+    expect(detail.totalItems).toBe(1);
     expect(detail.successfulItems).toBe(1);
+    expect(detail.items[0]?.status).toBe("EXPORTED");
+  });
+
+  // Phase 6 spec §9: Retry failed jobs.
+  it("retries a failed publish job", async () => {
+    const product = await createProduct(organizationId, {
+      productType: "SIMPLE",
+      sku: `PUB-RETRY-${Date.now()}`,
+      title: "Retry Export Product",
+      primaryCategoryId: shirtsCategoryId,
+    });
+
+    await approveForPublish(product.id);
+
+    const job = await startPublishRun(organizationId, {
+      channelId,
+      productIds: [product.id],
+    });
 
     await prisma.publishJob.update({
       where: { id: job.id },

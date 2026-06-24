@@ -3,6 +3,8 @@ import cors from "@fastify/cors";
 import Fastify from "fastify";
 import { importRoutes } from "./modules/import/import.routes.js";
 import { startImportWorker } from "./modules/import/import.queue.js";
+import { auditRoutes } from "./modules/audit/audit.routes.js";
+import { reportsRoutes } from "./modules/reports/reports.routes.js";
 import { integrationRoutes } from "./modules/integration/integration.routes.js";
 import { startEventWorker } from "./modules/integration/integration.queue.js";
 import { productRoutes } from "./modules/product-core/product.routes.js";
@@ -23,6 +25,8 @@ await app.register(workflowRoutes, { prefix: "/api/v1" });
 await app.register(searchRoutes, { prefix: "/api/v1" });
 await app.register(publishRoutes, { prefix: "/api/v1" });
 await app.register(integrationRoutes, { prefix: "/api/v1" });
+await app.register(auditRoutes, { prefix: "/api/v1" });
+await app.register(reportsRoutes, { prefix: "/api/v1" });
 
 await startImportWorker();
 await startSearchWorker();

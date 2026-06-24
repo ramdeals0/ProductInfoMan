@@ -84,36 +84,116 @@ afterAll(async () => {
 });
 
 describe("Product Core", () => {
-  it("supports CRUD, duplicate rejection, inheritance, and product tree", async () => {
-    const ts = Date.now();
+  // Phase 1 spec §8: Creating a product with unique external_id.
+  // ASSUMPTION CHANGE: external_id maps to sku in this codebase.
+  it("creates a product with unique sku (external identifier)", async () => {
+    const sku = `EXT-ID-${Date.now()}`;
+    const product = await createProduct(organizationId, {
+      productType: "SIMPLE",
+      sku,
+      title: "Unique Product",
+    });
+    expect(product.sku).toBe(sku);
+    expect(product.id).toBeTruthy();
+    expect(product.status).toBe("DRAFT");
+  });
 
-    // Duplicate SKU rejection
-    const dupSku = `TEST-DUP-${ts}`;
+  // Phase 1 spec §8: Rejecting duplicate external_id.
+  it("rejects duplicate sku", async () => {
+    const sku = `DUP-SKU-${Date.now()}`;
     await createProduct(organizationId, {
       productType: "SIMPLE",
-      sku: dupSku,
-      title: "Dup Test",
+      sku,
+      title: "First",
     });
     await expect(
       createProduct(organizationId, {
         productType: "SIMPLE",
-        sku: dupSku,
-        title: "Dup Test 2",
+        sku,
+        title: "Second",
       }),
     ).rejects.toMatchObject({ statusCode: 409 });
+  });
 
-    // Parent + variant with inheritance
+  // Phase 1 spec §8: Creating a variant with unique variant_sku.
+  it("creates a variant with unique variant sku", async () => {
+    const ts = Date.now();
     const parent = await createProduct(organizationId, {
       productType: "PARENT",
-      sku: `TEST-P-${ts}`,
-      title: "Test Parent",
+      sku: `PARENT-${ts}`,
+      title: "Parent",
+    });
+    const variant = await createVariant(parent.id, organizationId, {
+      sku: `VARIANT-${ts}`,
+      attributes: { color: "Red", size: "S" },
+    });
+    expect(variant.productType).toBe("VARIANT");
+    expect(variant.parentId).toBe(parent.id);
+    expect(variant.sku).toBe(`VARIANT-${ts}`);
+  });
+
+  // Phase 1 spec §8: Rejecting duplicate variant_sku.
+  it("rejects duplicate variant sku", async () => {
+    const ts = Date.now();
+    const parent = await createProduct(organizationId, {
+      productType: "PARENT",
+      sku: `P-DUP-${ts}`,
+      title: "Parent",
+    });
+    const variantSku = `V-DUP-${ts}`;
+    await createVariant(parent.id, organizationId, {
+      sku: variantSku,
+      attributes: { color: "Blue", size: "M" },
+    });
+    const otherParent = await createProduct(organizationId, {
+      productType: "PARENT",
+      sku: `P-DUP2-${ts}`,
+      title: "Other Parent",
+    });
+    await expect(
+      createVariant(otherParent.id, organizationId, {
+        sku: variantSku,
+        attributes: { color: "Green", size: "L" },
+      }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  // Phase 1 spec §8: Retrieving product tree with parent + variants.
+  it("returns product tree with parent and variants", async () => {
+    const ts = Date.now();
+    const parent = await createProduct(organizationId, {
+      productType: "PARENT",
+      sku: `TREE-P-${ts}`,
+      title: "Tree Parent",
+    });
+    await createVariant(parent.id, organizationId, {
+      sku: `TREE-V1-${ts}`,
+      attributes: { color: "Black", size: "S" },
+    });
+    await createVariant(parent.id, organizationId, {
+      sku: `TREE-V2-${ts}`,
+      attributes: { color: "White", size: "M" },
+    });
+
+    const tree = await getProductTree(parent.id, organizationId);
+    expect(tree.productType).toBe("PARENT");
+    expect(tree.children).toHaveLength(2);
+    expect(tree.children.every((c) => c.productType === "VARIANT")).toBe(true);
+  });
+
+  // Phase 1 spec §8: Basic inheritance (parent attribute overridden by variant).
+  it("resolves variant attributes with inheritance and overrides", async () => {
+    const ts = Date.now();
+    const parent = await createProduct(organizationId, {
+      productType: "PARENT",
+      sku: `INH-P-${ts}`,
+      title: "Inheritance Parent",
       brand: "TestBrand",
     });
 
     const fabricDef = await prisma.attributeDefinition.findFirstOrThrow({
       where: { organizationId, key: "fabric" },
     });
-
     await prisma.productAttributeValue.create({
       data: {
         productId: parent.id,
@@ -124,7 +204,7 @@ describe("Product Core", () => {
     });
 
     const variant = await createVariant(parent.id, organizationId, {
-      sku: `TEST-V-${ts}`,
+      sku: `INH-V-${ts}`,
       attributes: { color: "Blue", size: "M" },
     });
 
@@ -141,16 +221,5 @@ describe("Product Core", () => {
       source: "INHERITED",
       value: "Wool",
     });
-
-    // Product tree
-    await createVariant(parent.id, organizationId, {
-      sku: `TEST-V2-${ts}`,
-      attributes: { color: "White", size: "L" },
-    });
-
-    const tree = await getProductTree(parent.id, organizationId);
-    expect(tree.productType).toBe("PARENT");
-    expect(tree.children).toHaveLength(2);
-    expect(tree.children.every((c) => c.productType === "VARIANT")).toBe(true);
   });
 });

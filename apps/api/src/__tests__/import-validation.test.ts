@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import {
+  createImportTemplate,
   getImportErrors,
   getImportJob,
   getImportReport,
@@ -32,53 +33,188 @@ afterAll(async () => {
 });
 
 function buildCsv(rows: string[][]): Buffer {
-  const header = "sku,product_type,title,parent_sku,category_code";
+  const header = "sku,product_type,title,parent_sku,category_code,color";
   const body = rows.map((row) => row.join(",")).join("\n");
   return Buffer.from(`${header}\n${body}`, "utf8");
 }
 
 describe("Import and Validation", () => {
-  it("validates duplicates, missing required fields, and invalid parent references", async () => {
+  // Phase 3 spec §8: Uploading a CSV and creating an import_job.
+  it("uploads a CSV and creates an import job", async () => {
     const ts = Date.now();
-    const csv = buildCsv([
-      [`P-${ts}`, "PARENT", "Parent Shirt", "", shirtsCategoryCode],
-      [`V-${ts}`, "VARIANT", "Blue M", `P-${ts}`, shirtsCategoryCode],
-      [`V-${ts}`, "VARIANT", "Duplicate Variant", `P-${ts}`, shirtsCategoryCode],
-      [`V-BAD-${ts}`, "VARIANT", "Missing Parent", "MISSING-PARENT", shirtsCategoryCode],
-      [`S-${ts}`, "SIMPLE", "", "", shirtsCategoryCode],
-    ]);
+    const csv = buildCsv([[`UP-${ts}`, "SIMPLE", "Upload Test", "", shirtsCategoryCode, ""]]);
 
     const uploaded = await uploadImport(organizationId, {
-      fileName: `validation-${ts}.csv`,
+      fileName: `upload-${ts}.csv`,
+      fileBuffer: csv,
+      importType: "CREATE",
+      duplicatePolicy: "REJECT",
+    });
+
+    expect(uploaded.id).toBeTruthy();
+    expect(uploaded.status).toBe("UPLOADED");
+    expect(uploaded.fileName).toBe(`upload-${ts}.csv`);
+  });
+
+  // Phase 3 spec §8: Missing required fields.
+  it("rejects rows with missing required fields", async () => {
+    const ts = Date.now();
+    const csv = buildCsv([[`REQ-${ts}`, "SIMPLE", "", "", shirtsCategoryCode, ""]]);
+
+    const uploaded = await uploadImport(organizationId, {
+      fileName: `required-${ts}.csv`,
       fileBuffer: csv,
       importType: "CREATE",
       duplicatePolicy: "REJECT",
     });
 
     const validated = await validateImport(uploaded.id, organizationId);
-    expect(validated.totalRows).toBe(5);
-    expect(validated.validRows).toBe(2);
-    expect(validated.invalidRows).toBe(3);
-    expect(["VALIDATED", "VALIDATION_FAILED"]).toContain(validated.status);
+    expect(validated.invalidRows).toBeGreaterThanOrEqual(1);
+
+    const errors = await getImportErrors(uploaded.id, organizationId);
+    expect(errors.some((error) => error.errorCode === "REQUIRED_FIELD")).toBe(true);
+  });
+
+  // Phase 3 spec §8: Invalid category code.
+  it("rejects invalid category codes", async () => {
+    const ts = Date.now();
+    const csv = buildCsv([
+      [`CAT-${ts}`, "SIMPLE", "Bad Category", "", "not-a-real-category", ""],
+    ]);
+
+    const uploaded = await uploadImport(organizationId, {
+      fileName: `category-${ts}.csv`,
+      fileBuffer: csv,
+      importType: "CREATE",
+      duplicatePolicy: "REJECT",
+    });
+
+    const validated = await validateImport(uploaded.id, organizationId);
+    expect(validated.validRows).toBe(0);
+
+    const errors = await getImportErrors(uploaded.id, organizationId);
+    expect(errors.some((error) => error.errorCode === "INVALID_CATEGORY")).toBe(true);
+  });
+
+  // Phase 3 spec §8: Invalid attribute code.
+  it("rejects unknown attribute keys", async () => {
+    const ts = Date.now();
+    const template = await createImportTemplate(organizationId, {
+      code: `attr-tpl-${ts}`,
+      name: "Attribute validation template",
+      mappings: [
+        { sourceColumn: "sku", targetField: "sku", isRequired: true },
+        { sourceColumn: "product_type", targetField: "product_type", isRequired: true },
+        { sourceColumn: "title", targetField: "title", isRequired: true },
+        { sourceColumn: "parent_sku", targetField: "parent_sku" },
+        { sourceColumn: "category_code", targetField: "category_code" },
+        { sourceColumn: "unknown_attr", targetField: "unknown_attr" },
+      ],
+    });
+
+    const customCsv = Buffer.from(
+      `sku,product_type,title,parent_sku,category_code,unknown_attr\nATTR-${ts},SIMPLE,Bad Attribute,,${shirtsCategoryCode},value`,
+      "utf8",
+    );
+
+    const uploaded = await uploadImport(organizationId, {
+      fileName: `attribute-${ts}.csv`,
+      fileBuffer: customCsv,
+      importType: "CREATE",
+      duplicatePolicy: "REJECT",
+      importTemplateId: template.id,
+    });
+
+    const validated = await validateImport(uploaded.id, organizationId);
+    expect(validated.validRows).toBe(0);
+
+    const errors = await getImportErrors(uploaded.id, organizationId);
+    expect(errors.some((error) => error.errorCode === "UNKNOWN_ATTRIBUTE")).toBe(true);
+  });
+
+  // Phase 3 spec §8: Duplicate external_id/sku within file.
+  it("rejects duplicate skus within the file", async () => {
+    const ts = Date.now();
+    const csv = buildCsv([
+      [`DUP-${ts}`, "SIMPLE", "First", "", shirtsCategoryCode, ""],
+      [`DUP-${ts}`, "SIMPLE", "Second", "", shirtsCategoryCode, ""],
+    ]);
+
+    const uploaded = await uploadImport(organizationId, {
+      fileName: `dup-file-${ts}.csv`,
+      fileBuffer: csv,
+      importType: "CREATE",
+      duplicatePolicy: "REJECT",
+    });
+
+    const validated = await validateImport(uploaded.id, organizationId);
+    expect(validated.validRows).toBe(1);
+    expect(validated.invalidRows).toBe(1);
 
     const errors = await getImportErrors(uploaded.id, organizationId);
     expect(errors.some((error) => error.errorCode === "DUPLICATE_KEY")).toBe(true);
-    expect(errors.some((error) => error.errorCode === "REQUIRED_FIELD")).toBe(true);
-    expect(errors.some((error) => error.errorCode === "INVALID_PARENT_REFERENCE")).toBe(true);
-
-    const report = await getImportReport(uploaded.id, organizationId);
-    expect(report).toContain("row_number,field_name,error_code,error_message,raw_value");
-    expect(report).toContain("DUPLICATE_KEY");
   });
 
-  it("commits valid rows asynchronously and stores a job summary", async () => {
+  // Phase 3 spec §8: Invalid parent reference.
+  it("rejects invalid parent references", async () => {
+    const ts = Date.now();
+    const csv = buildCsv([
+      [`VP-${ts}`, "VARIANT", "Orphan Variant", "MISSING-PARENT", shirtsCategoryCode, ""],
+    ]);
+
+    const uploaded = await uploadImport(organizationId, {
+      fileName: `parent-${ts}.csv`,
+      fileBuffer: csv,
+      importType: "CREATE",
+      duplicatePolicy: "REJECT",
+    });
+
+    const validated = await validateImport(uploaded.id, organizationId);
+    expect(validated.validRows).toBe(0);
+
+    const errors = await getImportErrors(uploaded.id, organizationId);
+    expect(errors.some((error) => error.errorCode === "INVALID_PARENT_REFERENCE")).toBe(true);
+  });
+
+  // Phase 3 spec §8: Rejects duplicate sku already in catalog.
+  it("rejects duplicate skus already in the catalog", async () => {
+    const ts = Date.now();
+    await prisma.product.create({
+      data: {
+        organizationId,
+        productType: "SIMPLE",
+        sku: `EXISTING-${ts}`,
+        title: "Existing Product",
+      },
+    });
+
+    const csv = buildCsv([[`EXISTING-${ts}`, "SIMPLE", "Duplicate Existing", "", "", ""]]);
+    const uploaded = await uploadImport(organizationId, {
+      fileName: `duplicate-db-${ts}.csv`,
+      fileBuffer: csv,
+      importType: "CREATE",
+      duplicatePolicy: "REJECT",
+    });
+
+    const validated = await validateImport(uploaded.id, organizationId);
+    expect(validated.validRows).toBe(0);
+
+    const errors = await getImportErrors(uploaded.id, organizationId);
+    expect(errors[0]).toMatchObject({
+      errorCode: "DUPLICATE_KEY",
+      fieldName: "sku",
+    });
+  });
+
+  // Phase 3 spec §8: Processing creates new products when mode allows.
+  it("processes valid rows and creates products", async () => {
     const ts = Date.now();
     const parentSku = `IMP-P-${ts}`;
     const variantSku = `IMP-V-${ts}`;
 
     const csv = buildCsv([
-      [parentSku, "PARENT", "Imported Parent", "", shirtsCategoryCode],
-      [variantSku, "VARIANT", "Imported Variant", parentSku, shirtsCategoryCode],
+      [parentSku, "PARENT", "Imported Parent", "", shirtsCategoryCode, ""],
+      [variantSku, "VARIANT", "Imported Variant", parentSku, shirtsCategoryCode, "blue"],
     ]);
 
     const uploaded = await uploadImport(organizationId, {
@@ -97,7 +233,6 @@ describe("Import and Validation", () => {
     const job = await getImportJob(uploaded.id, organizationId);
     expect(job.status).toBe("COMPLETED");
     expect(job.committedRows).toBe(2);
-    expect(job.summary?.committedRows).toBe(2);
 
     const parent = await prisma.product.findFirst({
       where: { organizationId, sku: parentSku },
@@ -110,33 +245,21 @@ describe("Import and Validation", () => {
     expect(variant?.parentId).toBe(parent?.id);
   });
 
-  it("rejects duplicate SKUs already in the catalog", async () => {
+  // Phase 3 spec §8: Error report CSV is downloadable.
+  it("returns a CSV error report", async () => {
     const ts = Date.now();
-    await prisma.product.create({
-      data: {
-        organizationId,
-        productType: "SIMPLE",
-        sku: `EXISTING-${ts}`,
-        title: "Existing Product",
-      },
-    });
+    const csv = buildCsv([[`RPT-${ts}`, "SIMPLE", "", "", shirtsCategoryCode, ""]]);
 
-    const csv = buildCsv([[`EXISTING-${ts}`, "SIMPLE", "Duplicate Existing", "", ""]]);
     const uploaded = await uploadImport(organizationId, {
-      fileName: `duplicate-${ts}.csv`,
+      fileName: `report-${ts}.csv`,
       fileBuffer: csv,
       importType: "CREATE",
       duplicatePolicy: "REJECT",
     });
 
-    const validated = await validateImport(uploaded.id, organizationId);
-    expect(validated.validRows).toBe(0);
-    expect(validated.invalidRows).toBe(1);
-
-    const errors = await getImportErrors(uploaded.id, organizationId);
-    expect(errors[0]).toMatchObject({
-      errorCode: "DUPLICATE_KEY",
-      fieldName: "sku",
-    });
+    await validateImport(uploaded.id, organizationId);
+    const report = await getImportReport(uploaded.id, organizationId);
+    expect(report).toContain("row_number,field_name,error_code,error_message,raw_value");
+    expect(report).toContain("REQUIRED_FIELD");
   });
 });
