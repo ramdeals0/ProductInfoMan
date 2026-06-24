@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useSession } from "@/lib/session";
 import {
+  canManageFacetRules,
   canManageMdm,
   canManageTaxonomy,
   canManageUsers,
@@ -18,7 +19,7 @@ const NAV = [
   {
     href: "/admin/taxonomy",
     label: "Taxonomy",
-    visible: canManageTaxonomy,
+    visible: (roles: string[]) => canManageTaxonomy(roles) || canManageFacetRules(roles),
     children: [
       { href: "/admin/taxonomy/categories", label: "Categories" },
       { href: "/admin/taxonomy/attributes", label: "Attributes" },

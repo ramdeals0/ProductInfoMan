@@ -31,9 +31,10 @@ function summarizeRuleConfig(rule: FacetRuleRow): string {
 }
 
 export default function FacetsPage() {
-  const { api, roles } = useSession();
+  const { api, user } = useSession();
   const { pushToast } = useToast();
   const queryClient = useQueryClient();
+  const roles = user?.roles ?? [];
   const canEditDefs = canManageTaxonomy(roles);
   const canEditRules = canEditFacetRules(roles);
   const canApproveRules = canApproveFacetRules(roles);

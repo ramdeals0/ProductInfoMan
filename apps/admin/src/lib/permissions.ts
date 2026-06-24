@@ -17,6 +17,10 @@ export function canApproveWorkflow(roles: string[]): boolean {
   return hasCapabilityGroup(roles, "WORKFLOW_APPROVE");
 }
 
+export function canManageTaxonomy(roles: string[]): boolean {
+  return hasCapabilityGroup(roles, "TAXONOMY_WRITE");
+}
+
 export function canManageFacetRules(roles: string[]): boolean {
   return hasCapabilityGroup(roles, "FACET_RULE_WRITE") || hasCapabilityGroup(roles, "FACET_RULE_APPROVE");
 }
