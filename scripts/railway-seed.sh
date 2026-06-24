@@ -15,4 +15,4 @@ pnpm seed:demo-catalog --no-reindex || pnpm seed:demo-catalog
 
 echo ""
 echo "Done. Sign in to Admin with ADMIN_EMAIL / ADMIN_PASSWORD from Railway variables."
-echo "Admin URL: https://<your-admin-domain>/login"
+echo "Admin URL: https://pim-admin.up.railway.app/login"

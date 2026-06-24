@@ -6,7 +6,7 @@ Deploy the PIM monorepo as **four Railway services** from one GitHub repo:
 |---------|-------------|------------|
 | **Postgres** | Railway plugin | internal |
 | **API** | `/apps/api/railway.toml` | `https://pim-api.up.railway.app` |
-| **Admin** | `/apps/admin/railway.toml` | `https://<admin-domain>.up.railway.app` |
+| **Admin** | `/apps/admin/railway.toml` | `https://pim-admin.up.railway.app` |
 | **Storefront** | `/apps/storefront/railway.toml` | `https://<storefront-domain>.up.railway.app` |
 
 > **Live production API:** https://pim-api.up.railway.app — see [railway-production.md](./railway-production.md) for the full checklist.

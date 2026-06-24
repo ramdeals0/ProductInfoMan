@@ -46,7 +46,7 @@ When deploying to production (e.g. Railway), use your assigned Admin and Storefr
 |---------|-----|
 | **API** | https://pim-api.up.railway.app |
 | **API health** | https://pim-api.up.railway.app/health/ready |
-| **Admin** | Deploy a separate Admin service; set `API_URL` to the API URL above |
+| **Admin** | https://pim-admin.up.railway.app/login |
 
 Setup details: [deployment/railway-production.md](./deployment/railway-production.md)
 

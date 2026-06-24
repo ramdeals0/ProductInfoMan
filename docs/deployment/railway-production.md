@@ -1,7 +1,8 @@
 # Production deployment — Railway
 
-**Project:** `productinfoman-production`  
-**Public API domain:** https://pim-api.up.railway.app
+**Project:** `PIM`  
+**Public API domain:** https://pim-api.up.railway.app  
+**Public Admin domain:** https://pim-admin.up.railway.app
 
 Use this document when configuring the live Railway environment. The monorepo normally runs as **separate services** (API, Admin, Storefront). If you only have one public domain so far, assign it to the **API** service first.
 
@@ -12,7 +13,7 @@ Use this document when configuring the live Railway environment. The monorepo no
 | Service | Config path | Suggested domain |
 |---------|-------------|------------------|
 | **API** | `/apps/api/railway.toml` | `pim-api.up.railway.app` |
-| **Admin** | `/apps/admin/railway.toml` | Generate a second domain in Railway |
+| **Admin** | `/apps/admin/railway.toml` | `pim-admin.up.railway.app` |
 | **Storefront** | `/apps/storefront/railway.toml` | Generate a third domain (optional) |
 | **Postgres** | Railway plugin | Internal only |
 
@@ -50,10 +51,8 @@ ADMIN_EMAIL=admin@demo.local
 ADMIN_PASSWORD=<strong password, min 12 chars>
 ```
 
-After Admin has a public domain, add:
-
 ```env
-CORS_ORIGINS=https://<your-admin-domain>.up.railway.app
+CORS_ORIGINS=https://pim-admin.up.railway.app
 ```
 
 ### Verify API (after deploy)
@@ -75,18 +74,27 @@ Expected:
 
 ## Admin service variables
 
-Create a **second** Railway service from the same repo with config `/apps/admin/railway.toml`.
+Railway service **PIM-ADMIN** → `pim-admin.up.railway.app`. Config: `/apps/admin/railway.toml`.
 
 ```env
 API_URL=https://pim-api.up.railway.app
 JWT_SECRET=<same value as API>
 NEXT_PUBLIC_DEFAULT_ORG_SLUG=demo
 NEXT_PUBLIC_ADMIN_EMAIL=admin@demo.local
+NODE_ENV=production
+```
+
+If not using config-as-code, set Railpack commands:
+
+```env
+RAILPACK_INSTALL_CMD=corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile
+RAILPACK_BUILD_CMD=pnpm --filter @productinfoman/admin build
+RAILPACK_START_CMD=pnpm --filter @productinfoman/admin start
 ```
 
 **Important:** Set `API_URL` before the first Admin build. Redeploy Admin after changing it.
 
-Sign in at: `https://<admin-domain>/login`
+Sign in at: https://pim-admin.up.railway.app/login
 
 ---
 
@@ -141,7 +149,7 @@ Then sign in to Admin with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 | API health | https://pim-api.up.railway.app/health |
 | API ready | https://pim-api.up.railway.app/health/ready |
 | API products | https://pim-api.up.railway.app/api/v1/products |
-| Admin | `https://<admin-domain>/login` (after Admin service is created) |
+| Admin login | https://pim-admin.up.railway.app/login |
 | Storefront | `https://<storefront-domain>/` (optional) |
 
 See also: [railway.md](./railway.md) (general guide), [user-guide.md](../user-guide.md) (end users).
