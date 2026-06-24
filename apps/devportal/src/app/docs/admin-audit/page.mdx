@@ -14,7 +14,7 @@ Operational visibility: who changed what, and aggregate health dashboards.
 
 ## Audit logs
 
-<Endpoint method="GET" path="/api/v1/audit/logs" description="List audit log entries (alias: GET /audit)." adminLink="http://localhost:3000/admin/audit" />
+<Endpoint method="GET" path="/api/v1/audit/logs" description="List audit log entries (alias: GET /audit)." adminPath="/admin/audit" />
 <Endpoint method="GET" path="/api/v1/audit/:id" description="Get a single audit log entry." />
 <Endpoint method="GET" path="/api/v1/entities/:entityType/:entityId/history" description="Change history for a specific entity." />
 
@@ -38,7 +38,7 @@ Operational visibility: who changed what, and aggregate health dashboards.
 
 ## Reports
 
-<Endpoint method="GET" path="/api/v1/reports/dashboard" description="High-level KPIs." adminLink="http://localhost:3000/admin/reports" />
+<Endpoint method="GET" path="/api/v1/reports/dashboard" description="High-level KPIs." adminPath="/admin/reports" />
 <Endpoint method="GET" path="/api/v1/reports/completeness" description="Attribute completeness by category." />
 <Endpoint method="GET" path="/api/v1/reports/workflow" description="Workflow throughput and bottlenecks." />
 <Endpoint method="GET" path="/api/v1/reports/imports" description="Import job statistics." />

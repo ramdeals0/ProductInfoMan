@@ -14,9 +14,9 @@ Manage the product golden record: simple products, variant parents, attributes, 
 
 ## Endpoints
 
-<Endpoint method="GET" path="/api/v1/products" description="List products with pagination and filters." adminLink="http://localhost:3000/admin/products" />
-<Endpoint method="POST" path="/api/v1/products" description="Create a simple or parent product." adminLink="http://localhost:3000/admin/products" />
-<Endpoint method="GET" path="/api/v1/products/:id" description="Get product by ID with attributes." adminLink="http://localhost:3000/admin/products" />
+<Endpoint method="GET" path="/api/v1/products" description="List products with pagination and filters." adminPath="/admin/products" />
+<Endpoint method="POST" path="/api/v1/products" description="Create a simple or parent product." adminPath="/admin/products" />
+<Endpoint method="GET" path="/api/v1/products/:id" description="Get product by ID with attributes." adminPath="/admin/products" />
 <Endpoint method="PATCH" path="/api/v1/products/:id" description="Update core fields (title, brand, status, category)." />
 <Endpoint method="DELETE" path="/api/v1/products/:id" description="Soft-delete a product." />
 <Endpoint method="PUT" path="/api/v1/products/:id/attributes" description="Replace attribute values on a product." />
@@ -110,6 +110,6 @@ const { items, total } = await res.json();`}
 
 After editing, submit for approval via [Workflow API](/docs/admin-workflow):
 
-```
+<CodeBlock language="text">
 POST /api/v1/products/:id/workflow/submit
-```
+</CodeBlock>

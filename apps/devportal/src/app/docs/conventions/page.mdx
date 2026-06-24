@@ -3,6 +3,7 @@ export const metadata = {
 };
 
 import { CodeBlock } from "@/components/docs/mdx";
+import { siteConfig } from "@/config/site";
 
 # Conventions
 
@@ -12,9 +13,9 @@ Shared patterns across admin and storefront APIs.
 
 All JSON APIs are under **`/api/v1`**.
 
-```
-https://api.yourpim.com/api/v1/products
-```
+<CodeBlock language="text">
+{`${siteConfig.apiBaseUrl}/products`}
+</CodeBlock>
 
 ## Pagination
 

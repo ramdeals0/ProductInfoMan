@@ -3,6 +3,7 @@
 
 [build]
 builder = "NIXPACKS"
+# Set NEXT_PUBLIC_* before the first build so examples and links use production URLs.
 buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @productinfoman/devportal build"
 watchPatterns = [
   "apps/devportal/**",

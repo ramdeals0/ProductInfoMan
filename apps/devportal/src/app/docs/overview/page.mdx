@@ -2,17 +2,17 @@ export const metadata = {
   title: "Overview",
 };
 
+import { CodeBlock } from "@/components/docs/mdx";
+import { EnvironmentTable } from "@/components/docs/EnvironmentTable";
+import { siteConfig } from "@/config/site";
+
 # Overview
 
 ProductInfoMan is a high-performance ecommerce **Product Information Management (PIM)** platform. It provides APIs for catalog authoring, taxonomy, imports, workflow, search projection, publishing, audit, and eventing.
 
 ## Base URLs
 
-| Environment | API base | Admin UI | Storefront |
-|-------------|----------|----------|------------|
-| Local | `http://localhost:3001/api/v1` | `http://localhost:3000` | `http://localhost:3002` |
-| Production | `https://api.yourpim.com/api/v1` | `https://admin.yourpim.com` | `https://shop.yourpim.com` |
-| Sandbox | `https://sandbox-api.yourpim.com/api/v1` | `https://sandbox-admin.yourpim.com` | `https://sandbox-shop.yourpim.com` |
+<EnvironmentTable />
 
 Health check (no auth): `GET /health` on the API host root.
 
@@ -31,13 +31,13 @@ Health check (no auth): `GET /health` on the API host root.
 ## Quick start
 
 <Callout variant="tip">
-  All tenant-scoped routes require the `X-Organization-Slug` header. Local dev defaults to `demo` when omitted.
+  All tenant-scoped routes require the `X-Organization-Slug` header. Use org slug `demo` for the demo catalog.
 </Callout>
 
-```bash
-curl -s "http://localhost:3001/api/v1/products?page=1&pageSize=5" \
-  -H "X-Organization-Slug: demo"
-```
+<CodeBlock language="bash" title="curl">
+{`curl -s "${siteConfig.apiBaseUrl}/products?page=1&pageSize=5" \\
+  -H "X-Organization-Slug: ${siteConfig.defaultOrgSlug}"`}
+</CodeBlock>
 
 ## Related apps
 

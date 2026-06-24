@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import clsx from "clsx";
+import { adminUrl, resolveDocUrls, storefrontUrl } from "@/config/docs-urls";
 
 type CodeBlockProps = {
   children: string;
@@ -11,9 +12,10 @@ type CodeBlockProps = {
 
 export function CodeBlock({ children, language = "text", title }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
+  const content = resolveDocUrls(children.trim());
 
   async function copy() {
-    await navigator.clipboard.writeText(children.trim());
+    await navigator.clipboard.writeText(content);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 2000);
   }
@@ -33,7 +35,7 @@ export function CodeBlock({ children, language = "text", title }: CodeBlockProps
         </button>
       </div>
       <pre className="overflow-x-auto p-4 text-sm leading-relaxed text-slate-100">
-        <code>{children.trim()}</code>
+        <code>{content}</code>
       </pre>
     </div>
   );
@@ -55,9 +57,28 @@ type EndpointProps = {
   description?: string;
   adminLink?: string;
   storefrontLink?: string;
+  adminPath?: string;
+  storefrontPath?: string;
 };
 
-export function Endpoint({ method, path, description, adminLink, storefrontLink }: EndpointProps) {
+function resolveLink(explicit?: string, path?: string, resolver = adminUrl): string | undefined {
+  if (path) return resolver(path);
+  if (!explicit) return undefined;
+  if (explicit.startsWith("/")) return resolver(explicit);
+  return resolveDocUrls(explicit);
+}
+
+export function Endpoint({
+  method,
+  path,
+  description,
+  adminLink,
+  storefrontLink,
+  adminPath,
+  storefrontPath,
+}: EndpointProps) {
+  const resolvedAdmin = resolveLink(adminLink, adminPath, adminUrl);
+  const resolvedStore = resolveLink(storefrontLink, storefrontPath, storefrontUrl);
   return (
     <div className="not-prose my-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center gap-3">
@@ -72,15 +93,15 @@ export function Endpoint({ method, path, description, adminLink, storefrontLink 
         <code className="text-sm font-semibold text-slate-900">{path}</code>
       </div>
       {description ? <p className="mt-3 text-sm text-slate-600">{description}</p> : null}
-      {(adminLink || storefrontLink) && (
+      {(resolvedAdmin || resolvedStore) && (
         <div className="mt-3 flex flex-wrap gap-3 text-sm">
-          {adminLink ? (
-            <a href={adminLink} className="font-medium text-brand-600 hover:text-brand-700">
+          {resolvedAdmin ? (
+            <a href={resolvedAdmin} className="font-medium text-brand-600 hover:text-brand-700">
               Admin UI →
             </a>
           ) : null}
-          {storefrontLink ? (
-            <a href={storefrontLink} className="font-medium text-brand-600 hover:text-brand-700">
+          {resolvedStore ? (
+            <a href={resolvedStore} className="font-medium text-brand-600 hover:text-brand-700">
               Storefront →
             </a>
           ) : null}

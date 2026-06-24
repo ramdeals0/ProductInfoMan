@@ -21,9 +21,9 @@ Index products for fast catalog search and faceted navigation. Admin endpoints m
 
 ## Query endpoints (storefront + admin)
 
-<Endpoint method="GET" path="/api/v1/search" description="Search products with text, category, and facet filters." storefrontLink="http://localhost:3002/search" />
-<Endpoint method="GET" path="/api/v1/search/facets" description="Facet counts for the current filter context." storefrontLink="http://localhost:3002/category/tools" />
-<Endpoint method="GET" path="/api/v1/search/categories/:id" description="Search within a category subtree." storefrontLink="http://localhost:3002/category/tools" />
+<Endpoint method="GET" path="/api/v1/search" description="Search products with text, category, and facet filters." storefrontPath="/search" />
+<Endpoint method="GET" path="/api/v1/search/facets" description="Facet counts for the current filter context." storefrontPath="/category/shirts" />
+<Endpoint method="GET" path="/api/v1/search/categories/:id" description="Search within a category subtree." storefrontPath="/category/shirts" />
 
 ## Reindex
 
