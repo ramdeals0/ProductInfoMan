@@ -319,15 +319,13 @@ export function matchesSearchQuery(doc: SearchDocument, query: SearchQueryInput)
     }
   }
 
-  if (query.categoryId && !doc.category_ids.includes(query.categoryId)) {
-    return false;
-  }
-
   if (query.categoryPath) {
     const hasPath = doc.category_paths.some(
       (path) => path === query.categoryPath || path.startsWith(`${query.categoryPath}/`),
     );
     if (!hasPath) return false;
+  } else if (query.categoryId && !doc.category_ids.includes(query.categoryId)) {
+    return false;
   }
 
   if (query.filters) {

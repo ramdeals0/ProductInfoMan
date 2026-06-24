@@ -436,12 +436,29 @@ export async function getSearchFacets(
   organizationId: string,
   query: SearchQueryInput,
 ): Promise<SearchFacetResultEntity> {
-  const facetKeys = await resolveFacetKeys(organizationId, query.categoryId);
-  const result = await (await getSearchStore()).facets(organizationId, query, facetKeys);
+  const scopedQuery = await withCategoryPathScope(organizationId, query);
+  const facetKeys = await resolveFacetKeys(organizationId, scopedQuery.categoryId);
+  const result = await (await getSearchStore()).facets(organizationId, scopedQuery, facetKeys);
   return {
     total: result.total,
     facets: result.facets,
   };
+}
+
+async function withCategoryPathScope(
+  organizationId: string,
+  query: SearchQueryInput,
+): Promise<SearchQueryInput> {
+  if (!query.categoryId || query.categoryPath) return query;
+
+  const category = await prisma.category.findFirst({
+    where: { id: query.categoryId, organizationId },
+    select: { path: true },
+  });
+  if (!category) return query;
+
+  const { categoryId: _categoryId, ...rest } = query;
+  return { ...rest, categoryPath: category.path };
 }
 
 export async function getCategorySearchResults(
@@ -456,7 +473,6 @@ export async function getCategorySearchResults(
 
   return searchProducts(organizationId, {
     ...query,
-    categoryId,
     categoryPath: category.path,
   });
 }
