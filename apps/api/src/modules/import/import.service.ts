@@ -202,6 +202,7 @@ export async function uploadImport(
     entityType: "ImportJob",
     entityId: job.id,
     action: "IMPORT",
+    source: "import",
     changes: { fileName: input.fileName, importType: updated.importType },
   });
 
@@ -470,7 +471,8 @@ export async function processImportJob(importJobId: string, organizationId: stri
       entityType: "ImportJob",
       entityId: job.id,
       action: "IMPORT",
-      changes: { committedRows, skippedRows, status: "COMPLETED" },
+      source: "import",
+      after: { committedRows, skippedRows, status: "COMPLETED" },
     });
 
     await emitAuditRecordEvent({
@@ -490,13 +492,24 @@ export async function processImportJob(importJobId: string, organizationId: stri
       }),
     );
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Import processing failed";
     await prisma.importJob.update({
       where: { id: job.id },
       data: {
         status: "FAILED",
-        errorMessage: error instanceof Error ? error.message : "Import processing failed",
+        errorMessage: message,
       },
     });
+
+    await writeAudit({
+      organizationId,
+      entityType: "ImportJob",
+      entityId: job.id,
+      action: "IMPORT",
+      source: "import",
+      after: { status: "FAILED", errorMessage: message },
+    });
+
     throw error;
   }
 }

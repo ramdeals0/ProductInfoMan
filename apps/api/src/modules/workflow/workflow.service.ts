@@ -193,11 +193,15 @@ async function executeTransition(params: {
     productId: product.id,
     action: "STATE_CHANGE",
     actorId: params.actor.userId,
-    changes: {
-      actionType: params.actionType,
-      fromState: currentState.code,
-      toState: validation.toState.code,
+    source: "workflow",
+    before: {
+      state: currentState.code,
+      status: product.status,
+    },
+    after: {
+      state: validation.toState.code,
       status: updatedProduct.status,
+      actionType: params.actionType,
     },
   });
 

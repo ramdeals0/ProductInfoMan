@@ -13,7 +13,7 @@ import {
   type StoredAttributeValue,
 } from "@productinfoman/inheritance-engine";
 import { prisma } from "@productinfoman/db";
-import { appError, writeAudit } from "@productinfoman/shared";
+import { appError, recordChange, recordSnapshot } from "@productinfoman/shared";
 import type { Prisma, Product } from "../../../../generated/prisma/client.js";
 import { emitEvent } from "../../lib/events.js";
 import { emitAuditRecordEvent } from "../../lib/audit-events.js";
@@ -195,6 +195,23 @@ async function toProductDto(
   };
 }
 
+function buildProductSnapshot(product: ProductDto): Record<string, unknown> {
+  return {
+    id: product.id,
+    sku: product.sku,
+    title: product.title,
+    description: product.description,
+    brand: product.brand,
+    status: product.status,
+    productType: product.productType,
+    primaryCategoryId: product.primaryCategoryId,
+    parentId: product.parentId,
+    attributes: Object.fromEntries(
+      product.attributes.map((attr) => [attr.key, attr.value]),
+    ),
+  };
+}
+
 async function loadProduct(id: string, organizationId: string) {
   return prisma.product.findFirst({
     where: { id, organizationId, deletedAt: null },
@@ -250,15 +267,31 @@ export async function createProduct(
       primaryCategoryId: input.primaryCategoryId,
       parentId: input.parentId,
     },
+    include: {
+      attributeValues: { include: { attributeDefinition: true } },
+      parent: true,
+    },
   });
 
-  const auditLogId = await writeAudit({
+  const productDto = await toProductDto(created as ProductWithValues);
+  const snapshot = buildProductSnapshot(productDto);
+
+  const auditLogId = await recordChange({
     organizationId,
     entityType: "Product",
     entityId: created.id,
     productId: created.id,
     action: "CREATE",
-    changes: { sku: created.sku, productType: created.productType },
+    source: "api",
+    after: snapshot,
+  });
+
+  await recordSnapshot({
+    organizationId,
+    entityType: "Product",
+    entityId: created.id,
+    snapshot,
+    changeType: "CREATE",
   });
 
   await emitAuditRecordEvent({
@@ -279,12 +312,7 @@ export async function createProduct(
     }),
   );
 
-  const product = await loadProduct(created.id, organizationId);
-  if (!product) {
-    throw appError("Product not found after create", 500);
-  }
-
-  return toProductDto(product as ProductWithValues);
+  return productDto;
 }
 
 export async function listProducts(
@@ -341,6 +369,9 @@ export async function updateProduct(
     throw Object.assign(new Error("Product not found"), { statusCode: 404 });
   }
 
+  const beforeDto = await toProductDto(existing as ProductWithValues);
+  const beforeSnapshot = buildProductSnapshot(beforeDto);
+
   const product = await prisma.product.update({
     where: { id },
     data: {
@@ -364,13 +395,26 @@ export async function updateProduct(
     }),
   );
 
-  const auditLogId = await writeAudit({
+  const afterDto = await toProductDto(product as ProductWithValues);
+  const afterSnapshot = buildProductSnapshot(afterDto);
+
+  const auditLogId = await recordChange({
     organizationId,
     entityType: "Product",
     entityId: id,
     productId: id,
     action: "UPDATE",
-    changes: input as Record<string, unknown>,
+    source: "api",
+    before: beforeSnapshot,
+    after: afterSnapshot,
+  });
+
+  await recordSnapshot({
+    organizationId,
+    entityType: "Product",
+    entityId: id,
+    snapshot: afterSnapshot,
+    changeType: "UPDATE",
   });
 
   await emitAuditRecordEvent({
@@ -382,7 +426,7 @@ export async function updateProduct(
     productId: id,
   });
 
-  return toProductDto(product as ProductWithValues);
+  return afterDto;
 }
 
 export async function deleteProduct(id: string, organizationId: string): Promise<void> {
@@ -391,9 +435,30 @@ export async function deleteProduct(id: string, organizationId: string): Promise
     throw Object.assign(new Error("Product not found"), { statusCode: 404 });
   }
 
+  const beforeDto = await toProductDto(existing as ProductWithValues);
+  const beforeSnapshot = buildProductSnapshot(beforeDto);
+
   await prisma.product.update({
     where: { id },
     data: { deletedAt: new Date() },
+  });
+
+  await recordChange({
+    organizationId,
+    entityType: "Product",
+    entityId: id,
+    productId: id,
+    action: "DELETE",
+    source: "api",
+    before: beforeSnapshot,
+  });
+
+  await recordSnapshot({
+    organizationId,
+    entityType: "Product",
+    entityId: id,
+    snapshot: beforeSnapshot,
+    changeType: "DELETE",
   });
 
   await emitEvent(
@@ -467,7 +532,29 @@ export async function setProductAttributes(
     }),
   );
 
-  return getProduct(id, organizationId);
+  const updated = await getProduct(id, organizationId);
+  const afterSnapshot = buildProductSnapshot(updated);
+
+  await recordChange({
+    organizationId,
+    entityType: "Product",
+    entityId: id,
+    productId: id,
+    action: "UPDATE",
+    source: "api",
+    after: afterSnapshot,
+    changedFields: { attributes: input.attributes },
+  });
+
+  await recordSnapshot({
+    organizationId,
+    entityType: "Product",
+    entityId: id,
+    snapshot: afterSnapshot,
+    changeType: "UPDATE",
+  });
+
+  return updated;
 }
 
 export async function createVariant(

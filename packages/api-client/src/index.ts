@@ -3,6 +3,9 @@ import type {
   CategoryEntity,
   CategoryTreeNode,
   ChannelEntity,
+  CompletenessReportEntity,
+  DashboardReportEntity,
+  EntityChangeHistoryEntity,
   ExportArtifactEntity,
   ImportJobEntity,
   ImportJobErrorEntity,
@@ -264,6 +267,28 @@ export class ApiClient {
 
   getReportsSummary() {
     return this.request<OperationsReportEntity>("/api/v1/reports/summary");
+  }
+
+  getReportsDashboard(query: Record<string, string | undefined> = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value) params.set(key, value);
+    }
+    return this.request<DashboardReportEntity>(`/api/v1/reports/dashboard?${params}`);
+  }
+
+  getReportsCompleteness(query: Record<string, string | undefined> = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value) params.set(key, value);
+    }
+    return this.request<CompletenessReportEntity>(`/api/v1/reports/completeness?${params}`);
+  }
+
+  getEntityHistory(entityType: string, entityId: string) {
+    return this.request<{ items: EntityChangeHistoryEntity[] }>(
+      `/api/v1/entities/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}/history`,
+    );
   }
 
   listOutboxEvents(query: Record<string, string | number | undefined> = {}) {

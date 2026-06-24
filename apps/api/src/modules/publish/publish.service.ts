@@ -24,7 +24,7 @@ import {
   type ChannelValidationRuleInput,
 } from "@productinfoman/publish-engine";
 import { prisma } from "@productinfoman/db";
-import { appError, writeAudit } from "@productinfoman/shared";
+import { appError, recordChange, writeAudit } from "@productinfoman/shared";
 import type { Prisma } from "../../../../generated/prisma/client.js";
 import { emitEvent } from "../../lib/events.js";
 import { loadCanonicalProduct, loadPublishableProductIds } from "./publish.projection.js";
@@ -664,6 +664,22 @@ export async function processPublishJob(publishJobId: string, organizationId: st
         status: finalStatus,
       }),
     );
+
+    await recordChange({
+      organizationId,
+      entityType: "PublishJob",
+      entityId: job.id,
+      action: "EXPORT",
+      source: "publishing",
+      after: {
+        status: finalStatus,
+        successfulItems,
+        failedItems,
+        totalItems: job.items.length,
+        mode: job.mode,
+        channelId: job.channelId,
+      },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Publish job failed";
     const current = await prisma.publishJob.findUnique({ where: { id: job.id } });

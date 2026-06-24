@@ -306,11 +306,17 @@ export const ListAuditQuerySchema = z.object({
   entityType: z.string().optional(),
   entityId: z.string().optional(),
   productId: z.string().cuid().optional(),
+  performedBy: z.string().cuid().optional(),
   action: z.enum(["CREATE", "UPDATE", "DELETE", "STATE_CHANGE", "IMPORT", "EXPORT"]).optional(),
   fromDate: z.string().datetime().optional(),
   toDate: z.string().datetime().optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export const ReportPeriodQuerySchema = z.object({
+  periodStart: z.string().datetime().optional(),
+  periodEnd: z.string().datetime().optional(),
 });
 
 export type CreateProductInput = z.infer<typeof CreateProductSchema>;
@@ -343,3 +349,4 @@ export type ListOutboxEventsQuery = z.infer<typeof ListOutboxEventsQuerySchema>;
 export type ListDeadLetterEventsQuery = z.infer<typeof ListDeadLetterEventsQuerySchema>;
 export type ReplayEventsInput = z.infer<typeof ReplayEventsSchema>;
 export type ListAuditQuery = z.infer<typeof ListAuditQuerySchema>;
+export type ReportPeriodQuery = z.infer<typeof ReportPeriodQuerySchema>;

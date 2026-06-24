@@ -597,9 +597,112 @@ export interface AuditLogEntity {
   productId: string | null;
   action: AuditAction;
   actorId: string | null;
+  source: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  changedFields: Record<string, unknown> | null;
   changes: Record<string, unknown> | null;
   correlationId: string | null;
   createdAt: string;
+}
+
+export type EntityChangeType = "SNAPSHOT" | "CREATE" | "UPDATE" | "DELETE";
+
+export interface EntityChangeHistoryEntity {
+  id: string;
+  organizationId: string;
+  entityType: string;
+  entityId: string;
+  versionNumber: number;
+  changeType: EntityChangeType;
+  snapshot: Record<string, unknown>;
+  createdById: string | null;
+  createdAt: string;
+}
+
+export interface DashboardReportEntity {
+  generatedAt: string;
+  periodStart: string;
+  periodEnd: string;
+  totalProducts: number;
+  approvedProducts: number;
+  publishedProducts: number;
+  averageCompletenessScore: number;
+  imports: {
+    totalJobs: number;
+    completedJobs: number;
+    failedJobs: number;
+    successRate: number;
+  };
+  publishing: {
+    totalJobs: number;
+    completedJobs: number;
+    failedJobs: number;
+    successRate: number;
+  };
+}
+
+export interface CompletenessReportEntity {
+  generatedAt: string;
+  periodStart: string;
+  periodEnd: string;
+  globalScore: number;
+  totalProducts: number;
+  byCategory: Array<{
+    categoryId: string;
+    categoryCode: string;
+    categoryName: string;
+    productCount: number;
+    averageScore: number;
+  }>;
+}
+
+export interface WorkflowReportEntity {
+  generatedAt: string;
+  periodStart: string;
+  periodEnd: string;
+  transitionsToApproved: number;
+  transitionsToPublished: number;
+  totalTransitions: number;
+}
+
+export interface ImportReportEntity {
+  generatedAt: string;
+  periodStart: string;
+  periodEnd: string;
+  totalJobs: number;
+  completedJobs: number;
+  failedJobs: number;
+  successRate: number;
+  averageValidRowRate: number;
+  jobs: Array<{
+    importJobId: string;
+    fileName: string;
+    status: string;
+    totalRows: number;
+    validRows: number;
+    successRate: number;
+  }>;
+}
+
+export interface PublishReportEntity {
+  generatedAt: string;
+  periodStart: string;
+  periodEnd: string;
+  totalJobs: number;
+  completedJobs: number;
+  failedJobs: number;
+  successRate: number;
+  averageItemSuccessRate: number;
+  jobs: Array<{
+    publishJobId: string;
+    channelId: string;
+    mode: string;
+    status: string;
+    totalItems: number;
+    successfulItems: number;
+    successRate: number;
+  }>;
 }
 
 export interface OperationsReportEntity {

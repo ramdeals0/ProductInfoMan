@@ -1,4 +1,7 @@
-import type { AuditLogEntity } from "@productinfoman/domain";
+import type {
+  AuditLogEntity,
+  EntityChangeHistoryEntity,
+} from "@productinfoman/domain";
 import { prisma } from "@productinfoman/db";
 import { appError } from "@productinfoman/shared";
 import type { Prisma } from "../../../../generated/prisma/client.js";
@@ -7,12 +10,19 @@ export type ListAuditQuery = {
   entityType?: string;
   entityId?: string;
   productId?: string;
+  performedBy?: string;
   action?: string;
   fromDate?: string;
   toDate?: string;
   page: number;
   pageSize: number;
 };
+
+function jsonRecord(value: Prisma.JsonValue): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
 
 function toAuditDto(log: {
   id: string;
@@ -22,6 +32,10 @@ function toAuditDto(log: {
   productId: string | null;
   action: AuditLogEntity["action"];
   actorId: string | null;
+  source: string;
+  beforeJson: Prisma.JsonValue;
+  afterJson: Prisma.JsonValue;
+  changedFieldsJson: Prisma.JsonValue;
   changes: Prisma.JsonValue;
   correlationId: string | null;
   createdAt: Date;
@@ -34,10 +48,11 @@ function toAuditDto(log: {
     productId: log.productId,
     action: log.action,
     actorId: log.actorId,
-    changes:
-      log.changes && typeof log.changes === "object" && !Array.isArray(log.changes)
-        ? (log.changes as Record<string, unknown>)
-        : null,
+    source: log.source,
+    before: jsonRecord(log.beforeJson),
+    after: jsonRecord(log.afterJson),
+    changedFields: jsonRecord(log.changedFieldsJson),
+    changes: jsonRecord(log.changes),
     correlationId: log.correlationId,
     createdAt: log.createdAt.toISOString(),
   };
@@ -52,6 +67,7 @@ export async function listAuditLogs(
     ...(query.entityType ? { entityType: query.entityType } : {}),
     ...(query.entityId ? { entityId: query.entityId } : {}),
     ...(query.productId ? { productId: query.productId } : {}),
+    ...(query.performedBy ? { actorId: query.performedBy } : {}),
     ...(query.action ? { action: query.action as Prisma.EnumAuditActionFilter["equals"] } : {}),
     ...(query.fromDate || query.toDate
       ? {
@@ -82,4 +98,30 @@ export async function getAuditLog(id: string, organizationId: string): Promise<A
   });
   if (!log) throw appError("Audit log not found", 404);
   return toAuditDto(log);
+}
+
+export async function getEntityChangeHistory(
+  organizationId: string,
+  entityType: string,
+  entityId: string,
+): Promise<EntityChangeHistoryEntity[]> {
+  const items = await prisma.entityChangeHistory.findMany({
+    where: { organizationId, entityType, entityId },
+    orderBy: { versionNumber: "asc" },
+  });
+
+  return items.map((item) => ({
+    id: item.id,
+    organizationId: item.organizationId,
+    entityType: item.entityType,
+    entityId: item.entityId,
+    versionNumber: item.versionNumber,
+    changeType: item.changeType,
+    snapshot:
+      item.snapshotJson && typeof item.snapshotJson === "object" && !Array.isArray(item.snapshotJson)
+        ? (item.snapshotJson as Record<string, unknown>)
+        : {},
+    createdById: item.createdById,
+    createdAt: item.createdAt.toISOString(),
+  }));
 }

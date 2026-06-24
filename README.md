@@ -13,6 +13,7 @@ High-performance ecommerce Product Information Management (PIM) platform.
 | Phase 4 — Workflow/Approval | **Implemented** ([spec alignment](./docs/implementation/phase-4-workflow-approval-spec.md)) |
 | Phase 5 — Search Projection | **Implemented** ([spec alignment](./docs/implementation/phase-5-search-projection-spec.md)) |
 | Phase 6 — Publishing/Syndication | **Implemented** ([spec alignment](./docs/implementation/phase-6-publishing-syndication-spec.md)) |
+| Phase 7 — Audit/Reporting | **Implemented** ([spec alignment](./docs/implementation/phase-7-audit-reporting-spec.md)) |
 
 ## Stack
 
