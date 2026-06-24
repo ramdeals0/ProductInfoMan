@@ -1,7 +1,7 @@
 # Production deployment — Railway
 
 **Project:** `productinfoman-production`  
-**Public domain:** https://pim-api.up.railway.app
+**Public API domain:** https://pim-api.up.railway.app
 
 Use this document when configuring the live Railway environment. The monorepo normally runs as **separate services** (API, Admin, Storefront). If you only have one public domain so far, assign it to the **API** service first.
 

@@ -5,9 +5,11 @@ Deploy the PIM monorepo as **four Railway services** from one GitHub repo:
 | Service | Config path | Public URL |
 |---------|-------------|------------|
 | **Postgres** | Railway plugin | internal |
-| **API** | `/apps/api/railway.toml` | `https://api-….up.railway.app` |
-| **Admin** | `/apps/admin/railway.toml` | `https://admin-….up.railway.app` |
-| **Storefront** | `/apps/storefront/railway.toml` | `https://store-….up.railway.app` |
+| **API** | `/apps/api/railway.toml` | `https://pim-api.up.railway.app` |
+| **Admin** | `/apps/admin/railway.toml` | `https://<admin-domain>.up.railway.app` |
+| **Storefront** | `/apps/storefront/railway.toml` | `https://<storefront-domain>.up.railway.app` |
+
+> **Live production API:** https://pim-api.up.railway.app — see [railway-production.md](./railway-production.md) for the full checklist.
 
 Redis and OpenSearch are optional. Without them the API runs workers in-process (`*_SYNC=true`) and uses an in-memory search index.
 
