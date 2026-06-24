@@ -5,6 +5,9 @@ import {
   createAttribute,
   getCategoryTree,
   linkCategoryAttributeGroups,
+  listAttributeGroupsForCategory,
+  listAttributesForCategory,
+  listAttributesForGroup,
 } from "../modules/taxonomy/taxonomy.service.js";
 import {
   createFacetDefinition,
@@ -31,148 +34,238 @@ afterAll(async () => {
 });
 
 describe("Taxonomy and Facets", () => {
-  it("builds category tree, rejects duplicate codes, and resolves facet metadata", async () => {
+  // Phase 2 spec §8: Creating a category with unique code.
+  it("creates a category with unique code", async () => {
     const ts = Date.now();
-
-    const apparel = await createCategory(organizationId, {
-      name: "Apparel",
-      code: `apparel-${ts}`,
-      slug: `apparel-${ts}`,
+    const category = await createCategory(organizationId, {
+      name: "Footwear",
+      code: `footwear-${ts}`,
+      slug: `footwear-${ts}`,
     });
+    expect(category.code).toBe(`footwear-${ts}`);
+    expect(category.path).toBe(`/${category.slug}`);
+  });
 
-    const shirts = await createCategory(organizationId, {
-      name: "Shirts",
-      code: `shirts-${ts}`,
-      slug: `shirts-${ts}`,
-      parentId: apparel.id,
+  // Phase 2 spec §8: Rejecting duplicate category code.
+  it("rejects duplicate category code", async () => {
+    const ts = Date.now();
+    const code = `dup-cat-${ts}`;
+    await createCategory(organizationId, {
+      name: "First",
+      code,
+      slug: `first-${ts}`,
     });
-
     await expect(
       createCategory(organizationId, {
-        name: "Duplicate Apparel",
-        code: `apparel-${ts}`,
-        slug: `apparel-dup-${ts}`,
+        name: "Second",
+        code,
+        slug: `second-${ts}`,
       }),
     ).rejects.toMatchObject({ statusCode: 409 });
+  });
 
-    const tree = await getCategoryTree(organizationId);
-    const apparelNode = tree.find((node) => node.id === apparel.id);
-    expect(apparelNode?.children.some((child) => child.id === shirts.id)).toBe(true);
-
-    const specsGroup = await createAttributeGroup(organizationId, {
-      name: `Specifications ${ts}`,
-      code: `specs-${ts}`,
+  // Phase 2 spec §8: Building a simple category tree.
+  it("builds a simple category tree", async () => {
+    const ts = Date.now();
+    const root = await createCategory(organizationId, {
+      name: "Apparel",
+      code: `apparel-tree-${ts}`,
+      slug: `apparel-tree-${ts}`,
+    });
+    const child = await createCategory(organizationId, {
+      name: "Shirts",
+      code: `shirts-tree-${ts}`,
+      slug: `shirts-tree-${ts}`,
+      parentId: root.id,
     });
 
-    await linkCategoryAttributeGroups(shirts.id, organizationId, {
-      attributeGroupIds: [specsGroup.id],
+    const tree = await getCategoryTree(organizationId);
+    const rootNode = tree.find((node) => node.id === root.id);
+    expect(rootNode?.children.some((c) => c.id === child.id)).toBe(true);
+    expect(child.path).toBe(`${root.path}/${child.slug}`);
+  });
+
+  // Phase 2 spec §8: Creating attribute groups and attaching attributes.
+  it("creates attribute groups and lists group attributes", async () => {
+    const ts = Date.now();
+    const group = await createAttributeGroup(organizationId, {
+      name: `Dimensions ${ts}`,
+      code: `dimensions-${ts}`,
+    });
+
+    const weight = await createAttribute(organizationId, {
+      attributeGroupId: group.id,
+      key: `weight_${ts}`,
+      label: "Weight",
+      dataType: "NUMBER",
+    });
+
+    const attrs = await listAttributesForGroup(group.id, organizationId);
+    expect(attrs.map((a) => a.id)).toContain(weight.id);
+  });
+
+  // Phase 2 spec §8: Attaching attribute groups to category and listing category attributes.
+  it("links attribute groups to a category and lists flattened attributes", async () => {
+    const ts = Date.now();
+    const category = await createCategory(organizationId, {
+      name: "Jackets",
+      code: `jackets-${ts}`,
+      slug: `jackets-${ts}`,
+    });
+
+    const group = await createAttributeGroup(organizationId, {
+      name: `Specs ${ts}`,
+      code: `specs-cat-${ts}`,
+    });
+
+    await createAttribute(organizationId, {
+      attributeGroupId: group.id,
+      key: `material_${ts}`,
+      label: "Material",
+      dataType: "TEXT",
+    });
+
+    await linkCategoryAttributeGroups(category.id, organizationId, {
+      attributeGroupIds: [group.id],
+    });
+
+    const groups = await listAttributeGroupsForCategory(category.id, organizationId);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.code).toBe(`specs-cat-${ts}`);
+
+    const attrs = await listAttributesForCategory(category.id, organizationId);
+    expect(attrs.some((a) => a.key === `material_${ts}`)).toBe(true);
+  });
+
+  // Phase 2 spec §8: Creating facet definitions and facet rules.
+  it("creates facet definitions and rules", async () => {
+    const ts = Date.now();
+    const category = await createCategory(organizationId, {
+      name: "Pants",
+      code: `pants-${ts}`,
+      slug: `pants-${ts}`,
+    });
+
+    const group = await createAttributeGroup(organizationId, {
+      name: `Filter Specs ${ts}`,
+      code: `filter-specs-${ts}`,
     });
 
     const colorAttr = await createAttribute(organizationId, {
-      attributeGroupId: specsGroup.id,
-      key: `color_${ts}`,
+      attributeGroupId: group.id,
+      key: `facet_color_${ts}`,
       label: "Color",
       dataType: "ENUM",
       isFilterable: true,
-      isSearchable: true,
       allowedValuesType: "CONTROLLED_LIST",
-    });
-
-    await prisma.attributeEnumValue.createMany({
-      data: [
-        {
-          attributeDefinitionId: colorAttr.id,
-          value: "blue",
-          label: "Blue",
-          sortOrder: 0,
-        },
-        {
-          attributeDefinitionId: colorAttr.id,
-          value: "white",
-          label: "White",
-          sortOrder: 1,
-        },
-      ],
     });
 
     const sizeAttr = await createAttribute(organizationId, {
-      attributeGroupId: specsGroup.id,
-      key: `size_${ts}`,
+      attributeGroupId: group.id,
+      key: `facet_size_${ts}`,
       label: "Size",
       dataType: "ENUM",
       isFilterable: true,
       allowedValuesType: "CONTROLLED_LIST",
     });
 
-    await prisma.attributeEnumValue.createMany({
-      data: [
-        {
-          attributeDefinitionId: sizeAttr.id,
-          value: "M",
-          label: "Medium",
-          sortOrder: 0,
-        },
-        {
-          attributeDefinitionId: sizeAttr.id,
-          value: "L",
-          label: "Large",
-          sortOrder: 1,
-        },
-      ],
+    await prisma.attributeEnumValue.create({
+      data: {
+        attributeDefinitionId: colorAttr.id,
+        value: "navy",
+        label: "Navy",
+        sortOrder: 0,
+      },
     });
 
-    const colorFacet = await createFacetDefinition(organizationId, {
-      key: `color_${ts}`,
+    const facet = await createFacetDefinition(organizationId, {
+      key: `facet_color_${ts}`,
       label: "Color",
       sourceAttributeId: colorAttr.id,
-      categoryId: shirts.id,
+      categoryId: category.id,
       sortOrder: 1,
     });
 
-    const sizeFacet = await createFacetDefinition(organizationId, {
-      key: `size_${ts}`,
-      label: "Size",
-      sourceAttributeId: sizeAttr.id,
-      categoryId: shirts.id,
-      sortOrder: 2,
-    });
-
     await createFacetRule(organizationId, {
-      facetDefinitionId: colorFacet.id,
-      categoryId: shirts.id,
+      facetDefinitionId: facet.id,
+      categoryId: category.id,
       attributeDefinitionId: colorAttr.id,
-      ruleType: "DIRECT",
-    });
-
-    await createFacetRule(organizationId, {
-      facetDefinitionId: sizeFacet.id,
-      categoryId: shirts.id,
-      attributeDefinitionId: sizeAttr.id,
       ruleType: "DIRECT",
     });
 
     await expect(
       createFacetRule(organizationId, {
-        facetDefinitionId: colorFacet.id,
-        categoryId: shirts.id,
+        facetDefinitionId: facet.id,
+        categoryId: category.id,
         attributeDefinitionId: sizeAttr.id,
         ruleType: "DIRECT",
       }),
     ).rejects.toMatchObject({ statusCode: 400 });
 
-    const rules = await listFacetRules(organizationId, { categoryId: shirts.id });
-    expect(rules.length).toBeGreaterThanOrEqual(2);
+    const rules = await listFacetRules(organizationId, { categoryId: category.id });
+    expect(rules.length).toBeGreaterThanOrEqual(1);
+  });
 
-    const facets = await getCategoryFacets(shirts.id, organizationId);
-    expect(facets.map((facet) => facet.key)).toEqual([`color_${ts}`, `size_${ts}`]);
-    expect(facets[0]?.options).toEqual([
-      { value: "blue", label: "Blue", sortOrder: 0 },
-      { value: "white", label: "White", sortOrder: 1 },
-    ]);
-    expect(facets[1]?.options[0]).toEqual({
-      value: "M",
-      label: "Medium",
-      sortOrder: 0,
+  // Phase 2 spec §8: Retrieving facets for a category.
+  it("retrieves resolved facets for a category", async () => {
+    const ts = Date.now();
+    const category = await createCategory(organizationId, {
+      name: "Shorts",
+      code: `shorts-${ts}`,
+      slug: `shorts-${ts}`,
     });
+
+    const group = await createAttributeGroup(organizationId, {
+      name: `Shorts Specs ${ts}`,
+      code: `shorts-specs-${ts}`,
+    });
+
+    const sizeAttr = await createAttribute(organizationId, {
+      attributeGroupId: group.id,
+      key: `shorts_size_${ts}`,
+      label: "Size",
+      dataType: "ENUM",
+      isFilterable: true,
+      allowedValuesType: "CONTROLLED_LIST",
+    });
+
+    await prisma.attributeEnumValue.createMany({
+      data: [
+        {
+          attributeDefinitionId: sizeAttr.id,
+          value: "S",
+          label: "Small",
+          sortOrder: 0,
+        },
+        {
+          attributeDefinitionId: sizeAttr.id,
+          value: "M",
+          label: "Medium",
+          sortOrder: 1,
+        },
+      ],
+    });
+
+    const sizeFacet = await createFacetDefinition(organizationId, {
+      key: `shorts_size_facet_${ts}`,
+      label: "Size",
+      sourceAttributeId: sizeAttr.id,
+      categoryId: category.id,
+      sortOrder: 1,
+    });
+
+    await createFacetRule(organizationId, {
+      facetDefinitionId: sizeFacet.id,
+      categoryId: category.id,
+      attributeDefinitionId: sizeAttr.id,
+      ruleType: "DIRECT",
+    });
+
+    const facets = await getCategoryFacets(category.id, organizationId);
+    const sizeFacetResult = facets.find((f) => f.key === `shorts_size_facet_${ts}`);
+    expect(sizeFacetResult?.options).toEqual([
+      { value: "S", label: "Small", sortOrder: 0 },
+      { value: "M", label: "Medium", sortOrder: 1 },
+    ]);
   });
 });

@@ -75,6 +75,31 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  app.get("/categories/:id/attribute-groups", async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const groups = await taxonomyService.listAttributeGroupsForCategory(
+        id,
+        request.organizationId,
+      );
+      return reply.send({ items: groups });
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
+  app.get("/categories/:id/attributes", async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const attrs = await taxonomyService.listAttributesForCategory(id, request.organizationId);
+      return reply.send({ items: attrs });
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
   app.get("/categories/:id/facets", async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
@@ -133,6 +158,17 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
     try {
       const groups = await taxonomyService.listAttributeGroups(request.organizationId);
       return reply.send({ items: groups });
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
+  app.get("/attribute-groups/:id/attributes", async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const attrs = await taxonomyService.listAttributesForGroup(id, request.organizationId);
+      return reply.send({ items: attrs });
     } catch (e) {
       const { statusCode, message } = handleError(e);
       return reply.code(statusCode).send({ error: message });
@@ -198,6 +234,18 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       const query = ListFacetRulesQuerySchema.parse(request.query ?? {});
       const rules = await facetService.listFacetRules(request.organizationId, query);
       return reply.send({ items: rules });
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
+  // ASSUMPTION CHANGE: spec path /facets/categories/:id aliases category facets endpoint.
+  app.get("/facets/categories/:categoryId", async (request, reply) => {
+    try {
+      const { categoryId } = request.params as { categoryId: string };
+      const facets = await facetService.getCategoryFacets(categoryId, request.organizationId);
+      return reply.send({ items: facets });
     } catch (e) {
       const { statusCode, message } = handleError(e);
       return reply.code(statusCode).send({ error: message });

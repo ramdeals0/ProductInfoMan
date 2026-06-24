@@ -473,3 +473,87 @@ export async function linkCategoryAttributeGroups(
 
   return { linked: input.attributeGroupIds.length };
 }
+
+export async function listAttributesForGroup(
+  groupId: string,
+  organizationId: string,
+): Promise<AttributeEntity[]> {
+  const group = await prisma.attributeGroup.findFirst({
+    where: { id: groupId, organizationId },
+  });
+  if (!group) throw appError("Attribute group not found", 404);
+
+  const attrs = await prisma.attributeDefinition.findMany({
+    where: { organizationId, attributeGroupId: groupId },
+    orderBy: { key: "asc" },
+  });
+  return attrs.map(toAttributeDto);
+}
+
+export async function listAttributeGroupsForCategory(
+  categoryId: string,
+  organizationId: string,
+): Promise<AttributeGroupEntity[]> {
+  const category = await prisma.category.findFirst({
+    where: { id: categoryId, organizationId },
+    include: {
+      attributeGroups: {
+        include: { attributeGroup: true },
+        orderBy: { sortOrder: "asc" },
+      },
+    },
+  });
+  if (!category) throw appError("Category not found", 404);
+
+  return category.attributeGroups.map((link) => ({
+    id: link.attributeGroup.id,
+    organizationId: link.attributeGroup.organizationId,
+    code: link.attributeGroup.code,
+    name: link.attributeGroup.name,
+    description: link.attributeGroup.description,
+    sortOrder: link.sortOrder,
+    createdAt: link.attributeGroup.createdAt.toISOString(),
+    updatedAt: link.attributeGroup.updatedAt.toISOString(),
+  }));
+}
+
+export async function listAttributesForCategory(
+  categoryId: string,
+  organizationId: string,
+): Promise<AttributeEntity[]> {
+  const category = await prisma.category.findFirst({
+    where: { id: categoryId, organizationId },
+    include: {
+      attributeGroups: {
+        include: {
+          attributeGroup: {
+            include: { attributes: { orderBy: { key: "asc" } } },
+          },
+        },
+        orderBy: { sortOrder: "asc" },
+      },
+      attributeSet: {
+        include: {
+          bindings: {
+            include: { attributeDefinition: true },
+          },
+        },
+      },
+    },
+  });
+  if (!category) throw appError("Category not found", 404);
+
+  const merged = new Map<string, AttributeEntity>();
+  for (const link of category.attributeGroups) {
+    for (const attr of link.attributeGroup.attributes) {
+      merged.set(attr.id, toAttributeDto(attr));
+    }
+  }
+  if (category.attributeSet) {
+    for (const binding of category.attributeSet.bindings) {
+      merged.set(binding.attributeDefinition.id, toAttributeDto(binding.attributeDefinition));
+    }
+  }
+
+  return [...merged.values()].sort((a, b) => a.key.localeCompare(b.key));
+}
