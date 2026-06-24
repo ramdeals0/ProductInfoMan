@@ -336,14 +336,13 @@ On category and search pages, the sidebar shows facets (brand, price range, cate
 
 ### Demo catalog
 
-For a richer demo (80+ products with Fleet Farm–style facets):
+The default demo catalog is the **apparel** taxonomy (`SHIRT-001` parent + 3 variants). To refresh after deploy:
 
 ```bash
-pnpm seed:attributes-facets
-pnpm seed:demo-catalog
+pnpm reseed:demo
 ```
 
-Categories include Tools, Outdoor Power, Clothing, and Fishing.
+This removes any Fleet Farm (`FF-*`) products and reseeds the base demo only.
 
 ---
 
@@ -447,8 +446,8 @@ Password requirements are enforced on login and user creation.
 | **Product not on storefront** | Check status is APPROVED or PUBLISHED. Wait for search index update or ask ops to reindex. |
 | **Import validation errors** | Open job detail → review error table → fix CSV → upload again. |
 | **Publish job skipped products** | Product may be DRAFT or missing required channel fields. Check item errors on job detail. |
-| **Empty dashboard metrics** | Run `pnpm db:seed` and optional demo catalog seeds in your environment. |
-| **Facets missing on storefront** | Run `pnpm seed:attributes-facets` and `pnpm seed:demo-catalog`, then reindex. |
+| **Empty dashboard metrics** | Run `pnpm reseed:demo` or `pnpm db:seed` in your environment. |
+| **Facets missing on storefront** | Run `pnpm reseed:demo` to publish and reindex the base catalog. |
 
 For deployment issues, see [deployment/railway.md](./deployment/railway.md) or [deployment/railway-production.md](./deployment/railway-production.md) for the live `productinfoman-production` environment.
 
