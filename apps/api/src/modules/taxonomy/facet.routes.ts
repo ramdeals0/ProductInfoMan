@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import {
   CreateFacetRuleSchema,
   FacetRuleWorkflowNotesSchema,
+  formatZodError,
   ListFacetDefinitionsQuerySchema,
   ListFacetRulesQuerySchema,
   UpdateFacetRuleSchema,
@@ -12,8 +13,12 @@ import { resolveTenant } from "../../plugins/tenant.js";
 import { authenticateJwt, assertRoles, ROLE_GROUPS } from "../../plugins/rbac.js";
 import * as facetService from "./facet.service.js";
 import * as facetWorkflowService from "./facet-workflow.service.js";
+import { ZodError } from "zod";
 
 function handleError(error: unknown): { statusCode: number; message: string } {
+  if (error instanceof ZodError) {
+    return { statusCode: 400, message: formatZodError(error) };
+  }
   if (error instanceof AppError) {
     return { statusCode: error.statusCode, message: error.message };
   }

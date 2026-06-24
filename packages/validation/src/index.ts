@@ -1,5 +1,20 @@
 import { z } from "zod";
 
+export const TaxonomyKeySchema = z
+  .string()
+  .min(1, "Key is required")
+  .max(64, "Key must be 64 characters or fewer")
+  .regex(/^[a-z0-9_]+$/, "Key must use lowercase letters, numbers, and underscores only (e.g. price_range)");
+
+export function formatZodError(error: z.ZodError): string {
+  return error.issues
+    .map((issue) => {
+      const field = issue.path.length > 0 ? `${issue.path.join(".")}: ` : "";
+      return `${field}${issue.message}`;
+    })
+    .join("; ");
+}
+
 export const ProductTypeSchema = z.enum(["SIMPLE", "PARENT", "VARIANT"]);
 export const ProductStatusSchema = z.enum([
   "DRAFT",
@@ -110,7 +125,7 @@ export const UpdateAttributeGroupSchema = z.object({
 
 export const CreateAttributeSchema = z.object({
   attributeGroupId: z.string().cuid(),
-  key: z.string().min(1).max(64).regex(/^[a-z0-9_]+$/),
+  key: TaxonomyKeySchema,
   label: z.string().min(1).max(128),
   description: z.string().optional(),
   dataType: AttributeDataTypeSchema,
@@ -145,7 +160,7 @@ export const LinkCategoryAttributeGroupsSchema = z.object({
 });
 
 export const CreateFacetDefinitionSchema = z.object({
-  key: z.string().min(1).max(64).regex(/^[a-z0-9_]+$/),
+  key: TaxonomyKeySchema,
   label: z.string().min(1).max(128),
   sourceAttributeId: z.string().cuid(),
   categoryId: z.string().cuid().nullable().optional(),

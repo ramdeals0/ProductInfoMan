@@ -5,6 +5,7 @@ import {
   CreateCategorySchema,
   CreateFacetDefinitionSchema,
   CreateFacetRuleSchema,
+  formatZodError,
   LinkCategoryAttributeGroupsSchema,
   LinkCategoryAttributesSchema,
   ListFacetDefinitionsQuerySchema,
@@ -21,8 +22,12 @@ import { resolveActor, requireActor } from "../../plugins/actor.js";
 import * as facetService from "./facet.service.js";
 import * as facetWorkflowService from "./facet-workflow.service.js";
 import * as taxonomyService from "./taxonomy.service.js";
+import { ZodError } from "zod";
 
 function handleError(error: unknown): { statusCode: number; message: string } {
+  if (error instanceof ZodError) {
+    return { statusCode: 400, message: formatZodError(error) };
+  }
   if (error instanceof AppError) {
     return { statusCode: error.statusCode, message: error.message };
   }
