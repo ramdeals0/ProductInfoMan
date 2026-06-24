@@ -125,3 +125,45 @@ export async function getEntityChangeHistory(
     createdAt: item.createdAt.toISOString(),
   }));
 }
+
+const SECURITY_ACTIONS = [
+  "LOGIN_SUCCESS",
+  "LOGIN_FAILURE",
+  "ACCOUNT_LOCKOUT",
+  "ACCOUNT_UNLOCK",
+  "ROLE_ASSIGNMENT",
+  "LOGOUT",
+  "SECURITY_CONFIG_CHANGE",
+] as const;
+
+export async function listSecurityAuditLogs(
+  organizationId: string,
+  query: Omit<ListAuditQuery, "action" | "entityType">,
+): Promise<{ items: AuditLogEntity[]; total: number }> {
+  const where = {
+    organizationId,
+    entityType: "user",
+    action: { in: [...SECURITY_ACTIONS] },
+    ...(query.performedBy ? { actorId: query.performedBy } : {}),
+    ...(query.fromDate || query.toDate
+      ? {
+          createdAt: {
+            ...(query.fromDate ? { gte: new Date(query.fromDate) } : {}),
+            ...(query.toDate ? { lte: new Date(query.toDate) } : {}),
+          },
+        }
+      : {}),
+  };
+
+  const [items, total] = await Promise.all([
+    prisma.auditLog.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (query.page - 1) * query.pageSize,
+      take: query.pageSize,
+    }),
+    prisma.auditLog.count({ where }),
+  ]);
+
+  return { items: items.map(toAuditDto), total };
+}

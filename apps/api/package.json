@@ -12,6 +12,7 @@
   "dependencies": {
     "@fastify/cors": "^11.0.1",
     "@fastify/multipart": "^9.0.3",
+    "@productinfoman/config": "workspace:*",
     "@productinfoman/contracts": "workspace:*",
     "@productinfoman/db": "workspace:*",
     "@productinfoman/domain": "workspace:*",

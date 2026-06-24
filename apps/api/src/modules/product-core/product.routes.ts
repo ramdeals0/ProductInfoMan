@@ -8,7 +8,7 @@ import {
 } from "@productinfoman/validation";
 import { AppError } from "@productinfoman/shared";
 import { resolveTenant } from "../../plugins/tenant.js";
-import { authenticateJwt, requireRoles, ROLE_GROUPS } from "../../plugins/rbac.js";
+import { authenticateJwt, requireRoleGroup } from "../../plugins/rbac.js";
 import * as productService from "./product.service.js";
 
 function handleError(error: unknown): { statusCode: number; message: string } {
@@ -30,7 +30,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
   app.post(
     "/products",
-    { preHandler: requireRoles(ROLE_GROUPS.PRODUCT_WRITE) },
+    { preHandler: requireRoleGroup("PRODUCT_WRITE") },
     async (request, reply) => {
     try {
       const body = CreateProductSchema.parse(request.body);
@@ -44,7 +44,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
   app.get(
     "/products",
-    { preHandler: requireRoles(ROLE_GROUPS.READ) },
+    { preHandler: requireRoleGroup("READ") },
     async (request, reply) => {
     try {
       const query = ListProductsQuerySchema.parse(request.query);
@@ -58,7 +58,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
   app.get(
     "/products/:id/tree",
-    { preHandler: requireRoles(ROLE_GROUPS.READ) },
+    { preHandler: requireRoleGroup("READ") },
     async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
@@ -72,7 +72,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
   app.get(
     "/products/:id/variants",
-    { preHandler: requireRoles(ROLE_GROUPS.READ) },
+    { preHandler: requireRoleGroup("READ") },
     async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
@@ -86,7 +86,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
   app.post(
     "/products/:id/variants",
-    { preHandler: requireRoles(ROLE_GROUPS.PRODUCT_WRITE) },
+    { preHandler: requireRoleGroup("PRODUCT_WRITE") },
     async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
@@ -101,7 +101,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
   app.get(
     "/products/:id",
-    { preHandler: requireRoles(ROLE_GROUPS.READ) },
+    { preHandler: requireRoleGroup("READ") },
     async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
@@ -115,7 +115,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
   app.patch(
     "/products/:id",
-    { preHandler: requireRoles(ROLE_GROUPS.PRODUCT_WRITE) },
+    { preHandler: requireRoleGroup("PRODUCT_WRITE") },
     async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
@@ -130,7 +130,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete(
     "/products/:id",
-    { preHandler: requireRoles(ROLE_GROUPS.PRODUCT_WRITE) },
+    { preHandler: requireRoleGroup("PRODUCT_WRITE") },
     async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
@@ -144,7 +144,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
   app.put(
     "/products/:id/attributes",
-    { preHandler: requireRoles(ROLE_GROUPS.PRODUCT_WRITE) },
+    { preHandler: requireRoleGroup("PRODUCT_WRITE") },
     async (request, reply) => {
     try {
       const { id } = request.params as { id: string };

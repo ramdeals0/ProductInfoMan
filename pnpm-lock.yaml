@@ -47,6 +47,9 @@ importers:
       '@productinfoman/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@productinfoman/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@productinfoman/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -104,7 +107,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.2.4
-        version: 3.2.6(@types/debug@4.1.13)(@types/node@24.13.2)(jiti@1.21.7)(tsx@4.22.4)
+        version: 3.2.6(@types/debug@4.1.13)(@types/node@24.13.2)(jiti@2.7.0)(tsx@4.22.4)
 
   apps/api:
     dependencies:
@@ -114,6 +117,9 @@ importers:
       '@fastify/multipart':
         specifier: ^9.0.3
         version: 9.4.0
+      '@productinfoman/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@productinfoman/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -245,7 +251,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.2.4
-        version: 3.2.6(@types/debug@4.1.13)(@types/node@24.13.2)(jiti@2.7.0)(tsx@4.22.4)
+        version: 3.2.6(@types/debug@4.1.13)(@types/node@24.13.2)(jiti@1.21.7)(tsx@4.22.4)
 
   apps/storefront:
     dependencies:
@@ -315,7 +321,18 @@ importers:
         specifier: ^3.2.4
         version: 3.2.6(@types/debug@4.1.13)(@types/node@24.13.2)(jiti@2.7.0)(tsx@4.22.4)
 
-  packages/config: {}
+  packages/config:
+    dependencies:
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.6(@types/debug@4.1.13)(@types/node@24.13.2)(jiti@2.7.0)(tsx@4.22.4)
 
   packages/contracts:
     dependencies:
@@ -423,6 +440,10 @@ importers:
       '@productinfoman/db':
         specifier: workspace:*
         version: link:../db
+    devDependencies:
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.6(@types/debug@4.1.13)(@types/node@24.13.2)(jiti@2.7.0)(tsx@4.22.4)
 
   packages/validation:
     dependencies:

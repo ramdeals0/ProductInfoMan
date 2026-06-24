@@ -10,6 +10,16 @@ export {
   type RbacRoleCode,
 } from "./rbac.js";
 export {
+  CAPABILITIES,
+  ROLE_CAPABILITIES,
+  ROLE_GROUP_CAPABILITIES,
+  hasCapability,
+  hasCapabilityGroup,
+  listCapabilitiesForRoles,
+  type Capability,
+} from "./rbac.config.js";
+export { recordSecurityEvent, type SecurityAuditParams } from "./security-audit.js";
+export {
   writeAudit,
   recordChange,
   recordSnapshot,

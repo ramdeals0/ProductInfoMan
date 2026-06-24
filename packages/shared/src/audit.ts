@@ -7,7 +7,14 @@ export type AuditAction =
   | "DELETE"
   | "STATE_CHANGE"
   | "IMPORT"
-  | "EXPORT";
+  | "EXPORT"
+  | "LOGIN_SUCCESS"
+  | "LOGIN_FAILURE"
+  | "ACCOUNT_LOCKOUT"
+  | "ACCOUNT_UNLOCK"
+  | "ROLE_ASSIGNMENT"
+  | "LOGOUT"
+  | "SECURITY_CONFIG_CHANGE";
 
 export type EntityChangeType = "SNAPSHOT" | "CREATE" | "UPDATE" | "DELETE";
 

@@ -1,4 +1,5 @@
 import * as jose from "jose";
+import { loadApiEnv } from "@productinfoman/config";
 import type { RbacRoleCode } from "@productinfoman/shared";
 
 export type JwtPayload = {
@@ -7,27 +8,33 @@ export type JwtPayload = {
   organizationId: string;
   organizationSlug: string;
   roles: RbacRoleCode[];
+  tokenVersion: number;
 };
 
-const DEFAULT_TTL = "8h";
-
 function getSecret(): Uint8Array {
-  const secret = process.env.JWT_SECRET ?? "dev-insecure-jwt-secret-change-me";
-  return new TextEncoder().encode(secret);
+  const { JWT_SECRET } = loadApiEnv();
+  return new TextEncoder().encode(JWT_SECRET);
 }
 
-export async function signToken(payload: JwtPayload): Promise<string> {
+export async function signAccessToken(payload: JwtPayload): Promise<string> {
+  const { JWT_ACCESS_EXPIRES_IN } = loadApiEnv();
   return new jose.SignJWT({
     email: payload.email,
     organizationId: payload.organizationId,
     organizationSlug: payload.organizationSlug,
     roles: payload.roles,
+    tokenVersion: payload.tokenVersion,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(payload.sub)
     .setIssuedAt()
-    .setExpirationTime(process.env.JWT_EXPIRES_IN ?? DEFAULT_TTL)
+    .setExpirationTime(JWT_ACCESS_EXPIRES_IN)
     .sign(getSecret());
+}
+
+/** @deprecated Use signAccessToken */
+export async function signToken(payload: Omit<JwtPayload, "tokenVersion"> & { tokenVersion?: number }): Promise<string> {
+  return signAccessToken({ ...payload, tokenVersion: payload.tokenVersion ?? 0 });
 }
 
 export async function verifyToken(token: string): Promise<JwtPayload> {
@@ -41,5 +48,16 @@ export async function verifyToken(token: string): Promise<JwtPayload> {
     organizationId: String(payload.organizationId ?? ""),
     organizationSlug: String(payload.organizationSlug ?? ""),
     roles: Array.isArray(payload.roles) ? (payload.roles as RbacRoleCode[]) : [],
+    tokenVersion: Number(payload.tokenVersion ?? 0),
   };
+}
+
+export function getRefreshTokenTtlMs(): number {
+  const { JWT_REFRESH_EXPIRES_IN } = loadApiEnv();
+  const match = JWT_REFRESH_EXPIRES_IN.match(/^(\d+)([smhd])$/);
+  if (!match) return 7 * 24 * 60 * 60 * 1000;
+  const amount = Number(match[1]);
+  const unit = match[2];
+  const multipliers: Record<string, number> = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 };
+  return amount * (multipliers[unit] ?? 86_400_000);
 }

@@ -7,7 +7,9 @@ import { useSession } from "@/lib/session";
 import {
   canManageMdm,
   canManageTaxonomy,
+  canManageUsers,
   canReadCatalog,
+  canViewSecuritySettings,
 } from "@/lib/permissions";
 
 const NAV = [
@@ -37,6 +39,8 @@ const NAV = [
   },
   { href: "/admin/audit", label: "Audit", visible: canReadCatalog },
   { href: "/admin/reports", label: "Reports", visible: canReadCatalog },
+  { href: "/admin/users", label: "Users", visible: canManageUsers },
+  { href: "/admin/security", label: "Security", visible: canViewSecuritySettings },
 ] as const;
 
 export function AdminSidebar() {

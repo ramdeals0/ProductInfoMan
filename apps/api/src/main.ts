@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { loadApiEnv } from "@productinfoman/config";
 import cors from "@fastify/cors";
 import Fastify from "fastify";
 import { importRoutes } from "./modules/import/import.routes.js";
@@ -16,12 +17,27 @@ import { taxonomyRoutes } from "./modules/taxonomy/taxonomy.routes.js";
 import { workflowRoutes } from "./modules/workflow/workflow.routes.js";
 import { mdmRoutes } from "./modules/mdm/mdm.routes.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
+import { usersRoutes } from "./modules/users/users.routes.js";
 import { registerRateLimitHook } from "./plugins/rate-limit.js";
+import { registerSecurityPlugins } from "./plugins/security.js";
 
-const app = Fastify({ logger: true, trustProxy: true });
+const env = loadApiEnv();
+const corsOrigin = env.CORS_ORIGINS
+  ? env.CORS_ORIGINS.split(",").map((value) => value.trim()).filter(Boolean)
+  : true;
+const app = Fastify({
+  logger: true,
+  trustProxy: true,
+  bodyLimit: env.JSON_BODY_LIMIT_BYTES,
+});
 
-await app.register(cors, { origin: true });
+await app.register(cors, {
+  origin: corsOrigin,
+  credentials: true,
+});
+await registerSecurityPlugins(app);
 await app.register(authRoutes, { prefix: "/api/v1" });
+await app.register(usersRoutes, { prefix: "/api/v1" });
 await app.register(productRoutes, { prefix: "/api/v1" });
 await app.register(taxonomyRoutes, { prefix: "/api/v1" });
 await app.register(importRoutes, { prefix: "/api/v1" });

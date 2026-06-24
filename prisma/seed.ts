@@ -33,7 +33,7 @@ async function seedRoles() {
 
 async function seedAdminUser(organizationId: string) {
   const adminEmail = process.env.ADMIN_EMAIL ?? "admin@demo.local";
-  const adminPassword = process.env.ADMIN_PASSWORD ?? "admin123";
+  const adminPassword = process.env.ADMIN_PASSWORD ?? "Admin123!@#demo";
   const passwordHash = await bcrypt.hash(adminPassword, 10);
 
   const adminUser = await prisma.user.upsert({

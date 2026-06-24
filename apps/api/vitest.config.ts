@@ -14,6 +14,8 @@ export default defineConfig({
       SEARCH_SYNC: "true",
       PUBLISH_SYNC: "true",
       EVENT_SYNC: "true",
+      VITEST: "true",
+      NODE_ENV: "test",
     },
   },
 });

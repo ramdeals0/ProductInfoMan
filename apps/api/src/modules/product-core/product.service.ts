@@ -13,6 +13,7 @@ import {
   type StoredAttributeValue,
 } from "@productinfoman/inheritance-engine";
 import { prisma } from "@productinfoman/db";
+import { sanitizeDisplayText } from "@productinfoman/config";
 import { appError, recordChange, recordSnapshot } from "@productinfoman/shared";
 import type { Prisma, Product } from "../../../../generated/prisma/client.js";
 import { emitEvent } from "../../lib/events.js";
@@ -261,9 +262,9 @@ export async function createProduct(
       organizationId,
       productType: input.productType,
       sku: input.sku,
-      title: input.title,
-      description: input.description,
-      brand: input.brand,
+      title: sanitizeDisplayText(input.title),
+      description: input.description ? sanitizeDisplayText(input.description) : input.description,
+      brand: input.brand ? sanitizeDisplayText(input.brand) : input.brand,
       primaryCategoryId: input.primaryCategoryId,
       parentId: input.parentId,
     },
@@ -375,9 +376,11 @@ export async function updateProduct(
   const product = await prisma.product.update({
     where: { id },
     data: {
-      ...(input.title !== undefined && { title: input.title }),
-      ...(input.description !== undefined && { description: input.description }),
-      ...(input.brand !== undefined && { brand: input.brand }),
+      ...(input.title !== undefined && { title: sanitizeDisplayText(input.title) }),
+      ...(input.description !== undefined && {
+        description: sanitizeDisplayText(input.description),
+      }),
+      ...(input.brand !== undefined && { brand: sanitizeDisplayText(input.brand) }),
       ...(input.primaryCategoryId !== undefined && {
         primaryCategoryId: input.primaryCategoryId,
       }),

@@ -62,11 +62,17 @@ model User {
   passwordHash   String?
   isActive       Boolean  @default(true)
   role           UserRole @default(EDITOR)
+  failedLoginAttempts Int      @default(0)
+  lockedUntil        DateTime?
+  mfaEnabled         Boolean  @default(false)
+  mfaType            MfaType?
+  tokenVersion       Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   organization    Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   roleMemberships UserRoleMembership[]
+  refreshTokens   RefreshToken[]
   importJobs      ImportJob[]          @relation("ImportJobCreator")
   workflowTasksAssigned WorkflowTask[] @relation("WorkflowTaskAssignee")
   workflowApprovals     WorkflowApproval[] @relation("WorkflowApprover")
@@ -101,6 +107,25 @@ model UserRoleMembership {
   @@index([userId])
   @@index([roleId])
   @@map("user_roles")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+enum MfaType {
+  TOTP
+  SMS
 }
 
 enum UserRole {
@@ -1447,6 +1472,13 @@ enum AuditAction {
   STATE_CHANGE
   IMPORT
   EXPORT
+  LOGIN_SUCCESS
+  LOGIN_FAILURE
+  ACCOUNT_LOCKOUT
+  ACCOUNT_UNLOCK
+  ROLE_ASSIGNMENT
+  LOGOUT
+  SECURITY_CONFIG_CHANGE
 }
 
 model EntityChangeHistory {

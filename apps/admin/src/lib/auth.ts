@@ -1,7 +1,9 @@
 import * as jose from "jose";
+import { loadAdminEnv } from "@productinfoman/config";
 import type { RbacRoleCode } from "@productinfoman/shared/rbac";
 
 export const AUTH_COOKIE = "pim_auth";
+export const REFRESH_COOKIE = "pim_refresh";
 
 export type AuthSession = {
   id: string;
@@ -10,6 +12,7 @@ export type AuthSession = {
   organizationSlug: string;
   roles: RbacRoleCode[];
   legacyRole: string;
+  mfaEnabled?: boolean;
 };
 
 type JwtClaims = {
@@ -21,8 +24,8 @@ type JwtClaims = {
 };
 
 function getSecret(): Uint8Array {
-  const secret = process.env.JWT_SECRET ?? "dev-insecure-jwt-secret-change-me";
-  return new TextEncoder().encode(secret);
+  const { JWT_SECRET } = loadAdminEnv();
+  return new TextEncoder().encode(JWT_SECRET);
 }
 
 export async function verifyAuthToken(token: string): Promise<JwtClaims> {
@@ -39,16 +42,22 @@ export async function verifyAuthToken(token: string): Promise<JwtClaims> {
   };
 }
 
-export function authCookieOptions(maxAgeSeconds = 60 * 60 * 8) {
+export function authCookieOptions(maxAgeSeconds = 60 * 60) {
+  const { NODE_ENV } = loadAdminEnv();
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: NODE_ENV === "production",
     sameSite: "lax" as const,
     path: "/",
     maxAge: maxAgeSeconds,
   };
 }
 
+export function refreshCookieOptions(maxAgeSeconds = 60 * 60 * 24 * 7) {
+  return authCookieOptions(maxAgeSeconds);
+}
+
 export function getApiBaseUrl(): string {
-  return process.env.API_URL ?? "http://localhost:3001";
+  const { API_URL } = loadAdminEnv();
+  return API_URL;
 }

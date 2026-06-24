@@ -6,9 +6,16 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./rbac": "./src/rbac.ts"
+    "./rbac": "./src/rbac.ts",
+    "./rbac.config": "./src/rbac.config.ts"
   },
   "dependencies": {
     "@productinfoman/db": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  },
+  "scripts": {
+    "test": "vitest run"
   }
 }

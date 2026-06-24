@@ -393,6 +393,44 @@ export class ApiClient {
   health() {
     return this.request<{ status: string }>("/health");
   }
+
+  listUsers() {
+    return this.request<{ items: Array<Record<string, unknown>> }>("/api/v1/users");
+  }
+
+  createUser(body: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>("/api/v1/users", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateUserRoles(userId: string, roleCodes: string[]) {
+    return this.request<Record<string, unknown>>(`/api/v1/users/${userId}/roles`, {
+      method: "PUT",
+      body: JSON.stringify({ roleCodes }),
+    });
+  }
+
+  unlockUser(userId: string) {
+    return this.request<{ id: string; unlocked: boolean }>(`/api/v1/users/${userId}/unlock`, {
+      method: "POST",
+    });
+  }
+
+  getSecurityPolicy() {
+    return this.request<Record<string, unknown>>("/api/v1/auth/security-policy");
+  }
+
+  listSecurityAudit(query: Record<string, string | number | undefined> = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value != null && value !== "") params.set(key, String(value));
+    }
+    return this.request<{ items: Array<Record<string, unknown>>; total: number }>(
+      `/api/v1/audit/security?${params}`,
+    );
+  }
 }
 
 export function createApiClient(config: ApiClientConfig) {
