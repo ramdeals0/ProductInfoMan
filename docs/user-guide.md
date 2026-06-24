@@ -44,8 +44,8 @@ When deploying to production (e.g. Railway), use your assigned Admin and Storefr
 
 | Surface | URL |
 |---------|-----|
-| **API** | https://productinfoman-production.up.railway.app |
-| **API health** | https://productinfoman-production.up.railway.app/health/ready |
+| **API** | https://pim-api.up.railway.app |
+| **API health** | https://pim-api.up.railway.app/health/ready |
 | **Admin** | Deploy a separate Admin service; set `API_URL` to the API URL above |
 
 Setup details: [deployment/railway-production.md](./deployment/railway-production.md)

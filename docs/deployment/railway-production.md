@@ -1,7 +1,7 @@
 # Production deployment — Railway
 
 **Project:** `productinfoman-production`  
-**Public domain:** https://productinfoman-production.up.railway.app
+**Public domain:** https://pim-api.up.railway.app
 
 Use this document when configuring the live Railway environment. The monorepo normally runs as **separate services** (API, Admin, Storefront). If you only have one public domain so far, assign it to the **API** service first.
 
@@ -11,7 +11,7 @@ Use this document when configuring the live Railway environment. The monorepo no
 
 | Service | Config path | Suggested domain |
 |---------|-------------|------------------|
-| **API** | `/apps/api/railway.toml` | `productinfoman-production.up.railway.app` |
+| **API** | `/apps/api/railway.toml` | `pim-api.up.railway.app` |
 | **Admin** | `/apps/admin/railway.toml` | Generate a second domain in Railway |
 | **Storefront** | `/apps/storefront/railway.toml` | Generate a third domain (optional) |
 | **Postgres** | Railway plugin | Internal only |
@@ -44,10 +44,10 @@ CORS_ORIGINS=https://<your-admin-domain>.up.railway.app
 ### Verify API (after deploy)
 
 ```bash
-curl https://productinfoman-production.up.railway.app/health
-curl https://productinfoman-production.up.railway.app/health/ready
+curl https://pim-api.up.railway.app/health
+curl https://pim-api.up.railway.app/health/ready
 curl -H "X-Organization-Slug: demo" \
-  https://productinfoman-production.up.railway.app/api/v1/products
+  https://pim-api.up.railway.app/api/v1/products
 ```
 
 Expected:
@@ -63,7 +63,7 @@ Expected:
 Create a **second** Railway service from the same repo with config `/apps/admin/railway.toml`.
 
 ```env
-API_URL=https://productinfoman-production.up.railway.app
+API_URL=https://pim-api.up.railway.app
 JWT_SECRET=<same value as API>
 NEXT_PUBLIC_DEFAULT_ORG_SLUG=demo
 NEXT_PUBLIC_ADMIN_EMAIL=admin@demo.local
@@ -80,7 +80,7 @@ Sign in at: `https://<admin-domain>/login`
 Config: `/apps/storefront/railway.toml`
 
 ```env
-API_URL=https://productinfoman-production.up.railway.app
+API_URL=https://pim-api.up.railway.app
 NEXT_PUBLIC_ORG_SLUG=demo
 NEXT_PUBLIC_SITE_URL=https://<storefront-domain>.up.railway.app
 ```
@@ -114,7 +114,7 @@ Then sign in to Admin with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 | `Application not found` (404) | Service not deployed, wrong domain, or deployment failed. Check Railway **Deployments** tab and logs. |
 | API crash on start | Set `JWT_SECRET` (min 32 characters). |
 | Admin **Unauthorized** | `JWT_SECRET` must match on API and Admin. |
-| Admin API calls fail | `API_URL=https://productinfoman-production.up.railway.app` on Admin; rebuild. |
+| Admin API calls fail | `API_URL=https://pim-api.up.railway.app` on Admin; rebuild. |
 | Empty catalog | Run seed script in API shell. |
 
 ---
@@ -123,9 +123,9 @@ Then sign in to Admin with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 
 | Surface | URL |
 |---------|-----|
-| API health | https://productinfoman-production.up.railway.app/health |
-| API ready | https://productinfoman-production.up.railway.app/health/ready |
-| API products | https://productinfoman-production.up.railway.app/api/v1/products |
+| API health | https://pim-api.up.railway.app/health |
+| API ready | https://pim-api.up.railway.app/health/ready |
+| API products | https://pim-api.up.railway.app/api/v1/products |
 | Admin | `https://<admin-domain>/login` (after Admin service is created) |
 | Storefront | `https://<storefront-domain>/` (optional) |
 
