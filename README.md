@@ -18,6 +18,7 @@ High-performance ecommerce Product Information Management (PIM) platform.
 | Phase 9 — Admin UI | **Implemented** ([spec alignment](./docs/implementation/phase-9-admin-ui-spec.md), [admin README](./apps/admin/README.md)) |
 | Phase 11 — Headless Storefront | **Implemented** ([spec alignment](./docs/implementation/phase-11-storefront-spec.md)) |
 | Product MDM Layer | **Implemented** ([spec alignment](./docs/implementation/product-mdm-layer-spec.md)) |
+| Fleet Farm Demo Catalog | **Implemented** ([spec](./docs/implementation/fleetfarm-demo-catalog-spec.md)) |
 
 ## Quick Start
 

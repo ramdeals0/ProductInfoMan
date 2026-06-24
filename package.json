@@ -13,9 +13,12 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "seed:demo-catalog": "SEARCH_SYNC=true tsx tools/seed-demo-catalog.ts",
+    "seed:demo-catalog:live": "SEARCH_SYNC=true tsx tools/seed-demo-catalog.ts --live",
+    "test:fleetfarm-seed": "pnpm exec vitest run --config tools/vitest.config.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
-    "test": "pnpm --filter @productinfoman/inheritance-engine test && pnpm --filter @productinfoman/facet-engine test && pnpm --filter @productinfoman/import-engine test && pnpm --filter @productinfoman/workflow-engine test && pnpm --filter @productinfoman/search-projection test && pnpm --filter @productinfoman/publish-engine test && pnpm --filter @productinfoman/eventing test && pnpm --filter @productinfoman/mdm-engine test && pnpm --filter @productinfoman/api-client test && pnpm --filter @productinfoman/api test && pnpm --filter @productinfoman/admin test && pnpm --filter @productinfoman/storefront test",
+    "test": "pnpm --filter @productinfoman/inheritance-engine test && pnpm --filter @productinfoman/facet-engine test && pnpm --filter @productinfoman/import-engine test && pnpm --filter @productinfoman/workflow-engine test && pnpm --filter @productinfoman/search-projection test && pnpm --filter @productinfoman/publish-engine test && pnpm --filter @productinfoman/eventing test && pnpm --filter @productinfoman/mdm-engine test && pnpm test:fleetfarm-seed && pnpm --filter @productinfoman/api-client test && pnpm --filter @productinfoman/api test && pnpm --filter @productinfoman/admin test && pnpm --filter @productinfoman/storefront test",
     "docker:up": "docker compose -f docker/docker-compose.yml up -d",
     "docker:down": "docker compose -f docker/docker-compose.yml down"
   },
@@ -27,7 +30,8 @@
     "pg": "^8.16.3",
     "prisma": "^7.8.0",
     "tsx": "^4.20.5",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
