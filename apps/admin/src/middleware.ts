@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { AUTH_COOKIE, verifyAuthToken } from "./src/lib/auth";
-import { canAccessAdminRoute } from "./src/lib/permissions";
+import { AUTH_COOKIE, verifyAuthToken } from "@/lib/auth";
+import { canAccessAdminRoute } from "@/lib/permissions";
 
 export async function middleware(request: NextRequest) {
   const token = request.cookies.get(AUTH_COOKIE)?.value;
