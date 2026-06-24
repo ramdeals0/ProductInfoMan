@@ -21,6 +21,15 @@ Planning artifacts for the ecommerce PIM platform foundation. **No production co
 | 08 | [Service Implementation Roadmap](./08-service-implementation-roadmap.md) | Cursor-ready service-by-service execution plan |
 | 09 | [Discovery & Domain Foundation](./09-discovery-domain-foundation.md) | **Phase 0 master** — discovery, domain model, next steps |
 
+### Phase 0 Workshop Artifacts (templates)
+
+| Document | Description |
+|----------|-------------|
+| [decision-log.md](./decision-log.md) | D1–D40 decision log + sign-off |
+| [mvp-attribute-matrix.md](./mvp-attribute-matrix.md) | Global + category attribute matrix |
+| [mvp-import-spec.md](./mvp-import-spec.md) | MVP CSV column spec |
+| [mvp-export-schema.json](./mvp-export-schema.json) | MVP channel export JSON schema |
+
 ## Quick Links
 
 - **Phase 0 start:** [09-discovery-domain-foundation.md](./09-discovery-domain-foundation.md)

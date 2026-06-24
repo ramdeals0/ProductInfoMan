@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://productinfoman.local/schemas/mvp-channel-export/v1",
+  "title": "MVP Custom JSON Channel Export",
+  "description": "Target payload shape for async S3 export. Replace with stakeholder-approved schema.",
+  "type": "object",
+  "required": ["exportVersion", "exportedAt", "organizationId", "channel", "products"],
+  "properties": {
+    "exportVersion": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "organizationId": {
+      "type": "string"
+    },
+    "channel": {
+      "type": "object",
+      "required": ["id", "type", "name"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "const": "CUSTOM_JSON" },
+        "name": { "type": "string" }
+      }
+    },
+    "products": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PublishedProduct"
+      }
+    }
+  },
+  "$defs": {
+    "PublishedProduct": {
+      "type": "object",
+      "required": ["snapshotId", "sku", "productType", "title", "brand", "primaryCategory", "attributes", "facets", "publishedAt"],
+      "properties": {
+        "snapshotId": { "type": "string" },
+        "snapshotVersion": { "type": "integer" },
+        "sku": { "type": "string" },
+        "productType": {
+          "type": "string",
+          "enum": ["SIMPLE", "PARENT", "VARIANT"]
+        },
+        "parentSku": { "type": ["string", "null"] },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "brand": { "type": "string" },
+        "primaryCategory": {
+          "type": "object",
+          "required": ["id", "path", "name"],
+          "properties": {
+            "id": { "type": "string" },
+            "path": { "type": "string" },
+            "name": { "type": "string" }
+          }
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Resolved attribute key-value pairs post-inheritance"
+        },
+        "facets": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Computed facet key-value pairs for browse"
+        },
+        "media": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["url", "role"],
+            "properties": {
+              "url": { "type": "string", "format": "uri" },
+              "role": { "type": "string", "enum": ["primary", "swatch", "lifestyle"] },
+              "altText": { "type": "string" }
+            }
+          }
+        },
+        "publishedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}
