@@ -10,10 +10,13 @@ import {
   listAttributesForGroup,
 } from "../modules/taxonomy/taxonomy.service.js";
 import {
-  createFacetDefinition,
+  approveFacetRule,
   createFacetRule,
+  submitFacetRule,
+} from "../modules/taxonomy/facet-workflow.service.js";
+import {
+  createFacetDefinition,
   getCategoryFacets,
-  listFacetRules,
 } from "../modules/taxonomy/facet.service.js";
 import { prisma } from "@productinfoman/db";
 
@@ -186,23 +189,33 @@ describe("Taxonomy and Facets", () => {
       sortOrder: 1,
     });
 
-    await createFacetRule(organizationId, {
-      facetDefinitionId: facet.id,
-      categoryId: category.id,
-      attributeDefinitionId: colorAttr.id,
-      ruleType: "DIRECT",
-    });
-
-    await expect(
-      createFacetRule(organizationId, {
+    await createFacetRule(
+      organizationId,
+      {
         facetDefinitionId: facet.id,
         categoryId: category.id,
-        attributeDefinitionId: sizeAttr.id,
+        attributeDefinitionId: colorAttr.id,
         ruleType: "DIRECT",
-      }),
+      },
+      { userId: "test-editor" },
+    );
+
+    await expect(
+      createFacetRule(
+        organizationId,
+        {
+          facetDefinitionId: facet.id,
+          categoryId: category.id,
+          attributeDefinitionId: sizeAttr.id,
+          ruleType: "DIRECT",
+        },
+        { userId: "test-editor" },
+      ),
     ).rejects.toMatchObject({ statusCode: 400 });
 
-    const rules = await listFacetRules(organizationId, { categoryId: category.id });
+    const rules = await import("../modules/taxonomy/facet-workflow.service.js").then((m) =>
+      m.listFacetRules(organizationId, { categoryId: category.id }),
+    );
     expect(rules.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -254,12 +267,18 @@ describe("Taxonomy and Facets", () => {
       sortOrder: 1,
     });
 
-    await createFacetRule(organizationId, {
-      facetDefinitionId: sizeFacet.id,
-      categoryId: category.id,
-      attributeDefinitionId: sizeAttr.id,
-      ruleType: "DIRECT",
-    });
+    const rule = await createFacetRule(
+      organizationId,
+      {
+        facetDefinitionId: sizeFacet.id,
+        categoryId: category.id,
+        attributeDefinitionId: sizeAttr.id,
+        ruleType: "DIRECT",
+      },
+      { userId: "test-editor" },
+    );
+    await submitFacetRule(rule.id, organizationId, { userId: "test-editor" });
+    await approveFacetRule(rule.id, organizationId, { userId: "test-approver" });
 
     const facets = await getCategoryFacets(category.id, organizationId);
     const sizeFacetResult = facets.find((f) => f.key === `shorts_size_facet_${ts}`);

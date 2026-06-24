@@ -213,6 +213,7 @@ export async function seedBigBoxAttributesAndFacets(
             attributeDefinitionId: attr.id,
             facetDefinitionId: facet.id,
             ruleType: "DIRECT",
+            workflowStateCode: "approved",
           },
         });
       }
@@ -312,6 +313,7 @@ export async function seedBigBoxAttributesAndFacets(
           attributeDefinitionId: attrByKey.get("price"),
           ruleType: "RANGE_BUCKET",
           ruleConfig: { buckets: PRICE_FACET_BUCKETS },
+          workflowStateCode: "approved",
         },
       });
     }

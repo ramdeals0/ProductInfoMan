@@ -1,13 +1,10 @@
 import type {
   CategoryFacetEntity,
   FacetDefinitionEntity,
-  FacetRuleEntity,
 } from "@productinfoman/domain";
 import type {
   CreateFacetDefinitionInput,
-  CreateFacetRuleInput,
   ListFacetDefinitionsQuery,
-  ListFacetRulesQuery,
   UpdateFacetDefinitionInput,
 } from "@productinfoman/validation";
 import { resolveCategoryFacets } from "@productinfoman/facet-engine";
@@ -15,7 +12,12 @@ import { prisma } from "@productinfoman/db";
 import { appError, writeAudit } from "@productinfoman/shared";
 import { createEvent } from "@productinfoman/contracts";
 import { emitEvent } from "../../lib/events.js";
-import type { Prisma } from "../../../../generated/prisma/client.js";
+
+export {
+  createFacetRule,
+  listFacetRules,
+  toFacetRuleDto,
+} from "./facet-workflow.service.js";
 
 async function assertUniqueFacetKey(
   organizationId: string,
@@ -59,35 +61,6 @@ function toFacetDefinitionDto(facet: {
     isActive: facet.isActive,
     createdAt: facet.createdAt.toISOString(),
     updatedAt: facet.updatedAt.toISOString(),
-  };
-}
-
-function toFacetRuleDto(rule: {
-  id: string;
-  organizationId: string;
-  categoryId: string | null;
-  attributeDefinitionId: string | null;
-  facetDefinitionId: string;
-  ruleType: FacetRuleEntity["ruleType"];
-  ruleConfig: Prisma.JsonValue;
-  priority: number;
-  createdAt: Date;
-  updatedAt: Date;
-}): FacetRuleEntity {
-  return {
-    id: rule.id,
-    organizationId: rule.organizationId,
-    categoryId: rule.categoryId,
-    attributeDefinitionId: rule.attributeDefinitionId,
-    facetDefinitionId: rule.facetDefinitionId,
-    ruleType: rule.ruleType,
-    ruleConfig:
-      rule.ruleConfig && typeof rule.ruleConfig === "object" && !Array.isArray(rule.ruleConfig)
-        ? (rule.ruleConfig as Record<string, unknown>)
-        : null,
-    priority: rule.priority,
-    createdAt: rule.createdAt.toISOString(),
-    updatedAt: rule.updatedAt.toISOString(),
   };
 }
 
@@ -247,87 +220,6 @@ export async function updateFacetDefinition(
   return toFacetDefinitionDto(facet);
 }
 
-export async function createFacetRule(
-  organizationId: string,
-  input: CreateFacetRuleInput,
-): Promise<FacetRuleEntity> {
-  const facet = await prisma.facetDefinition.findFirst({
-    where: { id: input.facetDefinitionId, organizationId },
-  });
-  if (!facet) throw appError("Facet definition not found", 404);
-
-  if (input.categoryId) {
-    const category = await prisma.category.findFirst({
-      where: { id: input.categoryId, organizationId },
-    });
-    if (!category) throw appError("Category not found", 404);
-
-    if (facet.categoryId && facet.categoryId !== input.categoryId) {
-      throw appError("Facet definition is scoped to a different category", 400);
-    }
-  }
-
-  const attributeId = input.attributeDefinitionId ?? facet.sourceAttributeId;
-  if (attributeId !== facet.sourceAttributeId) {
-    throw appError("Facet rule attribute must match the facet source attribute", 400);
-  }
-
-  const attribute = await prisma.attributeDefinition.findFirst({
-    where: { id: attributeId, organizationId },
-  });
-  if (!attribute) throw appError("Attribute not found", 400);
-
-  const rule = await prisma.facetRule.create({
-    data: {
-      organizationId,
-      categoryId: input.categoryId ?? facet.categoryId,
-      attributeDefinitionId: attributeId,
-      facetDefinitionId: facet.id,
-      ruleType: input.ruleType,
-      ruleConfig: input.ruleConfig ?? undefined,
-      priority: input.priority ?? 0,
-    },
-  });
-
-  await writeAudit({
-    organizationId,
-    entityType: "FacetRule",
-    entityId: rule.id,
-    action: "CREATE",
-    changes: {
-      facetDefinitionId: rule.facetDefinitionId,
-      categoryId: rule.categoryId,
-      ruleType: rule.ruleType,
-    },
-  });
-
-  await emitEvent(
-    createEvent("taxonomy.facet.updated", organizationId, {
-      facetDefinitionId: facet.id,
-      key: facet.key,
-      categoryId: facet.categoryId,
-    }),
-  );
-
-  return toFacetRuleDto(rule);
-}
-
-export async function listFacetRules(
-  organizationId: string,
-  query: ListFacetRulesQuery = {},
-): Promise<FacetRuleEntity[]> {
-  const rules = await prisma.facetRule.findMany({
-    where: {
-      organizationId,
-      ...(query.categoryId ? { categoryId: query.categoryId } : {}),
-      ...(query.facetDefinitionId ? { facetDefinitionId: query.facetDefinitionId } : {}),
-    },
-    orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
-  });
-
-  return rules.map(toFacetRuleDto);
-}
-
 export async function getCategoryFacets(
   categoryId: string,
   organizationId: string,
@@ -352,6 +244,7 @@ export async function getCategoryFacets(
       values: { where: { isActive: true }, orderBy: { sortOrder: "asc" } },
       rules: {
         where: {
+          workflowStateCode: "approved",
           OR: [{ categoryId }, { categoryId: null }],
         },
         orderBy: { priority: "desc" },

@@ -1,5 +1,6 @@
 import type { ProductStatus, ProductType } from "./types.js";
 import { isStorefrontVisible } from "@productinfoman/domain";
+import { applyFacetRuleToValue } from "@productinfoman/facet-engine";
 
 export type IndexableProductStatus = Extract<ProductStatus, "APPROVED" | "PUBLISH_READY" | "PUBLISHED">;
 
@@ -53,6 +54,8 @@ export interface ProjectionCategory {
 export interface ProjectionFacetDefinition {
   key: string;
   sourceAttributeKey: string;
+  ruleType?: "DIRECT" | "NORMALIZE" | "RANGE_BUCKET" | "COMPOSITE";
+  ruleConfig?: Record<string, unknown> | null;
 }
 
 export interface BuildSearchDocumentInput {
@@ -267,9 +270,11 @@ export function buildSearchDocument(input: BuildSearchDocumentInput): SearchDocu
   for (const facet of input.facetDefinitions) {
     const attr = attrByKey.get(facet.sourceAttributeKey);
     if (!attr) continue;
-    const normalized = normalizeFacetValue(attr.value);
-    if (normalized) {
-      facetFields[facet.key] = normalized;
+    const facetValue = facet.ruleType
+      ? applyFacetRuleToValue(facet.ruleType, facet.ruleConfig ?? null, attr.value)
+      : normalizeFacetValue(attr.value);
+    if (facetValue) {
+      facetFields[facet.key] = facetValue;
     }
   }
 
