@@ -16,6 +16,7 @@ High-performance ecommerce Product Information Management (PIM) platform.
 | Phase 7 — Audit/Reporting | **Implemented** ([spec alignment](./docs/implementation/phase-7-audit-reporting-spec.md)) |
 | Phase 8 — Integration/Eventing | **Implemented** ([spec alignment](./docs/implementation/phase-8-integration-eventing-spec.md)) |
 | Phase 9 — Admin UI | **Implemented** ([spec alignment](./docs/implementation/phase-9-admin-ui-spec.md), [admin README](./apps/admin/README.md)) |
+| Phase 11 — Headless Storefront | **Implemented** ([spec alignment](./docs/implementation/phase-11-storefront-spec.md)) |
 
 ## Quick Start
 
@@ -36,6 +37,7 @@ pnpm dev
 ```
 
 API: http://localhost:3001  
+Storefront: http://localhost:3002  
 Health: `GET /health`  
 Products: `GET /api/v1/products`
 

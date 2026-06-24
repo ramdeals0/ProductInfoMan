@@ -1,3 +1,5 @@
+export { CatalogClient, createCatalogClient, type CatalogClientConfig, type SearchProductsParams } from "./catalog";
+
 import type {
   AuditLogEntity,
   CategoryEntity,
