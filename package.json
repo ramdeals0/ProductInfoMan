@@ -18,6 +18,7 @@
     "purge:fleetfarm": "tsx tools/purge-fleetfarm-data.ts",
     "reseed:demo": "SEARCH_SYNC=true tsx tools/reseed-demo.ts",
     "seed:demo-products": "tsx tools/seed-demo-products.ts",
+    "seed:bigbox-products": "tsx tools/seed-bigbox-products.ts",
     "seed:demo-catalog": "SEARCH_SYNC=true tsx tools/seed-demo-catalog.ts",
     "seed:demo-catalog:live": "SEARCH_SYNC=true tsx tools/seed-demo-catalog.ts --live",
     "seed:attributes-facets": "tsx tools/seed-attributes-and-facets.ts",

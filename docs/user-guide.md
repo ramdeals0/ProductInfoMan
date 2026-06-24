@@ -348,6 +348,12 @@ Add or refresh demo products only (without full purge):
 pnpm seed:demo-products --count=500
 ```
 
+Add big-box store departments and products (50 per department, 500 total):
+
+```bash
+pnpm seed:bigbox-products --per-category=50
+```
+
 This removes any Fleet Farm (`FF-*`) products when using `reseed:demo`.
 
 ---
