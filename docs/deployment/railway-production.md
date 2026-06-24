@@ -3,7 +3,8 @@
 **Project:** `PIM`  
 **Public API domain:** https://pim-api.up.railway.app  
 **Public Admin domain:** https://pim-admin.up.railway.app  
-**Public Storefront domain:** https://pim-store.up.railway.app
+**Public Storefront domain:** https://pim-store.up.railway.app  
+**Public Developer Portal domain:** https://pmi-developer.up.railway.app
 
 Use this document when configuring the live Railway environment. The monorepo normally runs as **separate services** (API, Admin, Storefront). If you only have one public domain so far, assign it to the **API** service first.
 
@@ -16,6 +17,7 @@ Use this document when configuring the live Railway environment. The monorepo no
 | **API** | `/apps/api/railway.toml` | `pim-api.up.railway.app` |
 | **Admin** | `/apps/admin/railway.toml` | `pim-admin.up.railway.app` |
 | **Storefront** | `/apps/storefront/railway.toml` | `pim-store.up.railway.app` |
+| **Developer Portal** | `/apps/devportal/railway.toml` | `pmi-developer.up.railway.app` |
 | **Postgres** | Railway plugin | Internal only |
 
 ---
@@ -123,6 +125,31 @@ Set `API_URL` and `NEXT_PUBLIC_*` before the first build.
 
 ---
 
+## Developer Portal service variables
+
+Railway service **dev portal** → `pmi-developer.up.railway.app`. Config: `/apps/devportal/railway.toml`.
+
+```env
+NEXT_PUBLIC_API_BASE_URL=https://pim-api.up.railway.app/api/v1
+NEXT_PUBLIC_API_SANDBOX_URL=https://pim-api.up.railway.app/api/v1
+NEXT_PUBLIC_ADMIN_URL=https://pim-admin.up.railway.app
+NEXT_PUBLIC_STOREFRONT_URL=https://pim-store.up.railway.app
+NEXT_PUBLIC_DEFAULT_ORG_SLUG=demo
+NODE_ENV=production
+```
+
+If not using config-as-code, set Railpack commands:
+
+```env
+RAILPACK_INSTALL_CMD=corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile
+RAILPACK_BUILD_CMD=pnpm --filter @productinfoman/devportal build
+RAILPACK_START_CMD=pnpm --filter @productinfoman/devportal start
+```
+
+Set `NEXT_PUBLIC_*` before the first build so docs examples use production URLs.
+
+---
+
 ## One-time seed (API shell)
 
 After `/health/ready` succeeds:
@@ -164,5 +191,6 @@ Then sign in to Admin with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 | API products | https://pim-api.up.railway.app/api/v1/products |
 | Admin login | https://pim-admin.up.railway.app/login |
 | Storefront | https://pim-store.up.railway.app |
+| Developer Portal | https://pmi-developer.up.railway.app |
 
 See also: [railway.md](./railway.md) (general guide), [user-guide.md](../user-guide.md) (end users).
