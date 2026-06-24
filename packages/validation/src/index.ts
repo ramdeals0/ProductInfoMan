@@ -6,6 +6,18 @@ export const TaxonomyKeySchema = z
   .max(64, "Key must be 64 characters or fewer")
   .regex(/^[a-z0-9_]+$/, "Key must use lowercase letters, numbers, and underscores only (e.g. price_range)");
 
+export const CategorySlugSchema = z
+  .string()
+  .min(1, "Slug is required")
+  .max(64, "Slug must be 64 characters or fewer")
+  .regex(/^[a-z0-9-]+$/, "Slug must use lowercase letters, numbers, and hyphens only (e.g. mens-shirts)");
+
+export const CategoryCodeSchema = z
+  .string()
+  .min(1, "Code is required")
+  .max(64, "Code must be 64 characters or fewer")
+  .regex(/^[a-z0-9-]+$/, "Code must use lowercase letters, numbers, and hyphens only (e.g. mens-shirts)");
+
 export function formatZodError(error: z.ZodError): string {
   return error.issues
     .map((issue) => {
@@ -85,13 +97,8 @@ export const ListProductsQuerySchema = z.object({
 
 export const CreateCategorySchema = z.object({
   name: z.string().min(1).max(128),
-  code: z
-    .string()
-    .min(1)
-    .max(64)
-    .regex(/^[a-z0-9-]+$/)
-    .optional(),
-  slug: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/),
+  code: CategoryCodeSchema.optional(),
+  slug: CategorySlugSchema,
   parentId: z.string().cuid().nullable().optional(),
   sortOrder: z.number().int().optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(),
@@ -99,7 +106,7 @@ export const CreateCategorySchema = z.object({
 
 export const UpdateCategorySchema = z.object({
   name: z.string().min(1).max(128).optional(),
-  slug: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/).optional(),
+  slug: CategorySlugSchema.optional(),
   sortOrder: z.number().int().optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(),
   isActive: z.boolean().optional(),

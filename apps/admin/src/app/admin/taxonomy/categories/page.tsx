@@ -9,6 +9,11 @@ import { ErrorState, LoadingState } from "@/components/ui/States";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { useToast } from "@/components/ui/Toast";
 import { useSession } from "@/lib/session";
+import {
+  isValidCategorySlug,
+  normalizeCategorySlug,
+  slugFromName,
+} from "@/lib/taxonomy-keys";
 
 type EditState = {
   id: string;
@@ -76,14 +81,19 @@ export default function CategoriesPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: () =>
-      api.updateCategory(editing!.id, {
+    mutationFn: () => {
+      const slug = normalizeCategorySlug(editing!.slug);
+      if (!isValidCategorySlug(slug)) {
+        throw new Error("Enter a valid slug using letters, numbers, or hyphens (e.g. mens-shirts)");
+      }
+      return api.updateCategory(editing!.id, {
         name: editing!.name,
-        slug: editing!.slug,
+        slug,
         sortOrder: editing!.sortOrder,
         status: editing!.status,
         isActive: editing!.isActive,
-      }),
+      });
+    },
     onSuccess: () => {
       pushToast("Category updated", "success");
       setEditing(null);
@@ -94,12 +104,17 @@ export default function CategoriesPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: () =>
-      api.createCategory({
+    mutationFn: () => {
+      const slug = normalizeCategorySlug(createSlug || createName);
+      if (!isValidCategorySlug(slug)) {
+        throw new Error("Enter a valid slug using letters, numbers, or hyphens (e.g. mens-shirts)");
+      }
+      return api.createCategory({
         name: createName,
-        slug: createSlug,
+        slug,
         ...(createParentId ? { parentId: createParentId } : {}),
-      }),
+      });
+    },
     onSuccess: () => {
       pushToast("Category created", "success");
       setCreateName("");
@@ -122,13 +137,18 @@ export default function CategoriesPage() {
             className="input"
             placeholder="Name"
             value={createName}
-            onChange={(e) => setCreateName(e.target.value)}
+            onChange={(e) => {
+              const name = e.target.value;
+              setCreateName(name);
+              if (!createSlug) setCreateSlug(slugFromName(name));
+            }}
           />
           <input
             className="input"
-            placeholder="Slug"
+            placeholder="Slug (e.g. mens-shirts)"
             value={createSlug}
             onChange={(e) => setCreateSlug(e.target.value)}
+            onBlur={() => setCreateSlug((current) => normalizeCategorySlug(current || createName))}
           />
           <select
             className="input"
@@ -146,7 +166,7 @@ export default function CategoriesPage() {
         <button
           type="button"
           className="btn-primary"
-          disabled={createMutation.isPending || !createName || !createSlug}
+          disabled={createMutation.isPending || !createName || (!createSlug && !createName)}
           onClick={() => createMutation.mutate()}
         >
           Create category
@@ -175,6 +195,11 @@ export default function CategoriesPage() {
                 className="input"
                 value={editing.slug}
                 onChange={(e) => setEditing({ ...editing, slug: e.target.value })}
+                onBlur={() =>
+                  setEditing((current) =>
+                    current ? { ...current, slug: normalizeCategorySlug(current.slug) } : current,
+                  )
+                }
               />
             </div>
             <div>
