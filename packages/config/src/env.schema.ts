@@ -13,7 +13,8 @@ export const apiEnvSchema = z.object({
   DATABASE_URL: postgresUrlSchema,
   JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
   JWT_ACCESS_EXPIRES_IN: z.string().default("30m"),
-  JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
+  JWT_REFRESH_EXPIRES_IN: z.string().default("24h"),
+  JWT_REFRESH_EXPIRES_IN_PRIVILEGED: z.string().default("24h"),
   PASSWORD_SALT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
   LOGIN_MAX_ATTEMPTS: z.coerce.number().int().min(3).max(20).default(5),
   LOGIN_LOCKOUT_MINUTES: z.coerce.number().int().min(5).max(120).default(15),
@@ -46,6 +47,7 @@ export const apiEnvSchema = z.object({
   DB_QUERY_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(10000),
   CIRCUIT_BREAKER_FAILURE_THRESHOLD: z.coerce.number().int().min(2).max(50).default(5),
   CIRCUIT_BREAKER_COOLDOWN_MS: z.coerce.number().int().min(5000).max(300000).default(30000),
+  HEALTH_INTERNAL_TOKEN: z.string().min(16).optional(),
 });
 
 export const adminEnvSchema = z.object({

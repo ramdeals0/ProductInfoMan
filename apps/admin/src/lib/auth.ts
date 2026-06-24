@@ -44,16 +44,17 @@ export async function verifyAuthToken(token: string): Promise<JwtClaims> {
 
 export function authCookieOptions(maxAgeSeconds = 60 * 60) {
   const { NODE_ENV } = loadAdminEnv();
+  const sameSite: "strict" | "lax" = NODE_ENV === "production" ? "strict" : "lax";
   return {
     httpOnly: true,
     secure: NODE_ENV === "production",
-    sameSite: "lax" as const,
+    sameSite,
     path: "/",
     maxAge: maxAgeSeconds,
   };
 }
 
-export function refreshCookieOptions(maxAgeSeconds = 60 * 60 * 24 * 7) {
+export function refreshCookieOptions(maxAgeSeconds = 60 * 60 * 24) {
   return authCookieOptions(maxAgeSeconds);
 }
 

@@ -44,25 +44,38 @@ async function checkSearch(): Promise<HealthStatus> {
   }
 }
 
+function isInternalHealthRequest(request: { headers: Record<string, string | string[] | undefined> }): boolean {
+  const token = process.env.HEALTH_INTERNAL_TOKEN;
+  if (!token) return false;
+  const header = request.headers["x-health-token"];
+  return typeof header === "string" && header === token;
+}
+
 export async function registerHealthRoutes(app: FastifyInstance): Promise<void> {
   app.get("/health/live", async () => ({ status: "ok" }));
 
-  app.get("/health/ready", async (_request, reply) => {
+  app.get("/health/ready", async (request, reply) => {
     const [database, redis, search] = await Promise.all([
       checkDatabase(),
       checkRedis(),
       checkSearch(),
     ]);
 
-    const checks = { database, redis, search };
     const ready = database === "ok" && redis !== "error";
     const status = ready ? "ok" : "error";
 
     if (!ready) {
-      return reply.code(503).send({ status, checks });
+      if (isInternalHealthRequest(request)) {
+        return reply.code(503).send({ status, checks: { database, redis, search } });
+      }
+      return reply.code(503).send({ status: "error" });
     }
 
-    return { status, checks };
+    if (isInternalHealthRequest(request)) {
+      return { status, checks: { database, redis, search } };
+    }
+
+    return { status: "ok" };
   });
 
   app.get("/health", async () => ({ status: "ok" }));

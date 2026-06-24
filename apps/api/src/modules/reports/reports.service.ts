@@ -347,7 +347,7 @@ export async function computeWorkflowReport(
   const history = await prisma.workflowHistory.findMany({
     where: {
       organizationId,
-      createdAt: { gte: period.periodStart, lte: period.periodEnd },
+      performedAt: { gte: period.periodStart, lte: period.periodEnd },
     },
     select: { toState: true },
   });

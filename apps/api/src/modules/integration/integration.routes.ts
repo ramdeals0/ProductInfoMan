@@ -4,23 +4,10 @@ import {
   ListOutboxEventsQuerySchema,
   ReplayEventsSchema,
 } from "@productinfoman/validation";
-import { AppError } from "@productinfoman/shared";
+import { sendRouteError } from "../../lib/route-errors.js";
 import { resolveTenant } from "../../plugins/tenant.js";
 import { authenticateJwt, assertRoles, ROLE_GROUPS } from "../../plugins/rbac.js";
 import * as integrationService from "./integration.service.js";
-
-function handleError(error: unknown): { statusCode: number; message: string } {
-  if (error instanceof AppError) {
-    return { statusCode: error.statusCode, message: error.message };
-  }
-  if (error && typeof error === "object" && "statusCode" in error) {
-    return {
-      statusCode: (error as { statusCode: number }).statusCode,
-      message: (error as Error).message,
-    };
-  }
-  return { statusCode: 500, message: (error as Error).message ?? "Internal error" };
-}
 
 export async function integrationRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", resolveTenant);
@@ -32,8 +19,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
       const result = await integrationService.listOutboxEvents(request.organizationId, query);
       return reply.send(result);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -43,8 +29,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
       const result = await integrationService.listDeadLetterEvents(request.organizationId, query);
       return reply.send(result);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -54,8 +39,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
       const event = await integrationService.getOutboxEvent(id, request.organizationId);
       return reply.send(event);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -66,8 +50,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
       const result = await integrationService.replayEvents(request.organizationId, body);
       return reply.code(202).send(result);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -79,8 +62,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
       const event = await integrationService.getOutboxEvent(id, request.organizationId).catch(() => null);
       return reply.code(202).send({ retried: true, eventId: id, event });
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 }

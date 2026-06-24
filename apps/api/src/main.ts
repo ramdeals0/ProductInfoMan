@@ -24,6 +24,7 @@ import { registerRateLimitHook } from "./plugins/rate-limit.js";
 import { registerSecurityPlugins } from "./plugins/security.js";
 import { registerMetricsPlugin } from "./plugins/metrics.js";
 import { registerHealthRoutes } from "./plugins/health.js";
+import { registerHttpErrorHandlers } from "./plugins/http-errors.js";
 import { closeRedisClient } from "./lib/redis.js";
 import { markShuttingDown } from "./lib/runtime.js";
 
@@ -42,6 +43,7 @@ await app.register(cors, { origin: corsOrigin, credentials: true });
 await registerSecurityPlugins(app);
 await registerMetricsPlugin(app);
 await registerHealthRoutes(app);
+registerHttpErrorHandlers(app);
 
 await app.register(authRoutes, { prefix: "/api/v1" });
 await app.register(usersRoutes, { prefix: "/api/v1" });

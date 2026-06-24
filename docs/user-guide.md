@@ -66,17 +66,25 @@ Setup details: [deployment/railway-production.md](./deployment/railway-productio
 
 After a successful login you are taken to the **Dashboard**. Sessions use secure cookies; sign out from the header menu when finished.
 
-### Default demo credentials
+### Demo accounts (local development only)
 
-After running `pnpm db:seed`, a default administrator exists:
+After running `pnpm db:seed` in a **local** environment, demo users are created for each role. Credentials are controlled by environment variables at seed time — never use default passwords in production.
 
-| Field | Value |
-|-------|-------|
-| Organization | `demo` |
-| Email | `admin@demo.local` |
-| Password | `Admin123!@#demo` (or value of `ADMIN_PASSWORD` in `.env`) |
+| Variable | Purpose |
+|----------|---------|
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Initial administrator account |
+| `DEMO_USER_PASSWORD` | Password for editor, approver, and ops demo users (defaults to `ADMIN_PASSWORD`) |
 
-Change these credentials in production.
+Seeded demo accounts (when using default emails):
+
+| Role | Email |
+|------|-------|
+| Administrator | `admin@demo.local` |
+| Product Editor | `editor@demo.local` |
+| Product Approver | `approver@demo.local` |
+| Operations | `ops@demo.local` |
+
+**Production:** set strong unique passwords via `ADMIN_PASSWORD` and `DEMO_USER_PASSWORD` before seeding, or create users through the Admin **Users** screen and disable unused accounts.
 
 ### Storefront
 

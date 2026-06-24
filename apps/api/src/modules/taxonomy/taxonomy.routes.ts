@@ -5,7 +5,6 @@ import {
   CreateCategorySchema,
   CreateFacetDefinitionSchema,
   CreateFacetRuleSchema,
-  formatZodError,
   LinkCategoryAttributeGroupsSchema,
   LinkCategoryAttributesSchema,
   ListFacetDefinitionsQuerySchema,
@@ -15,7 +14,7 @@ import {
   UpdateCategorySchema,
   UpdateFacetDefinitionSchema,
 } from "@productinfoman/validation";
-import { AppError } from "@productinfoman/shared";
+import { sendRouteError } from "../../lib/route-errors.js";
 import { resolveTenant } from "../../plugins/tenant.js";
 import { authenticateJwt, assertRoles, ROLE_GROUPS } from "../../plugins/rbac.js";
 import { resolveActor, requireActor } from "../../plugins/actor.js";
@@ -23,22 +22,6 @@ import * as facetService from "./facet.service.js";
 import * as facetWorkflowService from "./facet-workflow.service.js";
 import * as taxonomyService from "./taxonomy.service.js";
 import { ZodError } from "zod";
-
-function handleError(error: unknown): { statusCode: number; message: string } {
-  if (error instanceof ZodError) {
-    return { statusCode: 400, message: formatZodError(error) };
-  }
-  if (error instanceof AppError) {
-    return { statusCode: error.statusCode, message: error.message };
-  }
-  if (error && typeof error === "object" && "statusCode" in error) {
-    return {
-      statusCode: (error as { statusCode: number }).statusCode,
-      message: (error as Error).message,
-    };
-  }
-  return { statusCode: 500, message: (error as Error).message ?? "Internal error" };
-}
 
 export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", resolveTenant);
@@ -60,8 +43,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       const category = await taxonomyService.createCategory(request.organizationId, body);
       return reply.code(201).send(category);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -70,8 +52,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       const categories = await taxonomyService.listCategories(request.organizationId);
       return reply.send({ items: categories });
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -80,8 +61,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       const tree = await taxonomyService.getCategoryTree(request.organizationId);
       return reply.send({ items: tree });
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -92,8 +72,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       const category = await taxonomyService.updateCategory(id, request.organizationId, body);
       return reply.send(category);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -106,8 +85,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       );
       return reply.send({ items: groups });
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -117,8 +95,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       const attrs = await taxonomyService.listAttributesForCategory(id, request.organizationId);
       return reply.send({ items: attrs });
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -128,8 +105,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       const facets = await facetService.getCategoryFacets(id, request.organizationId);
       return reply.send({ items: facets });
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -144,8 +120,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       );
       return reply.send(result);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -160,8 +135,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       );
       return reply.send(result);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -171,8 +145,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       const group = await taxonomyService.createAttributeGroup(request.organizationId, body);
       return reply.code(201).send(group);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -181,8 +154,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       const groups = await taxonomyService.listAttributeGroups(request.organizationId);
       return reply.send({ items: groups });
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -192,8 +164,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       const attrs = await taxonomyService.listAttributesForGroup(id, request.organizationId);
       return reply.send({ items: attrs });
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -215,8 +186,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       const attr = await taxonomyService.createAttribute(request.organizationId, body);
       return reply.code(201).send(attr);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -225,8 +195,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       const attrs = await taxonomyService.listAttributes(request.organizationId);
       return reply.send({ items: attrs });
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -248,8 +217,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       const facet = await facetService.createFacetDefinition(request.organizationId, body);
       return reply.code(201).send(facet);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -259,8 +227,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       const facets = await facetService.listFacetDefinitions(request.organizationId, query);
       return reply.send({ items: facets });
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -288,8 +255,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       );
       return reply.code(201).send(rule);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -303,8 +269,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       });
       return reply.send({ items: rules });
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -315,8 +280,7 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       const facets = await facetService.getCategoryFacets(categoryId, request.organizationId);
       return reply.send({ items: facets });
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 }

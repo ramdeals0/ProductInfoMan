@@ -157,7 +157,7 @@ export async function issueAuthTokens(profile: AuthUserProfile, ipAddress?: stri
 
   const refreshToken = randomBytes(48).toString("base64url");
   const refreshTokenHash = hashRefreshToken(refreshToken);
-  const expiresAt = new Date(Date.now() + getRefreshTokenTtlMs());
+  const expiresAt = new Date(Date.now() + getRefreshTokenTtlMs(profile.roles));
 
   await prisma.refreshToken.create({
     data: {

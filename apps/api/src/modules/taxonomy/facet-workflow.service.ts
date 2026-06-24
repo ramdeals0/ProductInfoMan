@@ -42,6 +42,7 @@ export function toFacetRuleDto(rule: {
   notes: string | null;
   createdAt: Date;
   updatedAt: Date;
+  facetDefinition?: { key: string; label: string };
 }): FacetRuleEntity {
   return {
     id: rule.id,
@@ -49,6 +50,8 @@ export function toFacetRuleDto(rule: {
     categoryId: rule.categoryId,
     attributeDefinitionId: rule.attributeDefinitionId,
     facetDefinitionId: rule.facetDefinitionId,
+    facetKey: rule.facetDefinition?.key,
+    facetLabel: rule.facetDefinition?.label,
     ruleType: rule.ruleType,
     ruleConfig: parseRuleConfig(rule.ruleConfig),
     priority: rule.priority,
@@ -440,6 +443,9 @@ export async function listFacetRules(
       ...(query.approvedOnly ? { workflowStateCode: "approved" } : {}),
     },
     orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
+    include: {
+      facetDefinition: { select: { key: true, label: true } },
+    },
   });
 
   return rules.map(toFacetRuleDto);

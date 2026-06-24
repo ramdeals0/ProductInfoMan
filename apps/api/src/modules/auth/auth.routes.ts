@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { PASSWORD_POLICY_SUMMARY, loadApiEnv } from "@productinfoman/config";
+import { sendRouteError } from "../../lib/route-errors.js";
 import { resolveTenant } from "../../plugins/tenant.js";
 import { authenticateJwt } from "../../plugins/rbac.js";
 import { RateLimit, resolveClientIp } from "../../plugins/rate-limit.js";
@@ -15,19 +16,6 @@ const LoginSchema = z.object({
 const RefreshSchema = z.object({
   refreshToken: z.string().min(1),
 });
-
-function handleError(error: unknown): { statusCode: number; message: string; code?: string } {
-  if (error instanceof authService.AuthError) {
-    return { statusCode: error.statusCode, message: error.message, code: error.code };
-  }
-  if (error && typeof error === "object" && "statusCode" in error) {
-    return {
-      statusCode: (error as { statusCode: number }).statusCode,
-      message: (error as Error).message,
-    };
-  }
-  return { statusCode: 500, message: (error as Error).message ?? "Internal error" };
-}
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.get("/auth/security-policy", async (_request, reply) => {
@@ -64,8 +52,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
           user: result.user,
         });
       } catch (error) {
-        const { statusCode, message, code } = handleError(error);
-        return reply.code(statusCode).send({ error: message, code });
+        return sendRouteError(reply, request, error);
       }
     },
   );
@@ -83,8 +70,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         user: result.user,
       });
     } catch (error) {
-      const { statusCode, message, code } = handleError(error);
-      return reply.code(statusCode).send({ error: message, code });
+      return sendRouteError(reply, request, error);
     }
   });
 
@@ -97,8 +83,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         await authService.logoutUser(body.refreshToken, request.authUser?.sub, resolveClientIp(request));
         return reply.send({ ok: true });
       } catch (error) {
-        const { statusCode, message } = handleError(error);
-        return reply.code(statusCode).send({ error: message });
+        return sendRouteError(reply, request, error);
       }
     },
   );
@@ -126,8 +111,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
           mfaType: profile.mfaType,
         });
       } catch (error) {
-        const { statusCode, message } = handleError(error);
-        return reply.code(statusCode).send({ error: message });
+        return sendRouteError(reply, request, error);
       }
     },
   );

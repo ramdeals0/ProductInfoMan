@@ -46,7 +46,7 @@ export default function WorkflowTaskDetailPage() {
   const rejectMutation = useMutation({
     mutationFn: () =>
       api.rejectProduct(data!.productId!, {
-        reason: reason || "Rejected from workflow task",
+        reason,
       }),
     onSuccess: () => {
       pushToast("Product rejected", "success");
@@ -133,9 +133,10 @@ export default function WorkflowTaskDetailPage() {
           <h2 className="font-medium">Review actions</h2>
           <textarea
             className="input min-h-24 w-full"
-            placeholder="Optional comments or rejection reason"
+            placeholder="Comments (optional for approve; required for reject)"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
+            required
           />
           <div className="flex gap-3">
             <button
@@ -147,7 +148,7 @@ export default function WorkflowTaskDetailPage() {
             </button>
             <button
               className="btn-secondary"
-              disabled={rejectMutation.isPending}
+              disabled={rejectMutation.isPending || !reason.trim()}
               onClick={() => rejectMutation.mutate()}
             >
               Reject
