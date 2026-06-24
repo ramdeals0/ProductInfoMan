@@ -38,27 +38,30 @@ importers:
       '@fastify/cors':
         specifier: ^11.0.1
         version: 11.2.0
-      '@prisma/adapter-pg':
-        specifier: ^7.8.0
-        version: 7.8.0
-      '@prisma/client':
-        specifier: ^7.8.0
-        version: 7.8.0(prisma@7.8.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3))(typescript@5.9.3)
       '@productinfoman/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@productinfoman/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@productinfoman/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@productinfoman/inheritance-engine':
         specifier: workspace:*
         version: link:../../packages/inheritance-engine
+      '@productinfoman/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@productinfoman/validation':
+        specifier: workspace:*
+        version: link:../../packages/validation
       dotenv:
         specifier: ^17.2.3
         version: 17.4.2
       fastify:
         specifier: ^5.6.0
         version: 5.8.5
-      pg:
-        specifier: ^8.16.3
-        version: 8.22.0
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -66,18 +69,23 @@ importers:
       '@types/node':
         specifier: ^24.3.0
         version: 24.13.2
-      '@types/pg':
-        specifier: ^8.15.5
-        version: 8.20.0
       tsx:
         specifier: ^4.20.5
         version: 4.22.4
       typescript:
         specifier: ^5.9.2
         version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.6(@types/node@24.13.2)(jiti@2.7.0)(tsx@4.22.4)
+
+  packages/config: {}
 
   packages/contracts:
     dependencies:
+      '@productinfoman/validation':
+        specifier: workspace:*
+        version: link:../validation
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -85,6 +93,23 @@ importers:
       typescript:
         specifier: ^5.9.2
         version: 5.9.3
+
+  packages/db:
+    dependencies:
+      '@prisma/adapter-pg':
+        specifier: ^7.8.0
+        version: 7.8.0
+      '@prisma/client':
+        specifier: ^7.8.0
+        version: 7.8.0(prisma@7.8.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3))(typescript@5.9.3)
+      dotenv:
+        specifier: ^17.2.3
+        version: 17.4.2
+      pg:
+        specifier: ^8.16.3
+        version: 8.22.0
+
+  packages/domain: {}
 
   packages/inheritance-engine:
     dependencies:
@@ -98,6 +123,18 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.6(@types/node@24.13.2)(jiti@2.7.0)(tsx@4.22.4)
+
+  packages/shared:
+    dependencies:
+      '@productinfoman/db':
+        specifier: workspace:*
+        version: link:../db
+
+  packages/validation:
+    dependencies:
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
 
 packages:
 

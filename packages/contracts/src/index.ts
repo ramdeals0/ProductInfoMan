@@ -1,2 +1,2 @@
-export * from "./product.js";
+export * from "@productinfoman/validation";
 export * from "./events.js";

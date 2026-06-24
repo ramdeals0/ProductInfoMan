@@ -1,21 +1,25 @@
+import type { ProductEntity, ProductTreeNode } from "@productinfoman/domain";
 import type {
   CreateProductInput,
   CreateVariantInput,
   ListProductsQuery,
-  ProductDto,
-  ResolvedAttribute,
   SetAttributesInput,
   UpdateProductInput,
-} from "@productinfoman/contracts";
+} from "@productinfoman/validation";
 import { createEvent } from "@productinfoman/contracts";
 import {
   resolveAttributes,
   variantAxisKey,
   type StoredAttributeValue,
 } from "@productinfoman/inheritance-engine";
+import { prisma } from "@productinfoman/db";
+import { appError, writeAudit } from "@productinfoman/shared";
 import type { Prisma, Product } from "../../../../generated/prisma/client.js";
 import { emitEvent } from "../../lib/events.js";
-import { prisma } from "../../lib/prisma.js";
+
+import type { ResolvedAttribute } from "@productinfoman/domain";
+
+type ProductDto = ProductEntity;
 
 type ProductWithValues = Product & {
   attributeValues: Array<{
@@ -75,6 +79,32 @@ function toStoredValues(product: ProductWithValues): StoredAttributeValue[] {
   }));
 }
 
+function enrichStoredFromCoreFields(
+  product: ProductWithValues,
+  schema: Array<{ id: string; key: string }>,
+  stored: StoredAttributeValue[],
+): StoredAttributeValue[] {
+  const byKey = new Map(stored.map((v) => [v.key, v]));
+  const coreMap: Record<string, unknown> = {
+    brand: product.brand,
+    title: product.title,
+    description: product.description,
+  };
+
+  for (const def of schema) {
+    if (def.key in coreMap && coreMap[def.key] != null && !byKey.has(def.key)) {
+      stored.push({
+        attributeDefinitionId: def.id,
+        key: def.key,
+        value: coreMap[def.key],
+        source: "LOCAL",
+      });
+    }
+  }
+
+  return stored;
+}
+
 async function toProductDto(product: ProductWithValues): Promise<ProductDto> {
   const categoryId = product.primaryCategoryId;
   const schema = await getEffectiveSchema(product.organizationId, categoryId);
@@ -88,10 +118,16 @@ async function toProductDto(product: ProductWithValues): Promise<ProductDto> {
         attributeValues: { include: { attributeDefinition: true } },
       },
     });
-    const parentStored = parentWithValues
+    let parentStored = parentWithValues
       ? toStoredValues(parentWithValues as ProductWithValues)
       : [];
-    const childStored = toStoredValues(product);
+    parentStored = enrichStoredFromCoreFields(
+      parentWithValues as ProductWithValues,
+      schema,
+      parentStored,
+    );
+    let childStored = toStoredValues(product);
+    childStored = enrichStoredFromCoreFields(product, schema, childStored);
     resolved = resolveAttributes(schema, parentStored, childStored).map((r) => ({
       key: r.key,
       attributeDefinitionId: r.attributeDefinitionId,
@@ -99,7 +135,9 @@ async function toProductDto(product: ProductWithValues): Promise<ProductDto> {
       source: r.source,
     }));
   } else {
-    resolved = toStoredValues(product).map((v) => ({
+    let stored = toStoredValues(product);
+    stored = enrichStoredFromCoreFields(product, schema, stored);
+    resolved = stored.map((v) => ({
       key: v.key,
       attributeDefinitionId: v.attributeDefinitionId,
       value: v.value,
@@ -134,6 +172,16 @@ async function loadProduct(id: string, organizationId: string) {
   });
 }
 
+async function assertUniqueSku(organizationId: string, sku: string): Promise<void> {
+  const existing = await prisma.product.findFirst({
+    where: { organizationId, sku, deletedAt: null },
+    select: { id: true },
+  });
+  if (existing) {
+    throw appError(`SKU already exists: ${sku}`, 409);
+  }
+}
+
 export async function createProduct(
   organizationId: string,
   input: CreateProductInput,
@@ -156,51 +204,45 @@ export async function createProduct(
     }
   }
 
-  try {
-    const product = await prisma.product.create({
-      data: {
-        organizationId,
-        productType: input.productType,
-        sku: input.sku,
-        title: input.title,
-        description: input.description,
-        brand: input.brand,
-        primaryCategoryId: input.primaryCategoryId,
-        parentId: input.parentId,
-      },
-      include: {
-        attributeValues: { include: { attributeDefinition: true } },
-        parent: true,
-      },
-    });
+  await assertUniqueSku(organizationId, input.sku);
 
-    await prisma.auditLog.create({
-      data: {
-        organizationId,
-        entityType: "Product",
-        entityId: product.id,
-        productId: product.id,
-        action: "CREATE",
-        changes: { sku: product.sku, productType: product.productType },
-      },
-    });
+  const created = await prisma.product.create({
+    data: {
+      organizationId,
+      productType: input.productType,
+      sku: input.sku,
+      title: input.title,
+      description: input.description,
+      brand: input.brand,
+      primaryCategoryId: input.primaryCategoryId,
+      parentId: input.parentId,
+    },
+  });
 
-    emitEvent(
-      createEvent("product.created", organizationId, {
-        productId: product.id,
-        sku: product.sku,
-        productType: product.productType,
-        status: product.status,
-      }),
-    );
+  await writeAudit({
+    organizationId,
+    entityType: "Product",
+    entityId: created.id,
+    productId: created.id,
+    action: "CREATE",
+    changes: { sku: created.sku, productType: created.productType },
+  });
 
-    return toProductDto(product as ProductWithValues);
-  } catch (e: unknown) {
-    if (e && typeof e === "object" && "code" in e && e.code === "P2002") {
-      throw Object.assign(new Error(`SKU already exists: ${input.sku}`), { statusCode: 409 });
-    }
-    throw e;
+  emitEvent(
+    createEvent("product.created", organizationId, {
+      productId: created.id,
+      sku: created.sku,
+      productType: created.productType,
+      status: created.status,
+    }),
+  );
+
+  const product = await loadProduct(created.id, organizationId);
+  if (!product) {
+    throw appError("Product not found after create", 500);
   }
+
+  return toProductDto(product as ProductWithValues);
 }
 
 export async function listProducts(
@@ -278,6 +320,15 @@ export async function updateProduct(
       changedFields: Object.keys(input),
     }),
   );
+
+  await writeAudit({
+    organizationId,
+    entityType: "Product",
+    entityId: id,
+    productId: id,
+    action: "UPDATE",
+    changes: input as Record<string, unknown>,
+  });
 
   return toProductDto(product as ProductWithValues);
 }
@@ -412,9 +463,25 @@ export async function createVariant(
     sku: input.sku,
     title: input.title ?? parent.title,
     description: parent.description ?? undefined,
-    brand: parent.brand ?? undefined,
     primaryCategoryId: parent.primaryCategoryId ?? undefined,
     parentId,
+  });
+
+  await prisma.productRelationship.upsert({
+    where: {
+      sourceProductId_targetProductId_relationshipType: {
+        sourceProductId: variant.id,
+        targetProductId: parentId,
+        relationshipType: "VARIANT_OF",
+      },
+    },
+    create: {
+      organizationId,
+      sourceProductId: variant.id,
+      targetProductId: parentId,
+      relationshipType: "VARIANT_OF",
+    },
+    update: {},
   });
 
   if (Object.keys(input.attributes).length > 0) {
@@ -441,4 +508,23 @@ export async function listVariants(
     pageSize: 100,
   });
   return items;
+}
+
+export async function getProductTree(
+  id: string,
+  organizationId: string,
+): Promise<ProductTreeNode> {
+  const product = await loadProduct(id, organizationId);
+  if (!product) {
+    throw appError("Product not found", 404);
+  }
+
+  const parentDto = await toProductDto(product as ProductWithValues);
+
+  if (product.productType !== "PARENT") {
+    return { ...parentDto, children: [] };
+  }
+
+  const children = await listVariants(id, organizationId);
+  return { ...parentDto, children };
 }

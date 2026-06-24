@@ -1,5 +1,5 @@
 import type { FastifyRequest } from "fastify";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "@productinfoman/db";
 
 declare module "fastify" {
   interface FastifyRequest {

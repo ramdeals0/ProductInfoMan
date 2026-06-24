@@ -75,6 +75,8 @@ model Product {
   secondaryCategories ProductCategory[]
   media             ProductMedia[]
   auditLogs         AuditLog[]              @relation("ProductAudit")
+  sourceRelationships ProductRelationship[] @relation("SourceRelationships")
+  targetRelationships ProductRelationship[] @relation("TargetRelationships")
 
   @@unique([organizationId, sku])
   @@index([organizationId, status])
@@ -151,6 +153,33 @@ enum MediaRole {
   PRIMARY
   SWATCH
   LIFESTYLE
+}
+
+model ProductRelationship {
+  id               String                  @id @default(cuid())
+  organizationId   String
+  sourceProductId  String
+  targetProductId  String
+  relationshipType ProductRelationshipType
+  quantity         Int?
+  sortOrder        Int                     @default(0)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  sourceProduct Product @relation("SourceRelationships", fields: [sourceProductId], references: [id], onDelete: Cascade)
+  targetProduct Product @relation("TargetRelationships", fields: [targetProductId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceProductId, targetProductId, relationshipType])
+  @@index([organizationId])
+  @@index([targetProductId])
+}
+
+enum ProductRelationshipType {
+  VARIANT_OF
+  BUNDLE_COMPONENT
+  ACCESSORY
+  REPLACEMENT
+  COLLECTION_MEMBER
 }
 
 // ─── Taxonomy & Facets ──────────────────────────────────────────────────────

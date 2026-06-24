@@ -5,11 +5,15 @@ import {
   ListProductsQuerySchema,
   SetAttributesSchema,
   UpdateProductSchema,
-} from "@productinfoman/contracts";
+} from "@productinfoman/validation";
+import { AppError } from "@productinfoman/shared";
 import { resolveTenant } from "../../plugins/tenant.js";
 import * as productService from "./product.service.js";
 
 function handleError(error: unknown): { statusCode: number; message: string } {
+  if (error instanceof AppError) {
+    return { statusCode: error.statusCode, message: error.message };
+  }
   if (error && typeof error === "object" && "statusCode" in error) {
     return {
       statusCode: (error as { statusCode: number }).statusCode,
@@ -38,6 +42,40 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       const query = ListProductsQuerySchema.parse(request.query);
       const result = await productService.listProducts(request.organizationId, query);
       return reply.send(result);
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
+  app.get("/products/:id/tree", async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const tree = await productService.getProductTree(id, request.organizationId);
+      return reply.send(tree);
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
+  app.get("/products/:id/variants", async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const variants = await productService.listVariants(id, request.organizationId);
+      return reply.send({ items: variants });
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
+  app.post("/products/:id/variants", async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const body = CreateVariantSchema.parse(request.body);
+      const variant = await productService.createVariant(id, request.organizationId, body);
+      return reply.code(201).send(variant);
     } catch (e) {
       const { statusCode, message } = handleError(e);
       return reply.code(statusCode).send({ error: message });
@@ -88,33 +126,6 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
         body,
       );
       return reply.send(product);
-    } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
-    }
-  });
-
-  app.post("/products/:parentId/variants", async (request, reply) => {
-    try {
-      const { parentId } = request.params as { parentId: string };
-      const body = CreateVariantSchema.parse(request.body);
-      const variant = await productService.createVariant(
-        parentId,
-        request.organizationId,
-        body,
-      );
-      return reply.code(201).send(variant);
-    } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
-    }
-  });
-
-  app.get("/products/:parentId/variants", async (request, reply) => {
-    try {
-      const { parentId } = request.params as { parentId: string };
-      const variants = await productService.listVariants(parentId, request.organizationId);
-      return reply.send({ items: variants });
     } catch (e) {
       const { statusCode, message } = handleError(e);
       return reply.code(statusCode).send({ error: message });
