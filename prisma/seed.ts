@@ -31,14 +31,26 @@ async function main() {
   });
 
   const specsGroup = await prisma.attributeGroup.upsert({
-    where: { organizationId_name: { organizationId: org.id, name: "Specifications" } },
-    create: { organizationId: org.id, name: "Specifications", sortOrder: 1 },
+    where: { organizationId_code: { organizationId: org.id, code: "specifications" } },
+    create: {
+      organizationId: org.id,
+      code: "specifications",
+      name: "Specifications",
+      description: "Core product specifications",
+      sortOrder: 1,
+    },
     update: {},
   });
 
   const marketingGroup = await prisma.attributeGroup.upsert({
-    where: { organizationId_name: { organizationId: org.id, name: "Marketing" } },
-    create: { organizationId: org.id, name: "Marketing", sortOrder: 0 },
+    where: { organizationId_code: { organizationId: org.id, code: "marketing" } },
+    create: {
+      organizationId: org.id,
+      code: "marketing",
+      name: "Marketing",
+      description: "Marketing and merchandising attributes",
+      sortOrder: 0,
+    },
     update: {},
   });
 
@@ -51,6 +63,8 @@ async function main() {
       label: "Brand",
       dataType: "TEXT",
       isGlobal: true,
+      isRequired: true,
+      isSearchable: true,
     },
     update: {},
   });
@@ -64,8 +78,15 @@ async function main() {
       label: "Color",
       dataType: "ENUM",
       isVariantAxis: true,
+      isFilterable: true,
+      isSearchable: true,
+      allowedValuesType: "CONTROLLED_LIST",
     },
-    update: {},
+    update: {
+      isFilterable: true,
+      isSearchable: true,
+      allowedValuesType: "CONTROLLED_LIST",
+    },
   });
 
   const sizeAttr = await prisma.attributeDefinition.upsert({
@@ -77,8 +98,13 @@ async function main() {
       label: "Size",
       dataType: "ENUM",
       isVariantAxis: true,
+      isFilterable: true,
+      allowedValuesType: "CONTROLLED_LIST",
     },
-    update: {},
+    update: {
+      isFilterable: true,
+      allowedValuesType: "CONTROLLED_LIST",
+    },
   });
 
   const fabricAttr = await prisma.attributeDefinition.upsert({
@@ -89,6 +115,7 @@ async function main() {
       key: "fabric",
       label: "Fabric",
       dataType: "TEXT",
+      isSearchable: true,
     },
     update: {},
   });
@@ -117,9 +144,10 @@ async function main() {
   }
 
   const apparel = await prisma.category.upsert({
-    where: { organizationId_path: { organizationId: org.id, path: "/apparel" } },
+    where: { organizationId_code: { organizationId: org.id, code: "apparel" } },
     create: {
       organizationId: org.id,
+      code: "apparel",
       name: "Apparel",
       slug: "apparel",
       path: "/apparel",
@@ -129,10 +157,11 @@ async function main() {
   });
 
   const mens = await prisma.category.upsert({
-    where: { organizationId_path: { organizationId: org.id, path: "/apparel/mens" } },
+    where: { organizationId_code: { organizationId: org.id, code: "mens" } },
     create: {
       organizationId: org.id,
       parentId: apparel.id,
+      code: "mens",
       name: "Mens",
       slug: "mens",
       path: "/apparel/mens",
@@ -142,14 +171,45 @@ async function main() {
   });
 
   const shirts = await prisma.category.upsert({
-    where: { organizationId_path: { organizationId: org.id, path: "/apparel/mens/shirts" } },
+    where: { organizationId_code: { organizationId: org.id, code: "shirts" } },
     create: {
       organizationId: org.id,
       parentId: mens.id,
+      code: "shirts",
       name: "Shirts",
       slug: "shirts",
       path: "/apparel/mens/shirts",
       depth: 2,
+    },
+    update: {},
+  });
+
+  await prisma.categoryAttributeGroup.upsert({
+    where: {
+      categoryId_attributeGroupId: {
+        categoryId: shirts.id,
+        attributeGroupId: specsGroup.id,
+      },
+    },
+    create: {
+      categoryId: shirts.id,
+      attributeGroupId: specsGroup.id,
+      sortOrder: 0,
+    },
+    update: {},
+  });
+
+  await prisma.categoryAttributeGroup.upsert({
+    where: {
+      categoryId_attributeGroupId: {
+        categoryId: shirts.id,
+        attributeGroupId: marketingGroup.id,
+      },
+    },
+    create: {
+      categoryId: shirts.id,
+      attributeGroupId: marketingGroup.id,
+      sortOrder: 1,
     },
     update: {},
   });
@@ -183,7 +243,7 @@ async function main() {
     });
   }
 
-  await prisma.facetDefinition.upsert({
+  const colorFacet = await prisma.facetDefinition.upsert({
     where: { organizationId_key: { organizationId: org.id, key: "color" } },
     create: {
       organizationId: org.id,
@@ -192,20 +252,85 @@ async function main() {
       sourceAttributeId: colorAttr.id,
       categoryId: shirts.id,
       scope: "CATEGORY",
+      sortOrder: 1,
     },
     update: {},
   });
 
-  const colorFacet = await prisma.facetDefinition.findUniqueOrThrow({
-    where: { organizationId_key: { organizationId: org.id, key: "color" } },
+  const sizeFacet = await prisma.facetDefinition.upsert({
+    where: { organizationId_key: { organizationId: org.id, key: "size" } },
+    create: {
+      organizationId: org.id,
+      key: "size",
+      label: "Size",
+      sourceAttributeId: sizeAttr.id,
+      categoryId: shirts.id,
+      scope: "CATEGORY",
+      sortOrder: 2,
+    },
+    update: {},
   });
 
-  const existingRule = await prisma.facetRule.findFirst({
-    where: { facetDefinitionId: colorFacet.id },
+  for (const [facet, enumValues] of [
+    [colorFacet, ["Blue", "White", "Navy"]],
+    [sizeFacet, ["S", "M", "L"]],
+  ] as const) {
+    const sourceAttr = facet.key === "color" ? colorAttr : sizeAttr;
+    const values = await prisma.attributeEnumValue.findMany({
+      where: { attributeDefinitionId: sourceAttr.id },
+    });
+
+    for (const enumValue of values) {
+      await prisma.facetValue.upsert({
+        where: {
+          facetDefinitionId_value: {
+            facetDefinitionId: facet.id,
+            value: enumValue.value,
+          },
+        },
+        create: {
+          facetDefinitionId: facet.id,
+          value: enumValue.value,
+          label: enumValue.label,
+          sortOrder: enumValue.sortOrder,
+          sourceEnumValueId: enumValue.id,
+        },
+        update: {
+          label: enumValue.label,
+          sortOrder: enumValue.sortOrder,
+          sourceEnumValueId: enumValue.id,
+        },
+      });
+    }
+  }
+
+  const existingColorRule = await prisma.facetRule.findFirst({
+    where: { facetDefinitionId: colorFacet.id, categoryId: shirts.id },
   });
-  if (!existingRule) {
+  if (!existingColorRule) {
     await prisma.facetRule.create({
-      data: { facetDefinitionId: colorFacet.id, ruleType: "DIRECT" },
+      data: {
+        organizationId: org.id,
+        categoryId: shirts.id,
+        attributeDefinitionId: colorAttr.id,
+        facetDefinitionId: colorFacet.id,
+        ruleType: "DIRECT",
+      },
+    });
+  }
+
+  const existingSizeRule = await prisma.facetRule.findFirst({
+    where: { facetDefinitionId: sizeFacet.id, categoryId: shirts.id },
+  });
+  if (!existingSizeRule) {
+    await prisma.facetRule.create({
+      data: {
+        organizationId: org.id,
+        categoryId: shirts.id,
+        attributeDefinitionId: sizeAttr.id,
+        facetDefinitionId: sizeFacet.id,
+        ruleType: "DIRECT",
+      },
     });
   }
 
@@ -310,7 +435,9 @@ async function main() {
     });
   }
 
-  console.log("Seed complete: demo org, apparel/shirts taxonomy, SHIRT-001 + 3 variants");
+  console.log(
+    "Seed complete: demo org, apparel/mens/shirts taxonomy, color+size facets, SHIRT-001 + 3 variants",
+  );
 }
 
 main()

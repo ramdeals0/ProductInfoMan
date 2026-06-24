@@ -19,8 +19,8 @@ beforeAll(async () => {
   organizationId = org.id;
 
   const specsGroup = await prisma.attributeGroup.upsert({
-    where: { organizationId_name: { organizationId, name: "Specifications" } },
-    create: { organizationId, name: "Specifications", sortOrder: 1 },
+    where: { organizationId_code: { organizationId, code: "specifications" } },
+    create: { organizationId, code: "specifications", name: "Specifications", sortOrder: 1 },
     update: {},
   });
 

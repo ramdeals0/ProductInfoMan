@@ -13,6 +13,7 @@
     "@productinfoman/contracts": "workspace:*",
     "@productinfoman/db": "workspace:*",
     "@productinfoman/domain": "workspace:*",
+    "@productinfoman/facet-engine": "workspace:*",
     "@productinfoman/inheritance-engine": "workspace:*",
     "@productinfoman/shared": "workspace:*",
     "@productinfoman/validation": "workspace:*",

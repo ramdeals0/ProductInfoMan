@@ -22,6 +22,7 @@ model Organization {
   attributeGroups     AttributeGroup[]
   attributeDefinitions AttributeDefinition[]
   facetDefinitions    FacetDefinition[]
+  facetRules          FacetRule[]
   auditLogs           AuditLog[]
 
   @@index([slug])
@@ -185,58 +186,78 @@ enum ProductRelationshipType {
 // ─── Taxonomy & Facets ──────────────────────────────────────────────────────
 
 model Category {
-  id             String   @id @default(cuid())
+  id             String         @id @default(cuid())
   organizationId String
   parentId       String?
+  code           String
   name           String
   slug           String
   path           String
-  depth          Int      @default(0)
-  sortOrder      Int      @default(0)
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  depth          Int            @default(0)
+  sortOrder      Int            @default(0)
+  status         CategoryStatus @default(ACTIVE)
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
-  organization       Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  parent             Category?             @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
-  children           Category[]            @relation("CategoryTree")
-  primaryProducts    Product[]             @relation("PrimaryCategory")
-  productCategories  ProductCategory[]
-  attributeSet       CategoryAttributeSet?
-  facetDefinitions   FacetDefinition[]
+  organization          Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent                Category?               @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children              Category[]              @relation("CategoryTree")
+  primaryProducts       Product[]               @relation("PrimaryCategory")
+  productCategories     ProductCategory[]
+  attributeSet          CategoryAttributeSet?
+  attributeGroups       CategoryAttributeGroup[]
+  facetDefinitions      FacetDefinition[]
+  facetRules            FacetRule[]
 
+  @@unique([organizationId, code])
   @@unique([organizationId, path])
   @@unique([organizationId, slug, parentId])
   @@index([organizationId, parentId])
+  @@index([organizationId, status])
+}
+
+enum CategoryStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
 }
 
 model AttributeGroup {
   id             String   @id @default(cuid())
   organizationId String
+  code           String
   name           String
+  description    String?
   sortOrder      Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   attributes   AttributeDefinition[]
+  categories   CategoryAttributeGroup[]
 
+  @@unique([organizationId, code])
   @@unique([organizationId, name])
 }
 
 model AttributeDefinition {
-  id               String        @id @default(cuid())
+  id               String            @id @default(cuid())
   organizationId   String
   attributeGroupId String
   key              String
   label            String
   description      String?
   dataType         AttributeDataType
-  isGlobal         Boolean       @default(false)
-  isVariantAxis    Boolean       @default(false)
+  isGlobal         Boolean           @default(false)
+  isVariantAxis    Boolean           @default(false)
+  isRequired       Boolean           @default(false)
+  isFilterable     Boolean           @default(false)
+  isSearchable     Boolean           @default(false)
+  allowedValuesType AllowedValuesType @default(FREE_TEXT)
   constraints      Json?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   organization     Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   attributeGroup   AttributeGroup            @relation(fields: [attributeGroupId], references: [id], onDelete: Cascade)
@@ -244,9 +265,17 @@ model AttributeDefinition {
   categoryBindings CategoryAttributeBinding[]
   productValues    ProductAttributeValue[]
   facetDefinitions FacetDefinition[]
+  facetRules       FacetRule[]
 
   @@unique([organizationId, key])
   @@index([organizationId, isVariantAxis])
+  @@index([organizationId, isFilterable])
+}
+
+enum AllowedValuesType {
+  FREE_TEXT
+  CONTROLLED_LIST
+  NUMERIC_RANGE
 }
 
 enum AttributeDataType {
@@ -268,8 +297,24 @@ model AttributeEnumValue {
   sortOrder             Int    @default(0)
 
   attributeDefinition AttributeDefinition @relation(fields: [attributeDefinitionId], references: [id], onDelete: Cascade)
+  facetValues         FacetValue[]
 
   @@unique([attributeDefinitionId, value])
+}
+
+model CategoryAttributeGroup {
+  id               String   @id @default(cuid())
+  categoryId       String
+  attributeGroupId String
+  sortOrder        Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  category       Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  attributeGroup AttributeGroup @relation(fields: [attributeGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, attributeGroupId])
+  @@index([attributeGroupId])
 }
 
 model CategoryAttributeSet {
@@ -303,22 +348,24 @@ enum AttributeRequirement {
 }
 
 model FacetDefinition {
-  id                    String     @id @default(cuid())
-  organizationId        String
-  key                   String
-  label                 String
-  sourceAttributeId     String
-  categoryId            String?
-  scope                 FacetScope @default(GLOBAL)
-  sortOrder             Int        @default(0)
-  isActive              Boolean    @default(true)
-  createdAt             DateTime   @default(now())
-  updatedAt             DateTime   @updatedAt
+  id                String     @id @default(cuid())
+  organizationId    String
+  key               String
+  label             String
+  sourceAttributeId String
+  categoryId        String?
+  scope             FacetScope @default(GLOBAL)
+  sortOrder         Int        @default(0)
+  isDynamic         Boolean    @default(false)
+  isActive          Boolean    @default(true)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
   organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   sourceAttribute AttributeDefinition @relation(fields: [sourceAttributeId], references: [id], onDelete: Cascade)
   category        Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   rules           FacetRule[]
+  values          FacetValue[]
 
   @@unique([organizationId, key])
   @@index([organizationId, categoryId])
@@ -330,13 +377,24 @@ enum FacetScope {
 }
 
 model FacetRule {
-  id                String        @id @default(cuid())
-  facetDefinitionId String
-  ruleType          FacetRuleType @default(DIRECT)
-  config            Json?
-  priority          Int           @default(0)
+  id                    String        @id @default(cuid())
+  organizationId        String
+  categoryId            String?
+  attributeDefinitionId String?
+  facetDefinitionId     String
+  ruleType              FacetRuleType @default(DIRECT)
+  ruleConfig            Json?
+  priority              Int           @default(0)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
-  facetDefinition FacetDefinition @relation(fields: [facetDefinitionId], references: [id], onDelete: Cascade)
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category            Category?            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  attributeDefinition AttributeDefinition? @relation(fields: [attributeDefinitionId], references: [id], onDelete: SetNull)
+  facetDefinition     FacetDefinition      @relation(fields: [facetDefinitionId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, categoryId])
+  @@index([facetDefinitionId])
 }
 
 enum FacetRuleType {
@@ -344,6 +402,24 @@ enum FacetRuleType {
   NORMALIZE
   RANGE_BUCKET
   COMPOSITE
+}
+
+model FacetValue {
+  id                String   @id @default(cuid())
+  facetDefinitionId String
+  value             String
+  label             String
+  sortOrder         Int      @default(0)
+  isActive          Boolean  @default(true)
+  sourceEnumValueId String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  facetDefinition FacetDefinition     @relation(fields: [facetDefinitionId], references: [id], onDelete: Cascade)
+  sourceEnumValue AttributeEnumValue? @relation(fields: [sourceEnumValueId], references: [id], onDelete: SetNull)
+
+  @@unique([facetDefinitionId, value])
+  @@index([facetDefinitionId, isActive])
 }
 
 // ─── Audit ───────────────────────────────────────────────────────────────────

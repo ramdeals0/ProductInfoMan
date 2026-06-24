@@ -47,6 +47,9 @@ importers:
       '@productinfoman/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@productinfoman/facet-engine':
+        specifier: workspace:*
+        version: link:../../packages/facet-engine
       '@productinfoman/inheritance-engine':
         specifier: workspace:*
         version: link:../../packages/inheritance-engine
@@ -110,6 +113,15 @@ importers:
         version: 8.22.0
 
   packages/domain: {}
+
+  packages/facet-engine:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.6(@types/node@24.13.2)(jiti@2.7.0)(tsx@4.22.4)
 
   packages/inheritance-engine:
     dependencies:

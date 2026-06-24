@@ -3,10 +3,17 @@ import {
   CreateAttributeGroupSchema,
   CreateAttributeSchema,
   CreateCategorySchema,
+  CreateFacetDefinitionSchema,
+  CreateFacetRuleSchema,
+  LinkCategoryAttributeGroupsSchema,
   LinkCategoryAttributesSchema,
+  ListFacetDefinitionsQuerySchema,
+  ListFacetRulesQuerySchema,
+  UpdateCategorySchema,
 } from "@productinfoman/validation";
 import { AppError } from "@productinfoman/shared";
 import { resolveTenant } from "../../plugins/tenant.js";
+import * as facetService from "./facet.service.js";
 import * as taxonomyService from "./taxonomy.service.js";
 
 function handleError(error: unknown): { statusCode: number; message: string } {
@@ -46,11 +53,60 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  app.get("/categories/tree", async (request, reply) => {
+    try {
+      const tree = await taxonomyService.getCategoryTree(request.organizationId);
+      return reply.send({ items: tree });
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
+  app.patch("/categories/:id", async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const body = UpdateCategorySchema.parse(request.body);
+      const category = await taxonomyService.updateCategory(id, request.organizationId, body);
+      return reply.send(category);
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
+  app.get("/categories/:id/facets", async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const facets = await facetService.getCategoryFacets(id, request.organizationId);
+      return reply.send({ items: facets });
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
   app.post("/categories/:id/attributes", async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
       const body = LinkCategoryAttributesSchema.parse(request.body);
       const result = await taxonomyService.linkCategoryAttributes(
+        id,
+        request.organizationId,
+        body,
+      );
+      return reply.send(result);
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
+  app.post("/categories/:id/attribute-groups", async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const body = LinkCategoryAttributeGroupsSchema.parse(request.body);
+      const result = await taxonomyService.linkCategoryAttributeGroups(
         id,
         request.organizationId,
         body,
@@ -73,6 +129,16 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  app.get("/attribute-groups", async (request, reply) => {
+    try {
+      const groups = await taxonomyService.listAttributeGroups(request.organizationId);
+      return reply.send({ items: groups });
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
   app.post("/attributes", async (request, reply) => {
     try {
       const body = CreateAttributeSchema.parse(request.body);
@@ -88,6 +154,50 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
     try {
       const attrs = await taxonomyService.listAttributes(request.organizationId);
       return reply.send({ items: attrs });
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
+  app.post("/facet-definitions", async (request, reply) => {
+    try {
+      const body = CreateFacetDefinitionSchema.parse(request.body);
+      const facet = await facetService.createFacetDefinition(request.organizationId, body);
+      return reply.code(201).send(facet);
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
+  app.get("/facet-definitions", async (request, reply) => {
+    try {
+      const query = ListFacetDefinitionsQuerySchema.parse(request.query ?? {});
+      const facets = await facetService.listFacetDefinitions(request.organizationId, query);
+      return reply.send({ items: facets });
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
+  app.post("/facet-rules", async (request, reply) => {
+    try {
+      const body = CreateFacetRuleSchema.parse(request.body);
+      const rule = await facetService.createFacetRule(request.organizationId, body);
+      return reply.code(201).send(rule);
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
+  app.get("/facet-rules", async (request, reply) => {
+    try {
+      const query = ListFacetRulesQuerySchema.parse(request.query ?? {});
+      const rules = await facetService.listFacetRules(request.organizationId, query);
+      return reply.send({ items: rules });
     } catch (e) {
       const { statusCode, message } = handleError(e);
       return reply.code(statusCode).send({ error: message });

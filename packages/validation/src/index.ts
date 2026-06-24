@@ -62,13 +62,35 @@ export const ListProductsQuerySchema = z.object({
 
 export const CreateCategorySchema = z.object({
   name: z.string().min(1).max(128),
+  code: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[a-z0-9-]+$/)
+    .optional(),
   slug: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/),
   parentId: z.string().cuid().nullable().optional(),
   sortOrder: z.number().int().optional(),
+  status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(),
+});
+
+export const UpdateCategorySchema = z.object({
+  name: z.string().min(1).max(128).optional(),
+  slug: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/).optional(),
+  sortOrder: z.number().int().optional(),
+  status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(),
+  isActive: z.boolean().optional(),
 });
 
 export const CreateAttributeGroupSchema = z.object({
   name: z.string().min(1).max(128),
+  code: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[a-z0-9-]+$/)
+    .optional(),
+  description: z.string().max(512).optional(),
   sortOrder: z.number().int().optional(),
 });
 
@@ -80,6 +102,10 @@ export const CreateAttributeSchema = z.object({
   dataType: AttributeDataTypeSchema,
   isGlobal: z.boolean().optional(),
   isVariantAxis: z.boolean().optional(),
+  isRequired: z.boolean().optional(),
+  isFilterable: z.boolean().optional(),
+  isSearchable: z.boolean().optional(),
+  allowedValuesType: z.enum(["FREE_TEXT", "CONTROLLED_LIST", "NUMERIC_RANGE"]).optional(),
 });
 
 export const LinkCategoryAttributesSchema = z.object({
@@ -88,12 +114,51 @@ export const LinkCategoryAttributesSchema = z.object({
   inheritFromParent: z.boolean().default(true),
 });
 
+export const LinkCategoryAttributeGroupsSchema = z.object({
+  attributeGroupIds: z.array(z.string().cuid()).min(1),
+  sortOrder: z.number().int().optional(),
+});
+
+export const CreateFacetDefinitionSchema = z.object({
+  key: z.string().min(1).max(64).regex(/^[a-z0-9_]+$/),
+  label: z.string().min(1).max(128),
+  sourceAttributeId: z.string().cuid(),
+  categoryId: z.string().cuid().nullable().optional(),
+  sortOrder: z.number().int().optional(),
+  isDynamic: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const ListFacetDefinitionsQuerySchema = z.object({
+  categoryId: z.string().cuid().optional(),
+});
+
+export const CreateFacetRuleSchema = z.object({
+  facetDefinitionId: z.string().cuid(),
+  categoryId: z.string().cuid().nullable().optional(),
+  attributeDefinitionId: z.string().cuid().nullable().optional(),
+  ruleType: z.enum(["DIRECT", "NORMALIZE", "RANGE_BUCKET", "COMPOSITE"]).default("DIRECT"),
+  ruleConfig: z.record(z.unknown()).nullable().optional(),
+  priority: z.number().int().optional(),
+});
+
+export const ListFacetRulesQuerySchema = z.object({
+  categoryId: z.string().cuid().optional(),
+  facetDefinitionId: z.string().cuid().optional(),
+});
+
 export type CreateProductInput = z.infer<typeof CreateProductSchema>;
 export type UpdateProductInput = z.infer<typeof UpdateProductSchema>;
 export type CreateVariantInput = z.infer<typeof CreateVariantSchema>;
 export type SetAttributesInput = z.infer<typeof SetAttributesSchema>;
 export type ListProductsQuery = z.infer<typeof ListProductsQuerySchema>;
 export type CreateCategoryInput = z.infer<typeof CreateCategorySchema>;
+export type UpdateCategoryInput = z.infer<typeof UpdateCategorySchema>;
 export type CreateAttributeGroupInput = z.infer<typeof CreateAttributeGroupSchema>;
 export type CreateAttributeInput = z.infer<typeof CreateAttributeSchema>;
 export type LinkCategoryAttributesInput = z.infer<typeof LinkCategoryAttributesSchema>;
+export type LinkCategoryAttributeGroupsInput = z.infer<typeof LinkCategoryAttributeGroupsSchema>;
+export type CreateFacetDefinitionInput = z.infer<typeof CreateFacetDefinitionSchema>;
+export type ListFacetDefinitionsQuery = z.infer<typeof ListFacetDefinitionsQuerySchema>;
+export type CreateFacetRuleInput = z.infer<typeof CreateFacetRuleSchema>;
+export type ListFacetRulesQuery = z.infer<typeof ListFacetRulesQuerySchema>;

@@ -17,6 +17,10 @@ export type AttributeDataType =
   | "DATE"
   | "URL"
   | "JSON";
+export type AllowedValuesType = "FREE_TEXT" | "CONTROLLED_LIST" | "NUMERIC_RANGE";
+export type CategoryStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED";
+export type FacetScope = "GLOBAL" | "CATEGORY";
+export type FacetRuleType = "DIRECT" | "NORMALIZE" | "RANGE_BUCKET" | "COMPOSITE";
 export type ProductRelationshipType =
   | "VARIANT_OF"
   | "BUNDLE_COMPONENT"
@@ -55,20 +59,28 @@ export interface CategoryEntity {
   id: string;
   organizationId: string;
   parentId: string | null;
+  code: string;
   name: string;
   slug: string;
   path: string;
   depth: number;
   sortOrder: number;
+  status: CategoryStatus;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
+export interface CategoryTreeNode extends CategoryEntity {
+  children: CategoryTreeNode[];
+}
+
 export interface AttributeGroupEntity {
   id: string;
   organizationId: string;
+  code: string;
   name: string;
+  description: string | null;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -84,6 +96,53 @@ export interface AttributeEntity {
   dataType: AttributeDataType;
   isGlobal: boolean;
   isVariantAxis: boolean;
+  isRequired: boolean;
+  isFilterable: boolean;
+  isSearchable: boolean;
+  allowedValuesType: AllowedValuesType;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FacetDefinitionEntity {
+  id: string;
+  organizationId: string;
+  key: string;
+  label: string;
+  sourceAttributeId: string;
+  sourceAttributeKey: string;
+  categoryId: string | null;
+  scope: FacetScope;
+  sortOrder: number;
+  isDynamic: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FacetRuleEntity {
+  id: string;
+  organizationId: string;
+  categoryId: string | null;
+  attributeDefinitionId: string | null;
+  facetDefinitionId: string;
+  ruleType: FacetRuleType;
+  ruleConfig: Record<string, unknown> | null;
+  priority: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CategoryFacetEntity {
+  key: string;
+  label: string;
+  sourceAttributeKey: string;
+  isDynamic: boolean;
+  sortOrder: number;
+  ruleType: FacetRuleType;
+  options: Array<{
+    value: string;
+    label: string;
+    sortOrder: number;
+  }>;
 }
