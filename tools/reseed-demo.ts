@@ -19,11 +19,39 @@ async function publishDemoShirtCatalog(organizationId: string): Promise<number> 
   return result.count;
 }
 
-async function reindexDemoCatalog(organizationId: string): Promise<void> {
-  process.env.SEARCH_SYNC = "true";
-  const { startReindex } = await import("../apps/api/src/modules/search/search.service.js");
-  const run = await startReindex(organizationId);
-  console.log(`Search reindex queued (run ${run.id})`);
+async function reindexDemoCatalog(orgSlug: string): Promise<void> {
+  const apiUrl = process.env.RESEED_API_URL ?? process.env.API_URL ?? `http://127.0.0.1:${process.env.PORT ?? "3001"}`;
+  const email = process.env.ADMIN_EMAIL ?? "admin@demo.local";
+  const password = process.env.ADMIN_PASSWORD ?? "Admin123!@#demo";
+
+  const loginResponse = await fetch(`${apiUrl}/api/v1/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, organizationSlug: orgSlug }),
+  });
+  if (!loginResponse.ok) {
+    throw new Error(`Login failed for reindex: ${loginResponse.status} ${await loginResponse.text()}`);
+  }
+
+  const loginPayload = (await loginResponse.json()) as { token?: string; accessToken?: string };
+  const accessToken = loginPayload.accessToken ?? loginPayload.token;
+  if (!accessToken) {
+    throw new Error("Login response missing access token");
+  }
+
+  const reindexResponse = await fetch(`${apiUrl}/api/v1/search/reindex`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "X-Organization-Slug": orgSlug,
+    },
+  });
+  if (!reindexResponse.ok) {
+    throw new Error(`Reindex failed: ${reindexResponse.status} ${await reindexResponse.text()}`);
+  }
+
+  const run = (await reindexResponse.json()) as { id: string };
+  console.log(`Search reindex triggered via API (run ${run.id})`);
 }
 
 async function main() {
@@ -38,8 +66,8 @@ async function main() {
   const published = await publishDemoShirtCatalog(org.id);
   console.log(`==> Published ${published} SHIRT-* products for storefront search`);
 
-  console.log("==> Reindexing search");
-  await reindexDemoCatalog(org.id);
+  console.log("==> Reindexing search via running API");
+  await reindexDemoCatalog(orgSlug);
 
   console.log("Demo reseed complete (Fleet Farm removed, base apparel catalog only).");
 }
