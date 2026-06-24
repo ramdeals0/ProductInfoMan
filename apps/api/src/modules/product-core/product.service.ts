@@ -1,4 +1,5 @@
 import type { ProductEntity, ProductTreeNode } from "@productinfoman/domain";
+import { isStorefrontVisible } from "@productinfoman/domain";
 import type {
   CreateProductInput,
   CreateVariantInput,
@@ -132,6 +133,11 @@ function enrichStoredFromCoreFields(
   return stored;
 }
 
+function parseSellingPoints(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0);
+}
+
 async function toProductDto(
   product: ProductWithValues,
   options?: { schemaCache?: SchemaCache },
@@ -188,8 +194,12 @@ async function toProductDto(
     status: product.status,
     title: product.title,
     description: product.description,
+    summary: product.summary,
+    sellingPoints: parseSellingPoints(product.sellingPoints),
     brand: product.brand,
     primaryCategoryId: product.primaryCategoryId,
+    startDate: product.startDate?.toISOString() ?? null,
+    discontinueDate: product.discontinueDate?.toISOString() ?? null,
     attributes: resolved,
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
@@ -202,11 +212,15 @@ function buildProductSnapshot(product: ProductDto): Record<string, unknown> {
     sku: product.sku,
     title: product.title,
     description: product.description,
+    summary: product.summary,
+    sellingPoints: product.sellingPoints,
     brand: product.brand,
     status: product.status,
     productType: product.productType,
     primaryCategoryId: product.primaryCategoryId,
     parentId: product.parentId,
+    startDate: product.startDate,
+    discontinueDate: product.discontinueDate,
     attributes: Object.fromEntries(
       product.attributes.map((attr) => [attr.key, attr.value]),
     ),
@@ -264,9 +278,13 @@ export async function createProduct(
       sku: input.sku,
       title: sanitizeDisplayText(input.title),
       description: input.description ? sanitizeDisplayText(input.description) : input.description,
+      summary: input.summary ? sanitizeDisplayText(input.summary) : input.summary,
+      sellingPoints: input.sellingPoints ?? [],
       brand: input.brand ? sanitizeDisplayText(input.brand) : input.brand,
       primaryCategoryId: input.primaryCategoryId,
       parentId: input.parentId,
+      startDate: input.startDate,
+      discontinueDate: input.discontinueDate,
     },
     include: {
       attributeValues: { include: { attributeDefinition: true } },
@@ -352,12 +370,20 @@ export async function listProducts(
   return { items, total, page: query.page, pageSize: query.pageSize };
 }
 
-export async function getProduct(id: string, organizationId: string): Promise<ProductDto> {
+export async function getProduct(
+  id: string,
+  organizationId: string,
+  options?: { storefrontOnly?: boolean },
+): Promise<ProductDto> {
   const product = await loadProduct(id, organizationId);
   if (!product) {
     throw Object.assign(new Error("Product not found"), { statusCode: 404 });
   }
-  return toProductDto(product as ProductWithValues);
+  const dto = await toProductDto(product as ProductWithValues);
+  if (options?.storefrontOnly && !isStorefrontVisible(dto)) {
+    throw Object.assign(new Error("Product not found"), { statusCode: 404 });
+  }
+  return dto;
 }
 
 export async function updateProduct(
@@ -380,10 +406,16 @@ export async function updateProduct(
       ...(input.description !== undefined && {
         description: sanitizeDisplayText(input.description),
       }),
+      ...(input.summary !== undefined && {
+        summary: input.summary ? sanitizeDisplayText(input.summary) : null,
+      }),
+      ...(input.sellingPoints !== undefined && { sellingPoints: input.sellingPoints }),
       ...(input.brand !== undefined && { brand: sanitizeDisplayText(input.brand) }),
       ...(input.primaryCategoryId !== undefined && {
         primaryCategoryId: input.primaryCategoryId,
       }),
+      ...(input.startDate !== undefined && { startDate: input.startDate }),
+      ...(input.discontinueDate !== undefined && { discontinueDate: input.discontinueDate }),
     },
     include: {
       attributeValues: { include: { attributeDefinition: true } },
@@ -658,10 +690,18 @@ export async function createVariant(
 export async function listVariants(
   parentId: string,
   organizationId: string,
+  options?: { storefrontOnly?: boolean },
 ): Promise<ProductDto[]> {
   const parent = await loadProduct(parentId, organizationId);
   if (!parent) {
     throw Object.assign(new Error("Parent product not found"), { statusCode: 404 });
+  }
+
+  if (options?.storefrontOnly) {
+    const parentDto = await toProductDto(parent as ProductWithValues);
+    if (!isStorefrontVisible(parentDto)) {
+      throw Object.assign(new Error("Parent product not found"), { statusCode: 404 });
+    }
   }
 
   const { items } = await listProducts(organizationId, {
@@ -669,7 +709,9 @@ export async function listVariants(
     page: 1,
     pageSize: 100,
   });
-  return items;
+
+  if (!options?.storefrontOnly) return items;
+  return items.filter((item) => isStorefrontVisible(item));
 }
 
 export async function getProductTree(

@@ -160,22 +160,92 @@ async function loadFacetDefinitions(
   organizationId: string,
   categoryId: string | null,
 ): Promise<ProjectionFacetDefinition[]> {
+  const facetKeys = await resolveFacetKeys(organizationId, categoryId ?? undefined);
+  if (facetKeys.length === 0) return [];
+
   const facets = await prisma.facetDefinition.findMany({
     where: {
       organizationId,
       isActive: true,
-      OR: categoryId
-        ? [{ categoryId }, { categoryId: null, scope: "GLOBAL" }]
-        : [{ categoryId: null, scope: "GLOBAL" }],
+      key: { in: facetKeys },
     },
-    include: { sourceAttribute: true },
+    include: {
+      sourceAttribute: true,
+      rules: {
+        where: { workflowStateCode: "approved" },
+        orderBy: { priority: "desc" },
+        take: 1,
+      },
+    },
     orderBy: { sortOrder: "asc" },
   });
 
-  return facets.map((facet) => ({
-    key: facet.key,
-    sourceAttributeKey: facet.sourceAttribute.key,
-  }));
+  return facets.map((facet) => {
+    const activeRule = facet.rules[0];
+    const ruleConfig =
+      activeRule?.ruleConfig &&
+      typeof activeRule.ruleConfig === "object" &&
+      !Array.isArray(activeRule.ruleConfig)
+        ? (activeRule.ruleConfig as Record<string, unknown>)
+        : null;
+    return {
+      key: facet.key,
+      sourceAttributeKey: facet.sourceAttribute.key,
+      ruleType: activeRule?.ruleType,
+      ruleConfig,
+    };
+  });
+}
+
+export async function resolveFacetKeys(organizationId: string, categoryId?: string): Promise<string[]> {
+  if (!categoryId) {
+    const facets = await prisma.facetDefinition.findMany({
+      where: {
+        organizationId,
+        isActive: true,
+        categoryId: null,
+        scope: "GLOBAL",
+      },
+      select: { key: true },
+      orderBy: { sortOrder: "asc" },
+    });
+    return facets.map((facet) => facet.key);
+  }
+
+  const category = await prisma.category.findFirst({
+    where: { id: categoryId, organizationId },
+    select: { id: true, path: true },
+  });
+  if (!category) return [];
+
+  const descendants = await prisma.category.findMany({
+    where: {
+      organizationId,
+      isActive: true,
+      OR: [{ id: categoryId }, { path: { startsWith: `${category.path}/` } }],
+    },
+    select: { id: true },
+  });
+  const categoryIds = descendants.map((entry) => entry.id);
+
+  const facets = await prisma.facetDefinition.findMany({
+    where: {
+      organizationId,
+      isActive: true,
+      OR: [{ categoryId: null, scope: "GLOBAL" }, { categoryId: { in: categoryIds } }],
+    },
+    select: { key: true, sortOrder: true },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  const seen = new Set<string>();
+  const keys: string[] = [];
+  for (const facet of facets) {
+    if (seen.has(facet.key)) continue;
+    seen.add(facet.key);
+    keys.push(facet.key);
+  }
+  return keys;
 }
 
 function toCategory(category: { id: string; path: string } | null | undefined): ProjectionCategory | null {
@@ -212,8 +282,14 @@ export async function buildProductSearchDocument(productId: string, organization
     title: product.title,
     brand: product.brand,
     description: product.description,
+    summary: product.summary,
+    sellingPoints: Array.isArray(product.sellingPoints)
+      ? product.sellingPoints.filter((entry): entry is string => typeof entry === "string")
+      : [],
     status: product.status,
     publishedAt,
+    startDate: product.startDate,
+    discontinueDate: product.discontinueDate,
     primaryCategory: toCategory(product.primaryCategory),
     secondaryCategories: product.secondaryCategories
       .map((entry) => toCategory(entry.category))
@@ -237,19 +313,4 @@ export async function listIndexableProductIds(organizationId: string): Promise<s
     orderBy: { createdAt: "asc" },
   });
   return products.map((product) => product.id);
-}
-
-export async function resolveFacetKeys(organizationId: string, categoryId?: string): Promise<string[]> {
-  const facets = await prisma.facetDefinition.findMany({
-    where: {
-      organizationId,
-      isActive: true,
-      OR: categoryId
-        ? [{ categoryId }, { categoryId: null, scope: "GLOBAL" }]
-        : [{ categoryId: null, scope: "GLOBAL" }],
-    },
-    select: { key: true },
-    orderBy: { sortOrder: "asc" },
-  });
-  return facets.map((facet) => facet.key);
 }

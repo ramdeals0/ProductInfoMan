@@ -262,4 +262,99 @@ describe("Import and Validation", () => {
     expect(report).toContain("row_number,field_name,error_code,error_message,raw_value");
     expect(report).toContain("REQUIRED_FIELD");
   });
+
+  it("uploads JSON and validates product rows", async () => {
+    const ts = Date.now();
+    const payload = Buffer.from(
+      JSON.stringify([
+        {
+          sku: `JSON-${ts}`,
+          product_type: "SIMPLE",
+          title: "JSON Import Product",
+          category_code: shirtsCategoryCode,
+          attributes: { color: "Blue", size: "M" },
+        },
+      ]),
+      "utf8",
+    );
+
+    const template = await createImportTemplate(organizationId, {
+      code: `json-tpl-${ts}`,
+      name: "JSON nested attributes",
+      sourceFormat: "JSON",
+      mappings: [
+        { sourceColumn: "sku", targetField: "sku", isRequired: true },
+        { sourceColumn: "product_type", targetField: "product_type", isRequired: true },
+        { sourceColumn: "title", targetField: "title", isRequired: true },
+        { sourceColumn: "category_code", targetField: "category_code" },
+        { sourceColumn: "attributes.color", targetField: "color" },
+        { sourceColumn: "attributes.size", targetField: "size" },
+      ],
+    });
+
+    const uploaded = await uploadImport(organizationId, {
+      fileName: `products-${ts}.json`,
+      fileBuffer: payload,
+      fileType: "JSON",
+      importType: "CREATE",
+      duplicatePolicy: "REJECT",
+      importTemplateId: template.id,
+    });
+
+    expect(uploaded.fileType).toBe("JSON");
+    const validated = await validateImport(uploaded.id, organizationId);
+    expect(validated.validRows).toBe(1);
+    expect(validated.status).toBe("VALIDATED");
+  });
+
+  it("fails validation for malformed JSON files", async () => {
+    const ts = Date.now();
+    const uploaded = await uploadImport(organizationId, {
+      fileName: `broken-${ts}.json`,
+      fileBuffer: Buffer.from("{not-json", "utf8"),
+      fileType: "JSON",
+      importType: "CREATE",
+    });
+
+    await expect(validateImport(uploaded.id, organizationId)).rejects.toThrow(/Malformed JSON/);
+    const job = await getImportJob(uploaded.id, organizationId);
+    expect(job.status).toBe("VALIDATION_FAILED");
+    expect(job.errorMessage).toContain("Malformed JSON");
+  });
+
+  it("uploads XML and validates product rows", async () => {
+    const ts = Date.now();
+    const xml = Buffer.from(
+      `<?xml version="1.0"?><products><product><sku>XML-${ts}</sku><product_type>SIMPLE</product_type><title>XML Product</title><category_code>${shirtsCategoryCode}</category_code><attributes><color>Red</color><size>L</size></attributes></product></products>`,
+      "utf8",
+    );
+
+    const template = await createImportTemplate(organizationId, {
+      code: `xml-tpl-${ts}`,
+      name: "XML nested attributes",
+      sourceFormat: "XML",
+      mappings: [
+        { sourceColumn: "sku", targetField: "sku", isRequired: true },
+        { sourceColumn: "product_type", targetField: "product_type", isRequired: true },
+        { sourceColumn: "title", targetField: "title", isRequired: true },
+        { sourceColumn: "category_code", targetField: "category_code" },
+        { sourceColumn: "attributes.color", targetField: "color" },
+        { sourceColumn: "attributes.size", targetField: "size" },
+      ],
+    });
+
+    const uploaded = await uploadImport(organizationId, {
+      fileName: `products-${ts}.xml`,
+      fileBuffer: xml,
+      fileType: "XML",
+      importType: "CREATE",
+      duplicatePolicy: "REJECT",
+      importTemplateId: template.id,
+    });
+
+    expect(uploaded.fileType).toBe("XML");
+    const validated = await validateImport(uploaded.id, organizationId);
+    expect(validated.validRows).toBe(1);
+    expect(validated.status).toBe("VALIDATED");
+  });
 });

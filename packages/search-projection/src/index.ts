@@ -1,4 +1,6 @@
 import type { ProductStatus, ProductType } from "./types.js";
+import { isStorefrontVisible } from "@productinfoman/domain";
+import { applyFacetRuleToValue } from "@productinfoman/facet-engine";
 
 export type IndexableProductStatus = Extract<ProductStatus, "APPROVED" | "PUBLISH_READY" | "PUBLISHED">;
 
@@ -12,6 +14,8 @@ export interface SearchDocument {
   title: string;
   brand: string | null;
   description: string | null;
+  summary: string | null;
+  selling_points: string[];
   category_ids: string[];
   category_paths: string[];
   variant_attributes: Record<string, unknown>;
@@ -20,6 +24,9 @@ export interface SearchDocument {
   facet_fields: Record<string, string | string[]>;
   status: ProductStatus;
   published_at: string | null;
+  start_date: string | null;
+  discontinue_date: string | null;
+  storefront_active: boolean;
   channel_availability: Record<string, boolean>;
   search_text: string;
 }
@@ -47,6 +54,8 @@ export interface ProjectionCategory {
 export interface ProjectionFacetDefinition {
   key: string;
   sourceAttributeKey: string;
+  ruleType?: "DIRECT" | "NORMALIZE" | "RANGE_BUCKET" | "COMPOSITE";
+  ruleConfig?: Record<string, unknown> | null;
 }
 
 export interface BuildSearchDocumentInput {
@@ -58,8 +67,12 @@ export interface BuildSearchDocumentInput {
   title: string;
   brand: string | null;
   description: string | null;
+  summary: string | null;
+  sellingPoints: string[];
   status: ProductStatus;
   publishedAt: Date | null;
+  startDate: Date | null;
+  discontinueDate: Date | null;
   primaryCategory: ProjectionCategory | null;
   secondaryCategories: ProjectionCategory[];
   attributes: ProjectionAttributeValue[];
@@ -73,6 +86,7 @@ export interface SearchQueryInput {
   categoryPath?: string;
   filters?: Record<string, string | string[]>;
   groupByParent?: boolean;
+  storefront?: boolean;
   page?: number;
   pageSize?: number;
   sortBy?: string;
@@ -185,8 +199,12 @@ function toSortableValue(value: unknown): string | number | null {
 }
 
 function buildSearchText(input: BuildSearchDocumentInput): string {
-  const parts = [input.sku, input.title, input.brand, input.description]
+  const parts = [input.sku, input.title, input.brand, input.description, input.summary]
     .filter((part): part is string => typeof part === "string" && part.length > 0);
+
+  for (const point of input.sellingPoints) {
+    if (point.trim()) parts.push(point);
+  }
 
   for (const attr of input.attributes) {
     const def = input.attributeDefinitions.find((d) => d.key === attr.key);
@@ -252,11 +270,19 @@ export function buildSearchDocument(input: BuildSearchDocumentInput): SearchDocu
   for (const facet of input.facetDefinitions) {
     const attr = attrByKey.get(facet.sourceAttributeKey);
     if (!attr) continue;
-    const normalized = normalizeFacetValue(attr.value);
-    if (normalized) {
-      facetFields[facet.key] = normalized;
+    const facetValue = facet.ruleType
+      ? applyFacetRuleToValue(facet.ruleType, facet.ruleConfig ?? null, attr.value)
+      : normalizeFacetValue(attr.value);
+    if (facetValue) {
+      facetFields[facet.key] = facetValue;
     }
   }
+
+  const storefrontActive = isStorefrontVisible({
+    status: input.status,
+    startDate: input.startDate,
+    discontinueDate: input.discontinueDate,
+  });
 
   return {
     product_id: input.productId,
@@ -268,6 +294,8 @@ export function buildSearchDocument(input: BuildSearchDocumentInput): SearchDocu
     title: input.title,
     brand: input.brand,
     description: input.description,
+    summary: input.summary,
+    selling_points: input.sellingPoints,
     category_ids: [...new Set(categoryIds)],
     category_paths: [...new Set(categoryPaths)],
     variant_attributes: variantAttributes,
@@ -276,6 +304,9 @@ export function buildSearchDocument(input: BuildSearchDocumentInput): SearchDocu
     facet_fields: facetFields,
     status: input.status,
     published_at: input.publishedAt?.toISOString() ?? null,
+    start_date: input.startDate?.toISOString() ?? null,
+    discontinue_date: input.discontinueDate?.toISOString() ?? null,
+    storefront_active: storefrontActive,
     channel_availability: buildChannelAvailability(input.status),
     search_text: buildSearchText(input),
   };
@@ -312,6 +343,15 @@ export function aggregateFacets(
 }
 
 export function matchesSearchQuery(doc: SearchDocument, query: SearchQueryInput): boolean {
+  if (query.storefront) {
+    const visible = isStorefrontVisible({
+      status: doc.status,
+      startDate: doc.start_date ? new Date(doc.start_date) : null,
+      discontinueDate: doc.discontinue_date ? new Date(doc.discontinue_date) : null,
+    });
+    if (!visible) return false;
+  }
+
   if (query.q) {
     const needle = query.q.toLowerCase();
     if (!doc.search_text.includes(needle) && !doc.title.toLowerCase().includes(needle)) {
@@ -319,15 +359,13 @@ export function matchesSearchQuery(doc: SearchDocument, query: SearchQueryInput)
     }
   }
 
-  if (query.categoryId && !doc.category_ids.includes(query.categoryId)) {
-    return false;
-  }
-
   if (query.categoryPath) {
     const hasPath = doc.category_paths.some(
       (path) => path === query.categoryPath || path.startsWith(`${query.categoryPath}/`),
     );
     if (!hasPath) return false;
+  } else if (query.categoryId && !doc.category_ids.includes(query.categoryId)) {
+    return false;
   }
 
   if (query.filters) {

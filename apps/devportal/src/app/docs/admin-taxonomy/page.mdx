@@ -14,8 +14,8 @@ Categories, attribute definitions, attribute groups, facet definitions, and face
 
 ## Categories
 
-<Endpoint method="GET" path="/api/v1/categories" description="Flat list of categories." adminLink="http://localhost:3000/admin/taxonomy/categories" />
-<Endpoint method="GET" path="/api/v1/categories/tree" description="Nested category tree." adminLink="http://localhost:3000/admin/taxonomy/categories" />
+<Endpoint method="GET" path="/api/v1/categories" description="Flat list of categories." adminPath="/admin/taxonomy/categories" />
+<Endpoint method="GET" path="/api/v1/categories/tree" description="Nested category tree." adminPath="/admin/taxonomy/categories" />
 <Endpoint method="POST" path="/api/v1/categories" description="Create a category." />
 <Endpoint method="PATCH" path="/api/v1/categories/:id" description="Update category metadata." />
 <Endpoint method="GET" path="/api/v1/categories/:id/attributes" description="Attributes bound to a category." />
@@ -24,14 +24,14 @@ Categories, attribute definitions, attribute groups, facet definitions, and face
 
 ## Attributes
 
-<Endpoint method="GET" path="/api/v1/attributes" description="List attribute definitions." adminLink="http://localhost:3000/admin/taxonomy/attributes" />
+<Endpoint method="GET" path="/api/v1/attributes" description="List attribute definitions." adminPath="/admin/taxonomy/attributes" />
 <Endpoint method="POST" path="/api/v1/attributes" description="Create an attribute definition." />
 <Endpoint method="GET" path="/api/v1/attribute-groups" description="List attribute groups (general, specs, fit)." />
 <Endpoint method="POST" path="/api/v1/attribute-groups" description="Create an attribute group." />
 
 ## Facets
 
-<Endpoint method="GET" path="/api/v1/facet-definitions" description="List facet definitions (global + category)." adminLink="http://localhost:3000/admin/taxonomy/facets" />
+<Endpoint method="GET" path="/api/v1/facet-definitions" description="List facet definitions (global + category)." adminPath="/admin/taxonomy/facets" />
 <Endpoint method="POST" path="/api/v1/facet-definitions" description="Create a facet definition." />
 <Endpoint method="GET" path="/api/v1/facet-rules" description="List facet rules (range buckets, normalize, etc.)." />
 <Endpoint method="POST" path="/api/v1/facet-rules" description="Create or update a facet rule." />

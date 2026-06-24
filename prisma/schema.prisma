@@ -147,8 +147,12 @@ model Product {
   status             ProductStatus @default(DRAFT)
   title              String
   description        String?
+  summary            String?
+  sellingPoints      Json      @default("[]")
   brand              String?
   primaryCategoryId  String?
+  startDate          DateTime?
+  discontinueDate    DateTime?
   deletedAt          DateTime?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
@@ -178,6 +182,8 @@ model Product {
   @@index([organizationId, primaryCategoryId])
   @@index([organizationId, updatedAt])
   @@index([organizationId, status, updatedAt])
+  @@index([organizationId, startDate])
+  @@index([organizationId, discontinueDate])
 }
 
 enum ProductType {
@@ -567,6 +573,12 @@ model FacetRule {
   ruleType              FacetRuleType @default(DIRECT)
   ruleConfig            Json?
   priority              Int           @default(0)
+  workflowStateCode     String        @default("approved") @map("workflow_state_code")
+  createdBy             String?       @map("created_by")
+  updatedBy             String?       @map("updated_by")
+  reviewedBy            String?       @map("reviewed_by")
+  reviewedAt            DateTime?     @map("reviewed_at")
+  notes                 String?       @db.Text
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
@@ -577,6 +589,7 @@ model FacetRule {
 
   @@index([organizationId, categoryId])
   @@index([facetDefinitionId])
+  @@index([workflowStateCode])
 }
 
 enum FacetRuleType {
@@ -658,6 +671,12 @@ enum ImportRowStatus {
   SKIPPED
 }
 
+enum ImportFileType {
+  CSV
+  XML
+  JSON
+}
+
 model ImportTemplate {
   id             String           @id @default(cuid())
   organizationId String
@@ -699,6 +718,7 @@ model ImportJob {
   importTemplateId String?
   fileName         String
   filePath         String
+  fileType         ImportFileType   @default(CSV)
   importType       ImportType       @default(CREATE)
   status           ImportJobStatus  @default(UPLOADED)
   duplicatePolicy  DuplicatePolicy  @default(REJECT)

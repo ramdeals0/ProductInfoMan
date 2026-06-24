@@ -30,6 +30,10 @@ export const ROLE_GROUPS = {
   WORKFLOW_APPROVE: ["admin", "product_approver"] as RbacRoleCode[],
   /** Taxonomy configuration */
   TAXONOMY_WRITE: ["admin"] as RbacRoleCode[],
+  /** Facet rule create/edit/submit */
+  FACET_RULE_WRITE: ["admin", "product_editor"] as RbacRoleCode[],
+  /** Facet rule approve/reject/deprecate */
+  FACET_RULE_APPROVE: ["admin", "product_approver"] as RbacRoleCode[],
   /** Imports */
   IMPORT_OPS: ["admin", "ops"] as RbacRoleCode[],
   /** Publishing & channels */

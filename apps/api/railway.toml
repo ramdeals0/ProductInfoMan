@@ -17,7 +17,7 @@ watchPatterns = [
 
 [deploy]
 # Migrations are being consolidated; db push syncs the full Prisma schema on deploy.
-preDeployCommand = "pnpm db:generate && pnpm exec prisma db push --skip-generate"
+preDeployCommand = "pnpm db:generate && pnpm db:push"
 startCommand = "pnpm --filter @productinfoman/api start:railway"
 healthcheckPath = "/health/ready"
 healthcheckTimeout = 180

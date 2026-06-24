@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import type { ImportJobEntity } from "@productinfoman/domain";
 import { PageHeader } from "@/components/layout/AdminShell";
+import { ImportUploadPanel } from "@/components/imports/ImportUploadPanel";
 import { DataTable } from "@/components/ui/DataTable";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/States";
 import { StatusChip } from "@/components/ui/StatusChip";
@@ -24,6 +25,10 @@ export default function ImportsPage() {
     () => [
       { header: "File", accessorKey: "fileName" },
       {
+        header: "Type",
+        accessorKey: "fileType",
+      },
+      {
         header: "Status",
         cell: ({ row }) => <StatusChip status={row.original.status} />,
       },
@@ -37,11 +42,15 @@ export default function ImportsPage() {
 
   return (
     <div>
-      <PageHeader title="Imports" description="Monitor CSV import jobs, validation, and processing." />
+      <PageHeader
+        title="Imports"
+        description="Upload and monitor CSV, JSON, and XML import jobs."
+      />
+      <ImportUploadPanel />
       {isLoading ? <LoadingState /> : null}
       {error ? <ErrorState message={(error as Error).message} /> : null}
       {!isLoading && !error && data?.items.length === 0 ? (
-        <EmptyState title="No import jobs" description="Upload imports via the API to see them here." />
+        <EmptyState title="No import jobs" description="Upload a CSV, JSON, or XML file to start an import." />
       ) : null}
       {data?.items.length ? (
         <DataTable

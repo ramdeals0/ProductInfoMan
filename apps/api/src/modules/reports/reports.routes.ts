@@ -72,4 +72,16 @@ export async function reportsRoutes(app: FastifyInstance): Promise<void> {
       return sendRouteError(reply, request, e);
     }
   });
+
+  app.get("/reports/facet-rules", async (request, reply) => {
+    try {
+      const query = ReportPeriodQuerySchema.parse(request.query ?? {});
+      const period = reportsService.resolveReportPeriod(query);
+      const report = await reportsService.computeFacetRuleReport(request.organizationId, period);
+      return reply.send(report);
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
 }

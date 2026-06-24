@@ -358,6 +358,7 @@ export async function seedAttributesAndFacets(
         data: {
           ruleConfig: seed.ruleConfig,
           attributeDefinitionId: sourceAttrId,
+          workflowStateCode: "approved",
         },
       });
       stats.facetRulesUpdated++;
@@ -369,6 +370,7 @@ export async function seedAttributesAndFacets(
           attributeDefinitionId: sourceAttrId,
           ruleType: mapFacetRuleType(seed.ruleType),
           ruleConfig: seed.ruleConfig,
+          workflowStateCode: "approved",
         },
       });
       stats.facetRulesCreated++;

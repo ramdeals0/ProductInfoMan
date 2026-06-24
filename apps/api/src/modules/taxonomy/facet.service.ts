@@ -1,20 +1,23 @@
 import type {
   CategoryFacetEntity,
   FacetDefinitionEntity,
-  FacetRuleEntity,
 } from "@productinfoman/domain";
 import type {
   CreateFacetDefinitionInput,
-  CreateFacetRuleInput,
   ListFacetDefinitionsQuery,
-  ListFacetRulesQuery,
+  UpdateFacetDefinitionInput,
 } from "@productinfoman/validation";
 import { resolveCategoryFacets } from "@productinfoman/facet-engine";
 import { prisma } from "@productinfoman/db";
 import { appError, writeAudit } from "@productinfoman/shared";
 import { createEvent } from "@productinfoman/contracts";
 import { emitEvent } from "../../lib/events.js";
-import type { Prisma } from "../../../../generated/prisma/client.js";
+
+export {
+  createFacetRule,
+  listFacetRules,
+  toFacetRuleDto,
+} from "./facet-workflow.service.js";
 
 async function assertUniqueFacetKey(
   organizationId: string,
@@ -58,38 +61,6 @@ function toFacetDefinitionDto(facet: {
     isActive: facet.isActive,
     createdAt: facet.createdAt.toISOString(),
     updatedAt: facet.updatedAt.toISOString(),
-  };
-}
-
-function toFacetRuleDto(rule: {
-  id: string;
-  organizationId: string;
-  categoryId: string | null;
-  attributeDefinitionId: string | null;
-  facetDefinitionId: string;
-  ruleType: FacetRuleEntity["ruleType"];
-  ruleConfig: Prisma.JsonValue;
-  priority: number;
-  createdAt: Date;
-  updatedAt: Date;
-  facetDefinition?: { key: string; label: string };
-}): FacetRuleEntity {
-  return {
-    id: rule.id,
-    organizationId: rule.organizationId,
-    categoryId: rule.categoryId,
-    attributeDefinitionId: rule.attributeDefinitionId,
-    facetDefinitionId: rule.facetDefinitionId,
-    facetKey: rule.facetDefinition?.key,
-    facetLabel: rule.facetDefinition?.label,
-    ruleType: rule.ruleType,
-    ruleConfig:
-      rule.ruleConfig && typeof rule.ruleConfig === "object" && !Array.isArray(rule.ruleConfig)
-        ? (rule.ruleConfig as Record<string, unknown>)
-        : null,
-    priority: rule.priority,
-    createdAt: rule.createdAt.toISOString(),
-    updatedAt: rule.updatedAt.toISOString(),
   };
 }
 
@@ -184,7 +155,7 @@ export async function listFacetDefinitions(
   const facets = await prisma.facetDefinition.findMany({
     where: {
       organizationId,
-      isActive: true,
+      ...(query.includeInactive ? {} : { isActive: true }),
       ...(query.categoryId
         ? {
             OR: [{ categoryId: query.categoryId }, { categoryId: null, scope: "GLOBAL" }],
@@ -198,58 +169,44 @@ export async function listFacetDefinitions(
   return facets.map(toFacetDefinitionDto);
 }
 
-export async function createFacetRule(
+export async function updateFacetDefinition(
+  id: string,
   organizationId: string,
-  input: CreateFacetRuleInput,
-): Promise<FacetRuleEntity> {
-  const facet = await prisma.facetDefinition.findFirst({
-    where: { id: input.facetDefinitionId, organizationId },
+  input: UpdateFacetDefinitionInput,
+): Promise<FacetDefinitionEntity> {
+  const existing = await prisma.facetDefinition.findFirst({
+    where: { id, organizationId },
   });
-  if (!facet) throw appError("Facet definition not found", 404);
+  if (!existing) throw appError("Facet definition not found", 404);
 
   if (input.categoryId) {
     const category = await prisma.category.findFirst({
       where: { id: input.categoryId, organizationId },
     });
     if (!category) throw appError("Category not found", 404);
-
-    if (facet.categoryId && facet.categoryId !== input.categoryId) {
-      throw appError("Facet definition is scoped to a different category", 400);
-    }
   }
 
-  const attributeId = input.attributeDefinitionId ?? facet.sourceAttributeId;
-  if (attributeId !== facet.sourceAttributeId) {
-    throw appError("Facet rule attribute must match the facet source attribute", 400);
-  }
-
-  const attribute = await prisma.attributeDefinition.findFirst({
-    where: { id: attributeId, organizationId },
-  });
-  if (!attribute) throw appError("Attribute not found", 400);
-
-  const rule = await prisma.facetRule.create({
+  const facet = await prisma.facetDefinition.update({
+    where: { id },
     data: {
-      organizationId,
-      categoryId: input.categoryId ?? facet.categoryId,
-      attributeDefinitionId: attributeId,
-      facetDefinitionId: facet.id,
-      ruleType: input.ruleType,
-      ruleConfig: input.ruleConfig ?? undefined,
-      priority: input.priority ?? 0,
+      ...(input.label !== undefined && { label: input.label }),
+      ...(input.sortOrder !== undefined && { sortOrder: input.sortOrder }),
+      ...(input.isDynamic !== undefined && { isDynamic: input.isDynamic }),
+      ...(input.isActive !== undefined && { isActive: input.isActive }),
+      ...(input.categoryId !== undefined && {
+        categoryId: input.categoryId,
+        scope: input.categoryId ? "CATEGORY" : "GLOBAL",
+      }),
     },
+    include: { sourceAttribute: { select: { key: true } } },
   });
 
   await writeAudit({
     organizationId,
-    entityType: "FacetRule",
-    entityId: rule.id,
-    action: "CREATE",
-    changes: {
-      facetDefinitionId: rule.facetDefinitionId,
-      categoryId: rule.categoryId,
-      ruleType: rule.ruleType,
-    },
+    entityType: "FacetDefinition",
+    entityId: id,
+    action: "UPDATE",
+    changes: input as Record<string, unknown>,
   });
 
   await emitEvent(
@@ -260,29 +217,7 @@ export async function createFacetRule(
     }),
   );
 
-  return toFacetRuleDto({
-    ...rule,
-    facetDefinition: { key: facet.key, label: facet.label },
-  });
-}
-
-export async function listFacetRules(
-  organizationId: string,
-  query: ListFacetRulesQuery = {},
-): Promise<FacetRuleEntity[]> {
-  const rules = await prisma.facetRule.findMany({
-    where: {
-      organizationId,
-      ...(query.categoryId ? { categoryId: query.categoryId } : {}),
-      ...(query.facetDefinitionId ? { facetDefinitionId: query.facetDefinitionId } : {}),
-    },
-    include: {
-      facetDefinition: { select: { key: true, label: true } },
-    },
-    orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
-  });
-
-  return rules.map(toFacetRuleDto);
+  return toFacetDefinitionDto(facet);
 }
 
 export async function getCategoryFacets(
@@ -309,6 +244,7 @@ export async function getCategoryFacets(
       values: { where: { isActive: true }, orderBy: { sortOrder: "asc" } },
       rules: {
         where: {
+          workflowStateCode: "approved",
           OR: [{ categoryId }, { categoryId: null }],
         },
         orderBy: { priority: "desc" },

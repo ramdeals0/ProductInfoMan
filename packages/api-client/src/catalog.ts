@@ -21,6 +21,7 @@ export type SearchProductsParams = {
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   groupByParent?: boolean;
+  storefront?: boolean;
 };
 
 function buildSearchQuery(params: SearchProductsParams): string {
@@ -33,6 +34,7 @@ function buildSearchQuery(params: SearchProductsParams): string {
   if (params.sortBy) searchParams.set("sortBy", params.sortBy);
   if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder);
   if (params.groupByParent != null) searchParams.set("groupByParent", String(params.groupByParent));
+  if (params.storefront != null) searchParams.set("storefront", String(params.storefront));
 
   if (params.filters) {
     for (const [key, value] of Object.entries(params.filters)) {
@@ -74,19 +76,19 @@ export class CatalogClient {
   }
 
   searchProducts(params: SearchProductsParams = {}) {
-    const query = buildSearchQuery(params);
+    const query = buildSearchQuery({ storefront: true, ...params });
     return this.request<SearchQueryResultEntity>(`/api/v1/search?${query}`);
   }
 
   searchCategoryProducts(categoryId: string, params: SearchProductsParams = {}) {
-    const query = buildSearchQuery(params);
+    const query = buildSearchQuery({ storefront: true, ...params });
     return this.request<SearchQueryResultEntity>(
       `/api/v1/search/categories/${categoryId}?${query}`,
     );
   }
 
   getSearchFacets(params: SearchProductsParams = {}) {
-    const query = buildSearchQuery(params);
+    const query = buildSearchQuery({ storefront: true, ...params });
     return this.request<SearchFacetResultEntity>(`/api/v1/search/facets?${query}`);
   }
 

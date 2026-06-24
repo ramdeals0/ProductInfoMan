@@ -126,4 +126,29 @@ describe("import-engine", () => {
     expect(csv).toContain("row_number,field_name,error_code,error_message,raw_value");
     expect(csv).toContain("3,sku,DUPLICATE_KEY,Duplicate SKU,P-1");
   });
+
+  it("normalizes dotted JSON/XML field paths via templates", () => {
+    const row = normalizeRow(
+      1,
+      {
+        sku: "J-1",
+        product_type: "SIMPLE",
+        title: "Nested",
+        "attributes.color": "Red",
+      },
+      [
+        { sourceColumn: "sku", targetField: "sku", isRequired: true },
+        { sourceColumn: "product_type", targetField: "product_type", isRequired: true },
+        { sourceColumn: "title", targetField: "title" },
+        { sourceColumn: "attributes.color", targetField: "color" },
+      ],
+      "IGNORE",
+    );
+
+    expect(row).toMatchObject({
+      sku: "J-1",
+      productType: "SIMPLE",
+      attributes: { color: "Red" },
+    });
+  });
 });

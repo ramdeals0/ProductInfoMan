@@ -11,6 +11,7 @@ import type {
   ExportArtifactEntity,
   ImportJobEntity,
   ImportJobErrorEntity,
+  ImportJobRowEntity,
   ImportReportEntity,
   OperationsReportEntity,
   OutboxEventEntity,
@@ -46,6 +47,46 @@ export class ApiError extends Error {
   }
 }
 
+type ZodIssueLike = { path?: Array<string | number>; message?: string };
+
+function formatApiErrorMessage(body: unknown): string | null {
+  if (!body) return null;
+  if (typeof body === "object" && body !== null && "error" in body) {
+    const error = (body as { error?: unknown }).error;
+    if (typeof error === "string") return humanizeValidationMessage(error);
+    if (Array.isArray(error)) return formatZodIssues(error as ZodIssueLike[]);
+  }
+  if (Array.isArray(body)) return formatZodIssues(body as ZodIssueLike[]);
+  return null;
+}
+
+function formatZodIssues(issues: ZodIssueLike[]): string {
+  return issues
+    .map((issue) => {
+      const field = issue.path?.length ? `${issue.path.join(".")}: ` : "";
+      const detail =
+        issue.message && issue.message !== "Invalid"
+          ? issue.message
+          : "value is invalid";
+      return `${field}${detail}`;
+    })
+    .join("; ");
+}
+
+function humanizeValidationMessage(message: string): string {
+  const trimmed = message.trim();
+  if (!trimmed.startsWith("[")) return message;
+  try {
+    const issues = JSON.parse(trimmed) as ZodIssueLike[];
+    if (Array.isArray(issues) && issues.length > 0) {
+      return formatZodIssues(issues);
+    }
+  } catch {
+    // keep original message
+  }
+  return message;
+}
+
 export class ApiClient {
   constructor(private readonly config: ApiClientConfig) {}
 
@@ -69,8 +110,8 @@ export class ApiClient {
     if (!response.ok) {
       let message = response.statusText;
       try {
-        const body = (await response.json()) as { error?: string };
-        if (body.error) message = body.error;
+        const body = (await response.json()) as unknown;
+        message = formatApiErrorMessage(body) ?? message;
       } catch {
         // ignore
       }
@@ -138,6 +179,20 @@ export class ApiClient {
     return this.request<{ items: CategoryEntity[] }>("/api/v1/categories");
   }
 
+  createCategory(body: Record<string, unknown>) {
+    return this.request<CategoryEntity>("/api/v1/categories", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateCategory(id: string, body: Record<string, unknown>) {
+    return this.request<CategoryEntity>(`/api/v1/categories/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  }
+
   listAttributes() {
     return this.request<{ items: Array<Record<string, unknown>> }>("/api/v1/attributes");
   }
@@ -146,14 +201,109 @@ export class ApiClient {
     return this.request<{ items: Array<Record<string, unknown>> }>("/api/v1/attribute-groups");
   }
 
-  listFacetDefinitions(categoryId?: string) {
-    const params = categoryId ? `?categoryId=${categoryId}` : "";
-    return this.request<{ items: Array<Record<string, unknown>> }>(`/api/v1/facet-definitions${params}`);
+  createAttributeGroup(body: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>("/api/v1/attribute-groups", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateAttributeGroup(id: string, body: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>(`/api/v1/attribute-groups/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  }
+
+  createAttribute(body: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>("/api/v1/attributes", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateAttribute(id: string, body: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>(`/api/v1/attributes/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  }
+
+  listFacetDefinitions(options: { categoryId?: string; includeInactive?: boolean } = {}) {
+    const params = new URLSearchParams();
+    if (options.categoryId) params.set("categoryId", options.categoryId);
+    if (options.includeInactive) params.set("includeInactive", "true");
+    const query = params.toString();
+    return this.request<{ items: Array<Record<string, unknown>> }>(
+      `/api/v1/facet-definitions${query ? `?${query}` : ""}`,
+    );
+  }
+
+  createFacetDefinition(body: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>("/api/v1/facet-definitions", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateFacetDefinition(id: string, body: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>(`/api/v1/facet-definitions/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
   }
 
   listFacetRules(query: Record<string, string> = {}) {
     const params = new URLSearchParams(query);
-    return this.request<{ items: Array<Record<string, unknown>> }>(`/api/v1/facet-rules?${params}`);
+    return this.request<{ items: Array<Record<string, unknown>> }>(`/api/v1/facets/rules?${params}`);
+  }
+
+  createFacetRule(body: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>("/api/v1/facets/rules", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateFacetRule(id: string, body: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>(`/api/v1/facets/rules/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  }
+
+  submitFacetRule(id: string, body: Record<string, unknown> = {}) {
+    return this.request<Record<string, unknown>>(`/api/v1/facets/rules/${id}/submit`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  approveFacetRule(id: string, body: Record<string, unknown> = {}) {
+    return this.request<Record<string, unknown>>(`/api/v1/facets/rules/${id}/approve`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  rejectFacetRule(id: string, body: Record<string, unknown> = {}) {
+    return this.request<Record<string, unknown>>(`/api/v1/facets/rules/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  deprecateFacetRule(id: string, body: Record<string, unknown> = {}) {
+    return this.request<Record<string, unknown>>(`/api/v1/facets/rules/${id}/deprecate`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  cloneFacetRule(id: string) {
+    return this.request<Record<string, unknown>>(`/api/v1/facets/rules/${id}/clone`, {
+      method: "POST",
+    });
   }
 
   // Imports
@@ -171,6 +321,23 @@ export class ApiClient {
 
   getImportErrors(id: string) {
     return this.request<{ items: ImportJobErrorEntity[] }>(`/api/v1/imports/${id}/errors`);
+  }
+
+  getImportRows(id: string, limit = 20) {
+    return this.request<{ items: ImportJobRowEntity[] }>(`/api/v1/imports/${id}/rows?limit=${limit}`);
+  }
+
+  uploadImport(formData: FormData) {
+    return this.request<ImportJobEntity>("/api/v1/imports/upload", {
+      method: "POST",
+      headers: {
+        "X-Organization-Slug": this.config.organizationSlug,
+        ...(this.config.accessToken ? { Authorization: `Bearer ${this.config.accessToken}` } : {}),
+        ...(this.config.userEmail ? { "X-User-Email": this.config.userEmail } : {}),
+        ...(this.config.actorRole ? { "X-Actor-Role": this.config.actorRole } : {}),
+      },
+      body: formData,
+    });
   }
 
   validateImport(id: string) {

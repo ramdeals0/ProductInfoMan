@@ -60,7 +60,9 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
-      const variants = await productService.listVariants(id, request.organizationId);
+      const variants = await productService.listVariants(id, request.organizationId, {
+        storefrontOnly: request.authUser?.isAnonymous === true,
+      });
       return reply.send({ items: variants });
     } catch (e) {
       return sendRouteError(reply, request, e);
@@ -87,7 +89,9 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
-      const product = await productService.getProduct(id, request.organizationId);
+      const product = await productService.getProduct(id, request.organizationId, {
+        storefrontOnly: request.authUser?.isAnonymous === true,
+      });
       return reply.send(product);
     } catch (e) {
       return sendRouteError(reply, request, e);

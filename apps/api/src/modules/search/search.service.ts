@@ -421,8 +421,9 @@ export async function searchProducts(
   organizationId: string,
   query: SearchQueryInput,
 ): Promise<SearchQueryResultEntity> {
+  const scopedQuery = await scopeCategoryQuery(organizationId, query);
   const facetKeys = await resolveFacetKeys(organizationId, query.categoryId);
-  const result = await (await getSearchStore()).search(organizationId, query, facetKeys);
+  const result = await (await getSearchStore()).search(organizationId, scopedQuery, facetKeys);
   return {
     total: result.total,
     page: result.page,
@@ -436,12 +437,36 @@ export async function getSearchFacets(
   organizationId: string,
   query: SearchQueryInput,
 ): Promise<SearchFacetResultEntity> {
+  const scopedQuery = await scopeCategoryQuery(organizationId, query);
   const facetKeys = await resolveFacetKeys(organizationId, query.categoryId);
-  const result = await (await getSearchStore()).facets(organizationId, query, facetKeys);
+  const result = await (await getSearchStore()).facets(organizationId, scopedQuery, facetKeys);
   return {
     total: result.total,
     facets: result.facets,
   };
+}
+
+async function withCategoryPathScope(
+  organizationId: string,
+  query: SearchQueryInput,
+): Promise<SearchQueryInput> {
+  if (!query.categoryId) return query;
+
+  const category = await prisma.category.findFirst({
+    where: { id: query.categoryId, organizationId },
+    select: { path: true },
+  });
+  if (!category) return query;
+
+  const { categoryId: _categoryId, ...rest } = query;
+  return { ...rest, categoryPath: query.categoryPath ?? category.path };
+}
+
+async function scopeCategoryQuery(
+  organizationId: string,
+  query: SearchQueryInput,
+): Promise<SearchQueryInput> {
+  return withCategoryPathScope(organizationId, query);
 }
 
 export async function getCategorySearchResults(
@@ -457,7 +482,6 @@ export async function getCategorySearchResults(
   return searchProducts(organizationId, {
     ...query,
     categoryId,
-    categoryPath: category.path,
   });
 }
 
@@ -529,6 +553,35 @@ export async function handleProductChange(
   }
 
   await removeProductFromIndex(productId, organizationId, sourceEvent);
+}
+
+/** Populate the in-memory search index after API restarts when catalog data exists. */
+export async function warmSearchIndexesIfEmpty(): Promise<void> {
+  if (process.env.SEARCH_WARMUP_ON_START === "false") return;
+  if (process.env.OPENSEARCH_URL) return;
+
+  const organizations = await prisma.organization.findMany({
+    select: { id: true },
+  });
+
+  for (const organization of organizations) {
+    const productIds = await listIndexableProductIds(organization.id);
+    if (productIds.length === 0) continue;
+
+    const store = await getSearchStore();
+    const existing = await store.search(organization.id, { page: 1, pageSize: 1 }, []);
+    if (existing.total > 0) continue;
+
+    const indexVersion = await getActiveIndexVersion(organization.id);
+    await store.ensureIndex(organization.id, indexVersion.indexName);
+
+    for (const productId of productIds) {
+      const document = await buildProductSearchDocument(productId, organization.id);
+      if (document) {
+        await store.indexDocument(organization.id, document);
+      }
+    }
+  }
 }
 
 export { processSearchJob };

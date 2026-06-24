@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -9,7 +10,7 @@ import { Pagination } from "@/components/catalog/Pagination";
 import { Breadcrumbs, PageTitle, StoreLayout } from "@/components/layout/StoreShell";
 import { ErrorMessage, LoadingGrid } from "@/components/ui/States";
 import { createStorefrontCatalog } from "@/lib/catalog";
-import { toSearchParams } from "@/lib/search-params";
+import { findCategoryNode, toSearchParams } from "@/lib/search-params";
 
 function CategoryResults() {
   const params = useParams<{ slug: string }>();
@@ -19,6 +20,11 @@ function CategoryResults() {
   const categoryQuery = useQuery({
     queryKey: ["category", params.slug],
     queryFn: () => catalog.getCategoryByCode(params.slug),
+  });
+
+  const treeQuery = useQuery({
+    queryKey: ["category-tree"],
+    queryFn: () => catalog.getCategoryTree(),
   });
 
   const searchInput = toSearchParams(searchParams, categoryQuery.data?.id);
@@ -52,6 +58,13 @@ function CategoryResults() {
   }
 
   const category = categoryQuery.data;
+  const treeNode = treeQuery.data
+    ? findCategoryNode(
+        treeQuery.data.items,
+        (node) => node.id === category.id || node.code === category.code,
+      )
+    : null;
+  const subcategories = treeNode?.children ?? [];
 
   return (
     <StoreLayout>
@@ -65,6 +78,25 @@ function CategoryResults() {
         title={category.name}
         description={`Browse products in ${category.path}`}
       />
+
+      {subcategories.length > 0 ? (
+        <section className="mb-8">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Subcategories
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {subcategories.map((subcategory) => (
+              <Link
+                key={subcategory.id}
+                href={`/category/${subcategory.code}`}
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:text-brand-700"
+              >
+                {subcategory.name}
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)]">
         <FacetSidebar facets={facetsQuery.data?.facets ?? []} />

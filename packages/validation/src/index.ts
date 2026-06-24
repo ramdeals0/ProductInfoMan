@@ -1,5 +1,32 @@
 import { z } from "zod";
 
+export const TaxonomyKeySchema = z
+  .string()
+  .min(1, "Key is required")
+  .max(64, "Key must be 64 characters or fewer")
+  .regex(/^[a-z0-9_]+$/, "Key must use lowercase letters, numbers, and underscores only (e.g. price_range)");
+
+export const CategorySlugSchema = z
+  .string()
+  .min(1, "Slug is required")
+  .max(64, "Slug must be 64 characters or fewer")
+  .regex(/^[a-z0-9-]+$/, "Slug must use lowercase letters, numbers, and hyphens only (e.g. mens-shirts)");
+
+export const CategoryCodeSchema = z
+  .string()
+  .min(1, "Code is required")
+  .max(64, "Code must be 64 characters or fewer")
+  .regex(/^[a-z0-9-]+$/, "Code must use lowercase letters, numbers, and hyphens only (e.g. mens-shirts)");
+
+export function formatZodError(error: z.ZodError): string {
+  return error.issues
+    .map((issue) => {
+      const field = issue.path.length > 0 ? `${issue.path.join(".")}: ` : "";
+      return `${field}${issue.message}`;
+    })
+    .join("; ");
+}
+
 export const ProductTypeSchema = z.enum(["SIMPLE", "PARENT", "VARIANT"]);
 export const ProductStatusSchema = z.enum([
   "DRAFT",
@@ -26,18 +53,26 @@ export const CreateProductSchema = z.object({
   sku: z.string().min(1).max(64),
   title: z.string().min(1).max(255),
   description: z.string().optional(),
+  summary: z.string().max(500).optional(),
+  sellingPoints: z.array(z.string().min(1).max(240)).max(10).optional(),
   brand: z.string().optional(),
   primaryCategoryId: z.string().cuid().optional(),
   parentId: z.string().cuid().optional(),
   secondaryCategoryIds: z.array(z.string().cuid()).optional(),
+  startDate: z.coerce.date().optional(),
+  discontinueDate: z.coerce.date().optional(),
 });
 
 export const UpdateProductSchema = z.object({
   title: z.string().min(1).max(255).optional(),
   description: z.string().optional(),
+  summary: z.string().max(500).nullable().optional(),
+  sellingPoints: z.array(z.string().min(1).max(240)).max(10).optional(),
   brand: z.string().optional(),
   primaryCategoryId: z.string().cuid().nullable().optional(),
   secondaryCategoryIds: z.array(z.string().cuid()).optional(),
+  startDate: z.coerce.date().nullable().optional(),
+  discontinueDate: z.coerce.date().nullable().optional(),
 });
 
 export const CreateVariantSchema = z.object({
@@ -62,13 +97,8 @@ export const ListProductsQuerySchema = z.object({
 
 export const CreateCategorySchema = z.object({
   name: z.string().min(1).max(128),
-  code: z
-    .string()
-    .min(1)
-    .max(64)
-    .regex(/^[a-z0-9-]+$/)
-    .optional(),
-  slug: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/),
+  code: CategoryCodeSchema.optional(),
+  slug: CategorySlugSchema,
   parentId: z.string().cuid().nullable().optional(),
   sortOrder: z.number().int().optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(),
@@ -76,7 +106,7 @@ export const CreateCategorySchema = z.object({
 
 export const UpdateCategorySchema = z.object({
   name: z.string().min(1).max(128).optional(),
-  slug: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/).optional(),
+  slug: CategorySlugSchema.optional(),
   sortOrder: z.number().int().optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(),
   isActive: z.boolean().optional(),
@@ -94,12 +124,29 @@ export const CreateAttributeGroupSchema = z.object({
   sortOrder: z.number().int().optional(),
 });
 
+export const UpdateAttributeGroupSchema = z.object({
+  name: z.string().min(1).max(128).optional(),
+  description: z.string().max(512).nullable().optional(),
+  sortOrder: z.number().int().optional(),
+});
+
 export const CreateAttributeSchema = z.object({
   attributeGroupId: z.string().cuid(),
-  key: z.string().min(1).max(64).regex(/^[a-z0-9_]+$/),
+  key: TaxonomyKeySchema,
   label: z.string().min(1).max(128),
   description: z.string().optional(),
   dataType: AttributeDataTypeSchema,
+  isGlobal: z.boolean().optional(),
+  isVariantAxis: z.boolean().optional(),
+  isRequired: z.boolean().optional(),
+  isFilterable: z.boolean().optional(),
+  isSearchable: z.boolean().optional(),
+  allowedValuesType: z.enum(["FREE_TEXT", "CONTROLLED_LIST", "NUMERIC_RANGE"]).optional(),
+});
+
+export const UpdateAttributeSchema = z.object({
+  label: z.string().min(1).max(128).optional(),
+  description: z.string().nullable().optional(),
   isGlobal: z.boolean().optional(),
   isVariantAxis: z.boolean().optional(),
   isRequired: z.boolean().optional(),
@@ -120,7 +167,7 @@ export const LinkCategoryAttributeGroupsSchema = z.object({
 });
 
 export const CreateFacetDefinitionSchema = z.object({
-  key: z.string().min(1).max(64).regex(/^[a-z0-9_]+$/),
+  key: TaxonomyKeySchema,
   label: z.string().min(1).max(128),
   sourceAttributeId: z.string().cuid(),
   categoryId: z.string().cuid().nullable().optional(),
@@ -129,9 +176,92 @@ export const CreateFacetDefinitionSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
+export const UpdateFacetDefinitionSchema = z.object({
+  label: z.string().min(1).max(128).optional(),
+  sortOrder: z.number().int().optional(),
+  isDynamic: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+  categoryId: z.string().cuid().nullable().optional(),
+});
+
 export const ListFacetDefinitionsQuerySchema = z.object({
   categoryId: z.string().cuid().optional(),
+  includeInactive: z.coerce.boolean().optional(),
 });
+
+export const FacetRuleWorkflowStateSchema = z.enum([
+  "draft",
+  "in_review",
+  "approved",
+  "deprecated",
+]);
+
+const FacetRangeBucketSchema = z.object({
+  value: z.string().optional(),
+  code: z.string().optional(),
+  label: z.string(),
+  min: z.number().nullable(),
+  max: z.number().nullable(),
+});
+
+const FacetRuleConfigSchemas = {
+  DIRECT: z.record(z.unknown()).optional(),
+  NORMALIZE: z
+    .object({
+      trim: z.boolean().optional(),
+      case: z.enum(["lower", "upper", "title"]).optional(),
+      aliases: z.record(z.string()).optional(),
+    })
+    .passthrough()
+    .optional(),
+  RANGE_BUCKET: z.object({
+    buckets: z.array(FacetRangeBucketSchema).min(1),
+  }),
+  COMPOSITE: z
+    .object({
+      sources: z.array(z.string()).min(1),
+      separator: z.string().optional(),
+    })
+    .passthrough()
+    .optional(),
+} as const;
+
+export function validateFacetRuleConfig(
+  ruleType: z.infer<typeof CreateFacetRuleSchema>["ruleType"],
+  ruleConfig: Record<string, unknown> | null | undefined,
+): void {
+  if (ruleType === "DIRECT" && (ruleConfig == null || Object.keys(ruleConfig).length === 0)) {
+    return;
+  }
+  const schema = FacetRuleConfigSchemas[ruleType];
+  const parsed = schema.safeParse(ruleConfig ?? {});
+  if (!parsed.success) {
+    throw new z.ZodError(parsed.error.issues);
+  }
+  if (ruleType === "RANGE_BUCKET" && ruleConfig?.buckets) {
+    validateRangeBuckets(ruleConfig.buckets as Array<{ min: number | null; max: number | null }>);
+  }
+}
+
+function validateRangeBuckets(
+  buckets: Array<{ min: number | null; max: number | null; label?: string }>,
+): void {
+  const sorted = [...buckets].sort((a, b) => (a.min ?? -Infinity) - (b.min ?? -Infinity));
+  for (let i = 0; i < sorted.length; i++) {
+    const bucket = sorted[i]!;
+    if (bucket.min != null && bucket.max != null && bucket.min >= bucket.max) {
+      throw new Error(`Range bucket min must be less than max (index ${i})`);
+    }
+    if (i > 0) {
+      const prev = sorted[i - 1]!;
+      const prevMax = prev.max ?? Infinity;
+      const currMin = bucket.min ?? -Infinity;
+      if (currMin < prevMax) {
+        throw new Error(`Range buckets must not overlap (index ${i})`);
+      }
+    }
+  }
+}
 
 export const CreateFacetRuleSchema = z.object({
   facetDefinitionId: z.string().cuid(),
@@ -140,11 +270,25 @@ export const CreateFacetRuleSchema = z.object({
   ruleType: z.enum(["DIRECT", "NORMALIZE", "RANGE_BUCKET", "COMPOSITE"]).default("DIRECT"),
   ruleConfig: z.record(z.unknown()).nullable().optional(),
   priority: z.number().int().optional(),
+  notes: z.string().max(2000).nullable().optional(),
+});
+
+export const UpdateFacetRuleSchema = z.object({
+  ruleType: z.enum(["DIRECT", "NORMALIZE", "RANGE_BUCKET", "COMPOSITE"]).optional(),
+  ruleConfig: z.record(z.unknown()).nullable().optional(),
+  priority: z.number().int().optional(),
+  categoryId: z.string().cuid().nullable().optional(),
+  notes: z.string().max(2000).nullable().optional(),
 });
 
 export const ListFacetRulesQuerySchema = z.object({
   categoryId: z.string().cuid().optional(),
   facetDefinitionId: z.string().cuid().optional(),
+  state: FacetRuleWorkflowStateSchema.optional(),
+});
+
+export const FacetRuleWorkflowNotesSchema = z.object({
+  notes: z.string().max(2000).optional(),
 });
 
 export const UploadImportSchema = z.object({
@@ -153,6 +297,7 @@ export const UploadImportSchema = z.object({
   duplicatePolicy: z.enum(["REJECT", "UPDATE", "SKIP"]).optional(),
   blankCellPolicy: z.enum(["IGNORE", "CLEAR"]).optional(),
   sourceSystem: z.string().min(1).max(64).optional(),
+  fileType: z.enum(["CSV", "XML", "JSON"]).optional(),
 });
 
 export const ListImportsQuerySchema = z.object({
@@ -171,6 +316,10 @@ export const ListImportsQuerySchema = z.object({
     .optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export const ListImportRowsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
 export const ImportTemplateMappingSchema = z.object({
@@ -247,11 +396,63 @@ export const SearchQuerySchema = z.object({
   categoryPath: z.string().optional(),
   filters: z.record(z.union([z.string(), z.array(z.string())])).optional(),
   groupByParent: z.coerce.boolean().optional(),
+  storefront: z.coerce.boolean().optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   sortBy: z.string().optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
 });
+
+const BRACKET_PARAM_PATTERN = /^([^[]+)\[(.+)\]$/;
+
+/** Parse flat query keys like filters[brand]=Acme into { brand: "Acme" }. */
+export function parseBracketNotationParams(
+  query: Record<string, unknown>,
+  groupKey: string,
+): Record<string, string | string[]> | undefined {
+  const collected = new Map<string, string[]>();
+
+  for (const [rawKey, rawValue] of Object.entries(query)) {
+    const match = rawKey.match(BRACKET_PARAM_PATTERN);
+    if (!match || match[1] !== groupKey) continue;
+
+    const key = match[2]!;
+    const entries = Array.isArray(rawValue) ? rawValue : [rawValue];
+    const bucket = collected.get(key) ?? [];
+    for (const entry of entries) {
+      if (entry != null && entry !== "") bucket.push(String(entry));
+    }
+    collected.set(key, bucket);
+  }
+
+  if (collected.size === 0) return undefined;
+
+  const normalized: Record<string, string | string[]> = {};
+  for (const [key, values] of collected.entries()) {
+    normalized[key] = values.length === 1 ? values[0]! : values;
+  }
+  return normalized;
+}
+
+export function parseSearchQuery(raw: Record<string, unknown>): z.infer<typeof SearchQuerySchema> {
+  const nestedFilters =
+    raw.filters && typeof raw.filters === "object" && !Array.isArray(raw.filters)
+      ? (raw.filters as Record<string, string | string[]>)
+      : undefined;
+
+  const cleaned: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (key === "filters") continue;
+    const match = key.match(BRACKET_PARAM_PATTERN);
+    if (match?.[1] === "filters") continue;
+    cleaned[key] = value;
+  }
+
+  return SearchQuerySchema.parse({
+    ...cleaned,
+    filters: nestedFilters ?? parseBracketNotationParams(raw, "filters"),
+  });
+}
 
 export const CreateChannelSchema = z.object({
   code: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/),
@@ -400,15 +601,21 @@ export type ListProductsQuery = z.infer<typeof ListProductsQuerySchema>;
 export type CreateCategoryInput = z.infer<typeof CreateCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof UpdateCategorySchema>;
 export type CreateAttributeGroupInput = z.infer<typeof CreateAttributeGroupSchema>;
+export type UpdateAttributeGroupInput = z.infer<typeof UpdateAttributeGroupSchema>;
 export type CreateAttributeInput = z.infer<typeof CreateAttributeSchema>;
+export type UpdateAttributeInput = z.infer<typeof UpdateAttributeSchema>;
 export type LinkCategoryAttributesInput = z.infer<typeof LinkCategoryAttributesSchema>;
 export type LinkCategoryAttributeGroupsInput = z.infer<typeof LinkCategoryAttributeGroupsSchema>;
 export type CreateFacetDefinitionInput = z.infer<typeof CreateFacetDefinitionSchema>;
+export type UpdateFacetDefinitionInput = z.infer<typeof UpdateFacetDefinitionSchema>;
 export type ListFacetDefinitionsQuery = z.infer<typeof ListFacetDefinitionsQuerySchema>;
 export type CreateFacetRuleInput = z.infer<typeof CreateFacetRuleSchema>;
+export type UpdateFacetRuleInput = z.infer<typeof UpdateFacetRuleSchema>;
 export type ListFacetRulesQuery = z.infer<typeof ListFacetRulesQuerySchema>;
+export type FacetRuleWorkflowNotesInput = z.infer<typeof FacetRuleWorkflowNotesSchema>;
 export type UploadImportInput = z.infer<typeof UploadImportSchema>;
 export type ListImportsQuery = z.infer<typeof ListImportsQuerySchema>;
+export type ListImportRowsQuery = z.infer<typeof ListImportRowsQuerySchema>;
 export type CreateImportTemplateInput = z.infer<typeof CreateImportTemplateSchema>;
 export type CreateWorkflowDefinitionInput = z.infer<typeof CreateWorkflowDefinitionSchema>;
 export type WorkflowDecisionInput = z.infer<typeof WorkflowDecisionSchema>;

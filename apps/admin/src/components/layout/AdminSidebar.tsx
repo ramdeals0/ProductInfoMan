@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useSession } from "@/lib/session";
 import {
+  canManageFacetRules,
   canManageMdm,
   canManageTaxonomy,
   canManageUsers,
@@ -18,7 +19,7 @@ const NAV = [
   {
     href: "/admin/taxonomy",
     label: "Taxonomy",
-    visible: canManageTaxonomy,
+    visible: (roles: string[]) => canManageTaxonomy(roles) || canManageFacetRules(roles),
     children: [
       { href: "/admin/taxonomy/categories", label: "Categories" },
       { href: "/admin/taxonomy/attributes", label: "Attributes" },
@@ -46,8 +47,23 @@ const NAV = [
 export function AdminSidebar() {
   const pathname = usePathname();
   const { user } = useSession();
-  const roles = user?.roles ?? [];
 
+  if (!user) {
+    return (
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-slate-200 bg-white lg:block">
+        <div className="flex h-16 items-center border-b border-slate-200 px-6">
+          <span className="text-lg font-semibold text-brand-700">ProductInfoMan</span>
+        </div>
+        <nav className="space-y-1 p-4">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="h-9 animate-pulse rounded-lg bg-slate-100" />
+          ))}
+        </nav>
+      </aside>
+    );
+  }
+
+  const roles = user.roles;
   const items = NAV.filter((item) => item.visible(roles));
 
   return (

@@ -17,6 +17,10 @@ export default function ProductDetailPage() {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [brand, setBrand] = useState("");
+  const [summary, setSummary] = useState("");
+  const [sellingPointsText, setSellingPointsText] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [discontinueDate, setDiscontinueDate] = useState("");
   const [rejectReason, setRejectReason] = useState("");
 
   const roles = user?.roles ?? [];
@@ -30,6 +34,10 @@ export default function ProductDetailPage() {
       const product = await api.getProduct(params.id);
       setTitle(product.title);
       setBrand(product.brand ?? "");
+      setSummary(product.summary ?? "");
+      setSellingPointsText((product.sellingPoints ?? []).join("\n"));
+      setStartDate(product.startDate ? product.startDate.slice(0, 10) : "");
+      setDiscontinueDate(product.discontinueDate ? product.discontinueDate.slice(0, 10) : "");
       return product;
     },
   });
@@ -46,7 +54,21 @@ export default function ProductDetailPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: () => api.updateProduct(params.id, { title, brand }),
+    mutationFn: () =>
+      api.updateProduct(params.id, {
+        title,
+        brand,
+        summary: summary || null,
+        sellingPoints: sellingPointsText
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .slice(0, 10),
+        startDate: startDate ? new Date(`${startDate}T00:00:00.000Z`).toISOString() : null,
+        discontinueDate: discontinueDate
+          ? new Date(`${discontinueDate}T00:00:00.000Z`).toISOString()
+          : null,
+      }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["product", params.id] }),
   });
 
@@ -92,6 +114,46 @@ export default function ProductDetailPage() {
           <div>
             <label className="label">Brand</label>
             <input className="input" value={brand} onChange={(e) => setBrand(e.target.value)} disabled={!canEdit} />
+          </div>
+          <div>
+            <label className="label">Summary (~20 words)</label>
+            <textarea
+              className="input min-h-20"
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              disabled={!canEdit}
+            />
+          </div>
+          <div>
+            <label className="label">Selling points (one per line, up to 10)</label>
+            <textarea
+              className="input min-h-48 font-mono text-sm"
+              value={sellingPointsText}
+              onChange={(e) => setSellingPointsText(e.target.value)}
+              disabled={!canEdit}
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="label">Start date (storefront activation)</label>
+              <input
+                type="date"
+                className="input"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                disabled={!canEdit}
+              />
+            </div>
+            <div>
+              <label className="label">Discontinue date (storefront deactivation)</label>
+              <input
+                type="date"
+                className="input"
+                value={discontinueDate}
+                onChange={(e) => setDiscontinueDate(e.target.value)}
+                disabled={!canEdit}
+              />
+            </div>
           </div>
           {canEdit ? (
           <button

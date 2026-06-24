@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { createApiClient, type ApiClient } from "@productinfoman/api-client";
 import type { AuthSession } from "./auth";
 
@@ -17,6 +18,7 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const pathname = usePathname();
 
   const refresh = useCallback(async () => {
     const response = await fetch("/api/auth/me", { cache: "no-store" });
@@ -40,11 +42,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (loading || user) return;
-    if (typeof window === "undefined") return;
-    if (window.location.pathname.startsWith("/admin")) {
-      window.location.href = "/login";
-    }
-  }, [loading, user]);
+    if (!pathname.startsWith("/admin")) return;
+    window.location.href = "/login";
+  }, [loading, user, pathname]);
 
   const api = useMemo(
     () =>

@@ -21,6 +21,15 @@ export type AllowedValuesType = "FREE_TEXT" | "CONTROLLED_LIST" | "NUMERIC_RANGE
 export type CategoryStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED";
 export type FacetScope = "GLOBAL" | "CATEGORY";
 export type FacetRuleType = "DIRECT" | "NORMALIZE" | "RANGE_BUCKET" | "COMPOSITE";
+
+export type FacetRuleWorkflowState = "draft" | "in_review" | "approved" | "deprecated";
+
+export const FACET_RULE_WORKFLOW_STATES: readonly FacetRuleWorkflowState[] = [
+  "draft",
+  "in_review",
+  "approved",
+  "deprecated",
+] as const;
 export type ProductRelationshipType =
   | "VARIANT_OF"
   | "BUNDLE_COMPONENT"
@@ -44,8 +53,12 @@ export interface ProductEntity {
   status: ProductStatus;
   title: string;
   description: string | null;
+  summary: string | null;
+  sellingPoints: string[];
   brand: string | null;
   primaryCategoryId: string | null;
+  startDate: string | null;
+  discontinueDate: string | null;
   attributes: ResolvedAttribute[];
   createdAt: string;
   updatedAt: string;
@@ -131,6 +144,12 @@ export interface FacetRuleEntity {
   ruleType: FacetRuleType;
   ruleConfig: Record<string, unknown> | null;
   priority: number;
+  workflowStateCode: FacetRuleWorkflowState;
+  createdBy: string | null;
+  updatedBy: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  notes: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -160,6 +179,7 @@ export type ImportJobStatus =
   | "FAILED"
   | "CANCELLED";
 export type ImportType = "CREATE" | "UPDATE" | "UPSERT";
+export type ImportFileType = "CSV" | "XML" | "JSON";
 export type ImportEntityType = "PRODUCT" | "VARIANT" | "CATEGORY";
 export type DuplicatePolicy = "REJECT" | "UPDATE" | "SKIP";
 export type BlankCellPolicy = "IGNORE" | "CLEAR";
@@ -193,6 +213,7 @@ export interface ImportJobEntity {
   importTemplateId: string | null;
   fileName: string;
   filePath: string;
+  fileType: ImportFileType;
   importType: ImportType;
   status: ImportJobStatus;
   duplicatePolicy: DuplicatePolicy;
@@ -216,6 +237,16 @@ export interface ImportJobErrorEntity {
   errorCode: string;
   errorMessage: string;
   rawValue: string | null;
+}
+
+export interface ImportJobRowEntity {
+  id: string;
+  importJobId: string;
+  rowNumber: number;
+  rawData: Record<string, unknown>;
+  normalizedData: Record<string, unknown> | null;
+  status: "PENDING" | "VALID" | "INVALID" | "COMMITTED" | "SKIPPED";
+  entityId: string | null;
 }
 
 export interface ImportRunSummaryEntity {
@@ -795,3 +826,5 @@ export interface SurvivorshipRuleEntity {
 export interface ProductSourceRecordDetailEntity extends ProductSourceRecordEntity {
   matchCandidates: ProductMatchCandidateEntity[];
 }
+
+export { isStorefrontVisible, type StorefrontAvailabilityInput } from "./storefront.js";

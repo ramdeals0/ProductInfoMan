@@ -14,7 +14,7 @@ Syndicate approved products to sales channels with field mappings and export art
 
 ## Channels
 
-<Endpoint method="GET" path="/api/v1/channels" description="List syndication channels." adminLink="http://localhost:3000/admin/publishing" />
+<Endpoint method="GET" path="/api/v1/channels" description="List syndication channels." adminPath="/admin/publishing" />
 <Endpoint method="POST" path="/api/v1/channels" description="Create a channel (e.g. Amazon, Google Shopping)." />
 <Endpoint method="GET" path="/api/v1/channels/:id/mappings" description="Active field mapping version." />
 <Endpoint method="POST" path="/api/v1/channels/:id/mappings" description="Create a new mapping version." />
@@ -24,7 +24,7 @@ Syndicate approved products to sales channels with field mappings and export art
 
 <Endpoint method="POST" path="/api/v1/publish/dry-run" description="Validate mapping without exporting." />
 <Endpoint method="POST" path="/api/v1/publish/run" description="Start a publish/export job." />
-<Endpoint method="GET" path="/api/v1/publish/jobs" description="List publish jobs." adminLink="http://localhost:3000/admin/publishing" />
+<Endpoint method="GET" path="/api/v1/publish/jobs" description="List publish jobs." adminPath="/admin/publishing" />
 <Endpoint method="GET" path="/api/v1/publish/jobs/:id" description="Job status and item counts." />
 <Endpoint method="GET" path="/api/v1/publish/jobs/:id/artifact" description="Download export file (CSV/JSON)." />
 <Endpoint method="POST" path="/api/v1/publish/jobs/:id/retry" description="Retry failed items." />

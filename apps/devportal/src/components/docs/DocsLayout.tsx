@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { docsNav } from "@/config/docs-nav";
+import { apiRootUrl } from "@/config/docs-urls";
 import { siteConfig } from "@/config/site";
 
 function NavLink({ href, title }: { href: string; title: string }) {
@@ -87,7 +88,7 @@ export function DocsTopbar() {
             Storefront
           </a>
           <a
-            href={`${siteConfig.apiBaseUrl.replace("/api/v1", "")}/health`}
+            href={`${apiRootUrl()}/health`}
             className="rounded-lg bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700"
             target="_blank"
             rel="noreferrer"

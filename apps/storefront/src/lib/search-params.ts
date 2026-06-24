@@ -13,6 +13,18 @@ export function flattenCategories(nodes: CategoryTreeNode[]): CategoryTreeNode[]
   return result;
 }
 
+export function findCategoryNode(
+  nodes: CategoryTreeNode[],
+  predicate: (node: CategoryTreeNode) => boolean,
+): CategoryTreeNode | null {
+  for (const node of nodes) {
+    if (predicate(node)) return node;
+    const match = findCategoryNode(node.children, predicate);
+    if (match) return match;
+  }
+  return null;
+}
+
 export function parseFacetFilters(searchParams: URLSearchParams): Record<string, string | string[]> {
   const filters: Record<string, string | string[]> = {};
   for (const [key, value] of searchParams.entries()) {

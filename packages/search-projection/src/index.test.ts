@@ -16,8 +16,12 @@ const baseInput: BuildSearchDocumentInput = {
   title: "Blue Widget",
   brand: "Acme",
   description: "A useful widget",
-  status: "APPROVED",
+  summary: "Blue Widget delivers dependable everyday value for shoppers seeking quality and smart pricing.",
+  sellingPoints: ["Built for dependable everyday use with quality materials and consistent performance."],
+  status: "PUBLISHED",
   publishedAt: null,
+  startDate: new Date("2020-01-01"),
+  discontinueDate: new Date("2030-01-01"),
   primaryCategory: { id: "cat-shirts", path: "/apparel/mens/shirts" },
   secondaryCategories: [],
   attributes: [
@@ -73,7 +77,41 @@ describe("buildSearchDocument", () => {
     expect(doc!.facet_fields).toEqual({ color: "Blue", size: "M" });
     expect(doc!.variant_attributes).toEqual({ color: "Blue", size: "M" });
     expect(doc!.channel_availability.b2b).toBe(true);
-    expect(doc!.channel_availability.web).toBe(false);
+    expect(doc!.channel_availability.web).toBe(true);
+    expect(doc!.storefront_active).toBe(true);
+  });
+
+  it("applies approved RANGE_BUCKET facet rules when projecting facet fields", () => {
+    const doc = buildSearchDocument({
+      ...baseInput,
+      attributes: [
+        { key: "price", attributeDefinitionId: "attr-price", value: 49.99 },
+      ],
+      attributeDefinitions: [
+        {
+          id: "attr-price",
+          key: "price",
+          dataType: "NUMBER",
+          isVariantAxis: false,
+          isFilterable: true,
+          isSearchable: false,
+        },
+      ],
+      facetDefinitions: [
+        {
+          key: "price",
+          sourceAttributeKey: "price",
+          ruleType: "RANGE_BUCKET",
+          ruleConfig: {
+            buckets: [
+              { code: "under_25", label: "Under $25", min: null, max: 25 },
+              { code: "25_to_50", label: "$25 to $50", min: 25, max: 50 },
+            ],
+          },
+        },
+      ],
+    });
+    expect(doc!.facet_fields.price).toBe("25_to_50");
   });
 
   it("uses parent id as group key for variants", () => {
@@ -132,5 +170,29 @@ describe("matchesSearchQuery", () => {
     ).toBe(true);
     expect(matchesSearchQuery(doc, { categoryId: "missing" })).toBe(false);
     expect(matchesSearchQuery(doc, { filters: { color: "Red" } })).toBe(false);
+  });
+
+  it("matches parent category paths for products on leaf categories", () => {
+    const doc = buildSearchDocument({
+      ...baseInput,
+      primaryCategory: { id: "cat-oxford", path: "/apparel/mens/shirts/casual-shirts/oxford-shirts" },
+    })!;
+
+    expect(
+      matchesSearchQuery(doc, {
+        categoryPath: "/apparel/mens/shirts",
+        storefront: true,
+      }),
+    ).toBe(true);
+    expect(matchesSearchQuery(doc, { categoryPath: "/apparel/mens/pants" })).toBe(false);
+  });
+
+  it("evaluates storefront visibility at query time from merchandising dates", () => {
+    const doc = buildSearchDocument({
+      ...baseInput,
+      startDate: new Date("2099-01-01"),
+    })!;
+    expect(doc.storefront_active).toBe(false);
+    expect(matchesSearchQuery(doc, { storefront: true })).toBe(false);
   });
 });

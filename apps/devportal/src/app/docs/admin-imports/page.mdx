@@ -6,7 +6,7 @@ import { CodeBlock } from "@/components/docs/mdx";
 
 # Import API
 
-Bulk ingest products from CSV with validation, error reporting, and commit.
+Bulk ingest products from **CSV**, **JSON**, or **XML** with validation, error reporting, and commit.
 
 <Callout variant="tip">
   Admin UI: `/admin/imports` and job detail `/admin/imports/[id]`
@@ -14,29 +14,99 @@ Bulk ingest products from CSV with validation, error reporting, and commit.
 
 ## Endpoints
 
-<Endpoint method="POST" path="/api/v1/imports/upload" description="Upload a CSV file and create an import job." adminLink="http://localhost:3000/admin/imports" />
+<Endpoint method="POST" path="/api/v1/imports/upload" description="Upload a CSV, JSON, or XML file and create an import job." adminPath="/admin/imports" />
 <Endpoint method="POST" path="/api/v1/imports/:id/validate" description="Parse and validate rows against templates and rules." />
 <Endpoint method="POST" path="/api/v1/imports/:id/start" description="Commit valid rows to the catalog." />
-<Endpoint method="GET" path="/api/v1/imports" description="List import jobs." adminLink="http://localhost:3000/admin/imports" />
-<Endpoint method="GET" path="/api/v1/imports/:id" description="Get job status and counters." />
+<Endpoint method="GET" path="/api/v1/imports" description="List import jobs." adminPath="/admin/imports" />
+<Endpoint method="GET" path="/api/v1/imports/:id" description="Get job status, counters, and file type." />
+<Endpoint method="GET" path="/api/v1/imports/:id/rows" description="Preview parsed rows (flattened field paths for JSON/XML)." />
 <Endpoint method="GET" path="/api/v1/imports/:id/errors" description="Row-level validation errors." />
 <Endpoint method="GET" path="/api/v1/imports/:id/report" description="Summary report after completion." />
+
+## File types
+
+| Type | `file_type` | Notes |
+|------|-------------|-------|
+| CSV | `csv` | Header row + comma-separated values (default) |
+| JSON | `json` | Root array of product objects |
+| XML | `xml` | Root element with repeated `<product>` children |
+
+`file_type` is inferred from the file extension when omitted. Override with a query param or multipart field.
 
 ## CSV example
 
 ```csv
-sku,title,brand,category_code,price,tool_type,power_source
-FF-DRILL-01,20V Cordless Drill,DEWALT,tools,129.99,Drill,Cordless
-FF-SAW-01,7.25in Circular Saw,Ryobi,tools,89.00,Saw,Corded
+sku,product_type,title,parent_sku,category_code,color
+FF-DRILL-01,SIMPLE,20V Cordless Drill,,tools,Black
+FF-SAW-01,SIMPLE,7.25in Circular Saw,,tools,Red
 ```
+
+## JSON import
+
+Expected shape: a JSON array at the root, or an object with a `products` / `items` array. Nested objects are flattened with dot notation for template mapping (e.g. `attributes.color`).
+
+```json
+[
+  {
+    "sku": "JSON-001",
+    "product_type": "SIMPLE",
+    "title": "JSON Import Shirt",
+    "category_code": "oxford",
+    "attributes": {
+      "color": "Blue",
+      "size": "M"
+    }
+  }
+]
+```
+
+<CodeBlock language="bash" title="Upload JSON">
+{`curl -X POST "https://api.yourpim.com/api/v1/imports/upload?file_type=json" \\
+  -H "X-Organization-Slug: demo" \\
+  -F "file=@products.json" \\
+  -F "importType=UPSERT"`}
+</CodeBlock>
+
+Map flattened paths in your import template, for example:
+
+- `sku` → `sku`
+- `product_type` → `product_type`
+- `attributes.color` → `color`
+
+## XML import
+
+Expected shape: a root element (default: first root tag) containing repeated `<product>` elements. Child elements flatten to dotted paths.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<products>
+  <product>
+    <sku>XML-001</sku>
+    <product_type>SIMPLE</product_type>
+    <title>XML Import Shirt</title>
+    <category_code>oxford</category_code>
+    <attributes>
+      <color>Navy</color>
+      <size>S</size>
+    </attributes>
+  </product>
+</products>
+```
+
+<CodeBlock language="bash" title="Upload XML">
+{`curl -X POST "https://api.yourpim.com/api/v1/imports/upload?file_type=xml" \\
+  -H "X-Organization-Slug: demo" \\
+  -F "file=@products.xml" \\
+  -F "importType=CREATE"`}
+</CodeBlock>
 
 ## Full import flow
 
-<CodeBlock language="bash" title="1. Upload CSV">
+<CodeBlock language="bash" title="1. Upload file">
 {`curl -X POST "https://api.yourpim.com/api/v1/imports/upload" \\
   -H "X-Organization-Slug: demo" \\
-  -F "file=@products.csv" \\
-  -F "entityType=PRODUCT"`}
+  -F "file=@products.json" \\
+  -F "file_type=json"`}
 </CodeBlock>
 
 <CodeBlock language="bash" title="2. Validate">
@@ -59,6 +129,7 @@ FF-SAW-01,7.25in Circular Saw,Ryobi,tools,89.00,Saw,Corded
 <CodeBlock language="json">
 {`{
   "id": "imp_123",
+  "fileType": "JSON",
   "status": "COMPLETED",
   "totalRows": 100,
   "validRows": 98,
@@ -72,7 +143,8 @@ FF-SAW-01,7.25in Circular Saw,Ryobi,tools,89.00,Saw,Corded
 <CodeBlock language="typescript">
 {`const form = new FormData();
 form.append("file", file);
-form.append("entityType", "PRODUCT");
+form.append("file_type", "json");
+form.append("importType", "UPSERT");
 
 const res = await fetch("https://api.yourpim.com/api/v1/imports/upload", {
   method: "POST",
@@ -83,3 +155,5 @@ const job = await res.json();`}
 </CodeBlock>
 
 Import templates: `GET /api/v1/import-templates`, `POST /api/v1/import-templates`.
+
+Template `sourceColumn` values work for CSV column names **or** flattened JSON/XML field paths.

@@ -1,21 +1,31 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type {
   ImportJobEntity,
   ImportJobErrorEntity,
+  ImportJobRowEntity,
   ImportRunSummaryEntity,
   ImportTemplateEntity,
 } from "@productinfoman/domain";
 import type {
   CreateImportTemplateInput,
+  ListImportRowsQuery,
   ListImportsQuery,
   UploadImportInput,
 } from "@productinfoman/validation";
 import {
   buildErrorReportCsv,
+  collectImportRows,
+  fieldsToStringRecord,
+  inferImportFileType,
+  ImportParseError,
   normalizeRow,
   parseCsv,
+  parseJson,
+  parseXml,
   validateImportRows,
+  type ImportFileType,
   type NormalizedImportRow,
   type RowValidationError,
   type TemplateMapping,
@@ -32,7 +42,10 @@ import { enqueueImportJob } from "./import.queue.js";
 import { assertHeavyJobCapacity } from "../../lib/queue-backpressure.js";
 import { loadApiEnv } from "@productinfoman/config";
 
-const UPLOAD_ROOT = path.resolve(process.cwd(), "../../uploads");
+const UPLOAD_ROOT = path.resolve(
+  fileURLToPath(new URL("../../../../uploads", import.meta.url)),
+);
+const VALIDATE_ROW_BATCH_SIZE = 1000;
 
 const DEFAULT_REQUIRED_FIELDS = {
   SIMPLE: ["sku", "product_type", "title"],
@@ -40,12 +53,24 @@ const DEFAULT_REQUIRED_FIELDS = {
   VARIANT: ["sku", "product_type", "parent_sku"],
 } as const;
 
+type ParsedImportRow = {
+  rowNumber: number;
+  data: Record<string, string>;
+  rawData: unknown;
+};
+
+type ParsedImport = {
+  headers: string[];
+  rows: ParsedImportRow[];
+};
+
 function toImportJobDto(job: {
   id: string;
   organizationId: string;
   importTemplateId: string | null;
   fileName: string;
   filePath: string;
+  fileType: ImportFileType;
   importType: ImportJobEntity["importType"];
   status: ImportJobEntity["status"];
   duplicatePolicy: ImportJobEntity["duplicatePolicy"];
@@ -66,6 +91,7 @@ function toImportJobDto(job: {
     importTemplateId: job.importTemplateId,
     fileName: job.fileName,
     filePath: job.filePath,
+    fileType: job.fileType,
     importType: job.importType,
     status: job.status,
     duplicatePolicy: job.duplicatePolicy,
@@ -79,6 +105,40 @@ function toImportJobDto(job: {
     errorMessage: job.errorMessage,
     createdAt: job.createdAt.toISOString(),
     updatedAt: job.updatedAt.toISOString(),
+  };
+}
+
+async function parseImportContent(content: string, fileType: ImportFileType): Promise<ParsedImport> {
+  if (fileType === "CSV") {
+    const parsed = parseCsv(content);
+    return {
+      headers: parsed.headers,
+      rows: parsed.rows.map((row) => ({
+        rowNumber: row.rowNumber,
+        data: row.data,
+        rawData: row.data,
+      })),
+    };
+  }
+
+  const generator = fileType === "JSON" ? parseJson(content) : parseXml(content);
+  const importRows = await collectImportRows(generator);
+  const headers = new Set<string>();
+  const rows = importRows.map((row) => {
+    const data = fieldsToStringRecord(row.fields);
+    for (const key of Object.keys(data)) {
+      headers.add(key);
+    }
+    return {
+      rowNumber: row.rawRowIndex,
+      data,
+      rawData: row.rawData,
+    };
+  });
+
+  return {
+    headers: [...headers].sort(),
+    rows,
   };
 }
 
@@ -176,16 +236,35 @@ async function buildValidationContext(organizationId: string, job: {
   };
 }
 
+async function persistImportRowsInBatches(
+  rowRecords: Array<{
+    importJobId: string;
+    rowNumber: number;
+    rawData: unknown;
+    normalizedData?: NormalizedImportRow;
+    status: "VALID" | "INVALID";
+  }>,
+): Promise<void> {
+  for (let index = 0; index < rowRecords.length; index += VALIDATE_ROW_BATCH_SIZE) {
+    await prisma.importJobRow.createMany({
+      data: rowRecords.slice(index, index + VALIDATE_ROW_BATCH_SIZE),
+    });
+  }
+}
+
 export async function uploadImport(
   organizationId: string,
   input: UploadImportInput & { fileName: string; fileBuffer: Buffer },
 ): Promise<ImportJobEntity> {
+  const fileType = inferImportFileType(input.fileName, input.fileType ?? null);
+
   const job = await prisma.importJob.create({
     data: {
       organizationId,
       importTemplateId: input.importTemplateId,
       fileName: input.fileName,
       filePath: "",
+      fileType,
       importType: input.importType ?? "CREATE",
       duplicatePolicy: input.duplicatePolicy ?? "REJECT",
       blankCellPolicy: input.blankCellPolicy ?? "IGNORE",
@@ -210,7 +289,7 @@ export async function uploadImport(
     entityId: job.id,
     action: "IMPORT",
     source: "import",
-    changes: { fileName: input.fileName, importType: updated.importType },
+    changes: { fileName: input.fileName, fileType, importType: updated.importType },
   });
 
   return toImportJobDto(updated);
@@ -230,16 +309,40 @@ export async function validateImport(
 
   await prisma.importJob.update({
     where: { id: job.id },
-    data: { status: "VALIDATING" },
+    data: { status: "VALIDATING", errorMessage: null },
   });
 
-  const [csvContent, mappings, context] = await Promise.all([
+  const [fileContent, mappings, context] = await Promise.all([
     readFile(job.filePath, "utf8"),
     loadTemplateMappings(organizationId, job.importTemplateId),
     buildValidationContext(organizationId, job),
   ]);
 
-  const parsed = parseCsv(csvContent);
+  let parsed: ParsedImport;
+  try {
+    parsed = await parseImportContent(fileContent, job.fileType);
+  } catch (error) {
+    const message =
+      error instanceof ImportParseError
+        ? error.message
+        : error instanceof Error
+          ? error.message
+          : "Failed to parse import file";
+
+    await prisma.importJob.update({
+      where: { id: job.id },
+      data: {
+        status: "VALIDATION_FAILED",
+        errorMessage: message,
+        totalRows: 0,
+        validRows: 0,
+        invalidRows: 0,
+      },
+    });
+
+    throw appError(message, 400);
+  }
+
   const normalizationErrors: RowValidationError[] = [];
   const normalizedRows: NormalizedImportRow[] = [];
 
@@ -251,7 +354,11 @@ export async function validateImport(
         fieldName: "sku",
         errorCode: "REQUIRED_FIELD",
         errorMessage: "Row is missing required sku or product_type values",
-        rawValue: row.data.sku ?? row.data.product_type,
+        rawValue:
+          row.data.sku ??
+          row.data.product_type ??
+          row.data["product.sku"] ??
+          row.data["product.product_type"],
       });
       continue;
     }
@@ -270,14 +377,14 @@ export async function validateImport(
     return {
       importJobId: job.id,
       rowNumber: row.rowNumber,
-      rawData: row.data,
+      rawData: row.rawData as object,
       normalizedData: normalized ?? undefined,
       status: isValid ? ("VALID" as const) : ("INVALID" as const),
     };
   });
 
   if (rowRecords.length > 0) {
-    await prisma.importJobRow.createMany({ data: rowRecords });
+    await persistImportRowsInBatches(rowRecords);
   }
 
   if (allErrors.length > 0) {
@@ -307,6 +414,7 @@ export async function validateImport(
       duplicateRows: allErrors.filter((error) => error.errorCode === "DUPLICATE_KEY").length,
       summaryJson: {
         headers: parsed.headers,
+        fileType: job.fileType,
         errorCodes: [...new Set(allErrors.map((error) => error.errorCode))],
       },
     },
@@ -317,6 +425,7 @@ export async function validateImport(
       duplicateRows: allErrors.filter((error) => error.errorCode === "DUPLICATE_KEY").length,
       summaryJson: {
         headers: parsed.headers,
+        fileType: job.fileType,
         errorCodes: [...new Set(allErrors.map((error) => error.errorCode))],
       },
     },
@@ -630,6 +739,35 @@ export async function listImportJobs(
   ]);
 
   return { items: jobs.map(toImportJobDto), total };
+}
+
+export async function getImportRows(
+  importJobId: string,
+  organizationId: string,
+  query: ListImportRowsQuery,
+): Promise<{ items: ImportJobRowEntity[] }> {
+  const job = await prisma.importJob.findFirst({
+    where: { id: importJobId, organizationId },
+  });
+  if (!job) throw appError("Import job not found", 404);
+
+  const rows = await prisma.importJobRow.findMany({
+    where: { importJobId },
+    orderBy: { rowNumber: "asc" },
+    take: query.limit,
+  });
+
+  return {
+    items: rows.map((row) => ({
+      id: row.id,
+      importJobId: row.importJobId,
+      rowNumber: row.rowNumber,
+      rawData: row.rawData as Record<string, unknown>,
+      normalizedData: (row.normalizedData as Record<string, unknown> | null) ?? null,
+      status: row.status,
+      entityId: row.entityId,
+    })),
+  };
 }
 
 export async function getImportErrors(

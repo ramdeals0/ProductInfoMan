@@ -11,9 +11,11 @@ import { startEventWorker, closeEventQueue } from "./modules/integration/integra
 import { productRoutes } from "./modules/product-core/product.routes.js";
 import { searchRoutes } from "./modules/search/search.routes.js";
 import { startSearchWorker, closeSearchQueue } from "./modules/search/search.queue.js";
+import { warmSearchIndexesIfEmpty } from "./modules/search/search.service.js";
 import { publishRoutes } from "./modules/publish/publish.routes.js";
 import { startPublishWorker, closePublishQueue } from "./modules/publish/publish.queue.js";
 import { taxonomyRoutes } from "./modules/taxonomy/taxonomy.routes.js";
+import { facetRoutes } from "./modules/taxonomy/facet.routes.js";
 import { workflowRoutes } from "./modules/workflow/workflow.routes.js";
 import { mdmRoutes } from "./modules/mdm/mdm.routes.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
@@ -47,6 +49,7 @@ await app.register(authRoutes, { prefix: "/api/v1" });
 await app.register(usersRoutes, { prefix: "/api/v1" });
 await app.register(productRoutes, { prefix: "/api/v1" });
 await app.register(taxonomyRoutes, { prefix: "/api/v1" });
+await app.register(facetRoutes, { prefix: "/api/v1" });
 await app.register(importRoutes, { prefix: "/api/v1" });
 await app.register(workflowRoutes, { prefix: "/api/v1" });
 await app.register(searchRoutes, { prefix: "/api/v1" });
@@ -62,6 +65,10 @@ await startImportWorker();
 await startSearchWorker();
 await startPublishWorker();
 await startEventWorker();
+
+void warmSearchIndexesIfEmpty().catch((error) => {
+  app.log.error({ err: error }, "Search index warmup failed");
+});
 
 const port = Number(process.env.PORT ?? 3001);
 const host = process.env.HOST ?? "0.0.0.0";

@@ -551,3 +551,48 @@ export async function getOperationsReport(organizationId: string): Promise<Opera
     },
   };
 }
+
+export async function computeFacetRuleReport(organizationId: string, period: ReportPeriod) {
+  const logs = await prisma.auditLog.findMany({
+    where: {
+      organizationId,
+      entityType: "facet_rule",
+      createdAt: { gte: period.periodStart, lte: period.periodEnd },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+
+  const byAction = await prisma.auditLog.groupBy({
+    by: ["action"],
+    where: {
+      organizationId,
+      entityType: "facet_rule",
+      createdAt: { gte: period.periodStart, lte: period.periodEnd },
+    },
+    _count: { _all: true },
+  });
+
+  const rulesByState = await prisma.facetRule.groupBy({
+    by: ["workflowStateCode"],
+    where: { organizationId },
+    _count: { _all: true },
+  });
+
+  return {
+    periodStart: period.periodStart.toISOString(),
+    periodEnd: period.periodEnd.toISOString(),
+    recentChanges: logs.map((log) => ({
+      id: log.id,
+      action: log.action,
+      entityId: log.entityId,
+      actorId: log.actorId,
+      createdAt: log.createdAt.toISOString(),
+      after: log.afterJson,
+    })),
+    actionsByType: Object.fromEntries(byAction.map((row) => [row.action, row._count._all])),
+    rulesByState: Object.fromEntries(
+      rulesByState.map((row) => [row.workflowStateCode, row._count._all]),
+    ),
+  };
+}
