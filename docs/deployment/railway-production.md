@@ -18,12 +18,27 @@ Use this document when configuring the live Railway environment. The monorepo no
 
 ---
 
+## API service — Railway dashboard checklist
+
+1. **New service** from GitHub repo `ProductInfoMan` (or redeploy existing API service).
+2. **Settings → Root Directory:** leave **empty** (monorepo root).
+3. **Settings → Config-as-code:** `/apps/api/railway.toml`
+4. **Variables** (see below). Generate `JWT_SECRET`: `openssl rand -base64 48`
+5. **Networking → Public domain:** `pim-api.up.railway.app` (or generate and alias).
+6. **Deploy** and watch logs. Pre-deploy runs `pnpm db:push` to sync schema.
+7. When healthy, **Shell** → `bash scripts/railway-seed.sh`
+
+Or with CLI after `railway login`: `bash scripts/railway-deploy-api.sh`
+
+---
+
 ## API service variables
 
 In Railway → **API service** → **Variables**:
 
 ```env
 DATABASE_URL=${{Postgres.DATABASE_URL}}
+NODE_ENV=production
 HOST=0.0.0.0
 JWT_SECRET=<generate with: openssl rand -base64 48>
 IMPORT_SYNC=true

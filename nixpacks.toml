@@ -1,0 +1,11 @@
+# Monorepo defaults for Railway (Nixpacks).
+# Each service sets start/preDeploy via its apps/*/railway.toml.
+
+providers = ["node"]
+
+[variables]
+NODE_ENV = "production"
+
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+cmds = ["corepack enable", "corepack prepare pnpm@9.15.0 --activate"]
