@@ -2,8 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
-import { EditPanel } from "@/components/taxonomy/EditPanel";
+import { useCallback, useMemo, useState } from "react";
+import { InlineEditForm } from "@/components/taxonomy/EditPanel";
 import { PageHeader } from "@/components/layout/AdminShell";
 import { DataTable } from "@/components/ui/DataTable";
 import { ErrorState, LoadingState } from "@/components/ui/States";
@@ -109,6 +109,64 @@ export default function AttributesPage() {
     onError: (err) => pushToast((err as Error).message, "error"),
   });
 
+  const renderAttributeSubRow = useCallback(
+    (row: AttributeRow) => {
+      if (!editingAttribute || editingAttribute.id !== String(row.id)) return null;
+
+      return (
+        <InlineEditForm
+          onClose={() => setEditingAttribute(null)}
+          onSave={() => updateAttributeMutation.mutate()}
+          saving={updateAttributeMutation.isPending}
+        >
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <label className="label">Label</label>
+              <input
+                className="input"
+                value={editingAttribute.label}
+                onChange={(e) =>
+                  setEditingAttribute({ ...editingAttribute, label: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <label className="label">Description</label>
+              <input
+                className="input"
+                value={editingAttribute.description}
+                onChange={(e) =>
+                  setEditingAttribute({ ...editingAttribute, description: e.target.value })
+                }
+              />
+            </div>
+            {(
+              [
+                ["isGlobal", "Global"],
+                ["isVariantAxis", "Variant axis"],
+                ["isRequired", "Required"],
+                ["isFilterable", "Filterable"],
+                ["isSearchable", "Searchable"],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={editingAttribute[key]}
+                  onChange={(e) =>
+                    setEditingAttribute({ ...editingAttribute, [key]: e.target.checked })
+                  }
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </InlineEditForm>
+      );
+    },
+    [editingAttribute, updateAttributeMutation],
+  );
+
   const columns = useMemo<ColumnDef<AttributeRow>[]>(
     () => [
       { header: "Key", accessorKey: "key" },
@@ -124,29 +182,34 @@ export default function AttributesPage() {
       },
       {
         header: "Actions",
-        cell: ({ row }) => (
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() =>
-              setEditingAttribute({
-                id: String(row.original.id),
-                label: String(row.original.label),
-                description: String(row.original.description ?? ""),
-                isGlobal: Boolean(row.original.isGlobal),
-                isVariantAxis: Boolean(row.original.isVariantAxis),
-                isRequired: Boolean(row.original.isRequired),
-                isFilterable: Boolean(row.original.isFilterable),
-                isSearchable: Boolean(row.original.isSearchable),
-              })
-            }
-          >
-            Edit
-          </button>
-        ),
+        cell: ({ row }) => {
+          const id = String(row.original.id);
+          const isEditing = editingAttribute?.id === id;
+          return (
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={isEditing}
+              onClick={() =>
+                setEditingAttribute({
+                  id,
+                  label: String(row.original.label),
+                  description: String(row.original.description ?? ""),
+                  isGlobal: Boolean(row.original.isGlobal),
+                  isVariantAxis: Boolean(row.original.isVariantAxis),
+                  isRequired: Boolean(row.original.isRequired),
+                  isFilterable: Boolean(row.original.isFilterable),
+                  isSearchable: Boolean(row.original.isSearchable),
+                })
+              }
+            >
+              Edit
+            </button>
+          );
+        },
       },
     ],
-    [],
+    [editingAttribute?.id],
   );
 
   return (
@@ -205,121 +268,93 @@ export default function AttributesPage() {
         </div>
       </div>
 
-      {editingGroup ? (
-        <EditPanel
-          title="Edit attribute group"
-          onClose={() => setEditingGroup(null)}
-          onSave={() => updateGroupMutation.mutate()}
-          saving={updateGroupMutation.isPending}
-        >
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <label className="label">Name</label>
-              <input
-                className="input"
-                value={editingGroup.name}
-                onChange={(e) => setEditingGroup({ ...editingGroup, name: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="label">Sort order</label>
-              <input
-                className="input"
-                type="number"
-                value={editingGroup.sortOrder}
-                onChange={(e) => setEditingGroup({ ...editingGroup, sortOrder: Number(e.target.value) })}
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="label">Description</label>
-              <input
-                className="input"
-                value={editingGroup.description}
-                onChange={(e) => setEditingGroup({ ...editingGroup, description: e.target.value })}
-              />
-            </div>
-          </div>
-        </EditPanel>
-      ) : null}
-
-      {editingAttribute ? (
-        <EditPanel
-          title="Edit attribute"
-          onClose={() => setEditingAttribute(null)}
-          onSave={() => updateAttributeMutation.mutate()}
-          saving={updateAttributeMutation.isPending}
-        >
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <label className="label">Label</label>
-              <input
-                className="input"
-                value={editingAttribute.label}
-                onChange={(e) => setEditingAttribute({ ...editingAttribute, label: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="label">Description</label>
-              <input
-                className="input"
-                value={editingAttribute.description}
-                onChange={(e) => setEditingAttribute({ ...editingAttribute, description: e.target.value })}
-              />
-            </div>
-            {(
-              [
-                ["isGlobal", "Global"],
-                ["isVariantAxis", "Variant axis"],
-                ["isRequired", "Required"],
-                ["isFilterable", "Filterable"],
-                ["isSearchable", "Searchable"],
-              ] as const
-            ).map(([key, label]) => (
-              <label key={key} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={editingAttribute[key]}
-                  onChange={(e) => setEditingAttribute({ ...editingAttribute, [key]: e.target.checked })}
-                />
-                {label}
-              </label>
-            ))}
-          </div>
-        </EditPanel>
-      ) : null}
-
       {groupsQuery.isLoading || attributesQuery.isLoading ? <LoadingState /> : null}
       {groupsQuery.error ? <ErrorState message={(groupsQuery.error as Error).message} /> : null}
       {groupsQuery.data ? (
         <div className="mb-6 grid gap-3 md:grid-cols-3">
-          {groupsQuery.data.items.map((group: GroupRow) => (
-            <div key={String(group.id)} className="card p-4 text-sm">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="font-medium">{String(group.name)}</div>
-                  <div className="text-slate-500">{String(group.code)}</div>
-                </div>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() =>
-                    setEditingGroup({
-                      id: String(group.id),
-                      name: String(group.name),
-                      description: String(group.description ?? ""),
-                      sortOrder: Number(group.sortOrder ?? 0),
-                    })
-                  }
-                >
-                  Edit
-                </button>
+          {groupsQuery.data.items.map((group: GroupRow) => {
+            const groupId = String(group.id);
+            const isEditing = editingGroup?.id === groupId;
+
+            return (
+              <div key={groupId} className="card p-4 text-sm">
+                {isEditing && editingGroup ? (
+                  <InlineEditForm
+                    onClose={() => setEditingGroup(null)}
+                    onSave={() => updateGroupMutation.mutate()}
+                    saving={updateGroupMutation.isPending}
+                  >
+                    <div className="space-y-3">
+                      <div>
+                        <label className="label">Name</label>
+                        <input
+                          className="input"
+                          value={editingGroup.name}
+                          onChange={(e) =>
+                            setEditingGroup({ ...editingGroup, name: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Sort order</label>
+                        <input
+                          className="input"
+                          type="number"
+                          value={editingGroup.sortOrder}
+                          onChange={(e) =>
+                            setEditingGroup({
+                              ...editingGroup,
+                              sortOrder: Number(e.target.value),
+                            })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Description</label>
+                        <input
+                          className="input"
+                          value={editingGroup.description}
+                          onChange={(e) =>
+                            setEditingGroup({ ...editingGroup, description: e.target.value })
+                          }
+                        />
+                      </div>
+                    </div>
+                  </InlineEditForm>
+                ) : (
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-medium">{String(group.name)}</div>
+                      <div className="text-slate-500">{String(group.code)}</div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() =>
+                        setEditingGroup({
+                          id: groupId,
+                          name: String(group.name),
+                          description: String(group.description ?? ""),
+                          sortOrder: Number(group.sortOrder ?? 0),
+                        })
+                      }
+                    >
+                      Edit
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : null}
       {attributesQuery.data ? (
-        <DataTable data={attributesQuery.data.items} columns={columns} />
+        <DataTable
+          data={attributesQuery.data.items}
+          columns={columns}
+          getRowId={(row) => String(row.id)}
+          renderSubRow={renderAttributeSubRow}
+        />
       ) : null}
     </div>
   );
