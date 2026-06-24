@@ -19,6 +19,7 @@ export type SeedDemoProductsResult = {
 };
 
 const BRANDS = ["Acme", "Northline", "Summit", "Harbor", "Fieldworks"] as const;
+const SHIRT_LEAF_CODES = ["oxford", "flannel", "spread_collar", "button_down"] as const;
 const COLORS = ["Blue", "White", "Navy"] as const;
 const SIZES = ["S", "M", "L"] as const;
 const FABRICS = ["Cotton", "Poly Blend", "Linen", "Performance Knit"] as const;
@@ -63,11 +64,20 @@ export async function seedDemoProducts(
   const skuPrefix = options.skuPrefix ?? "DEMO";
   const publish = options.publish ?? true;
 
-  const shirts = await prisma.category.findUnique({
-    where: { organizationId_code: { organizationId, code: "shirts" } },
+  const leafCategories = await prisma.category.findMany({
+    where: {
+      organizationId,
+      code: { in: [...SHIRT_LEAF_CODES] },
+    },
+    select: { id: true, code: true, name: true },
+    orderBy: { code: "asc" },
   });
-  if (!shirts) {
-    throw new Error('Category "shirts" not found — run pnpm db:seed first');
+  if (leafCategories.length !== SHIRT_LEAF_CODES.length) {
+    const found = new Set(leafCategories.map((category) => category.code));
+    const missing = SHIRT_LEAF_CODES.filter((code) => !found.has(code));
+    throw new Error(
+      `Shirt leaf categories not found (${missing.join(", ")}) — run pnpm db:seed first`,
+    );
   }
 
   const attributes = await prisma.attributeDefinition.findMany({
@@ -96,7 +106,8 @@ export async function seedDemoProducts(
     const style = pick(STYLES, index);
     const title = `${brand} ${style} ${index}`;
     const merch = merchandisingValuesForIndex(index);
-    const copy = buildProductMerchandisingCopy(title, "Shirts", index);
+    const leaf = pick(leafCategories, index);
+    const copy = buildProductMerchandisingCopy(title, leaf.name, index);
     const dates = defaultStorefrontAvailability(index);
 
     const existing = await prisma.product.findUnique({
@@ -114,7 +125,7 @@ export async function seedDemoProducts(
         summary: copy.summary,
         sellingPoints: copy.sellingPoints,
         brand,
-        primaryCategoryId: shirts.id,
+        primaryCategoryId: leaf.id,
         startDate: dates.startDate,
         discontinueDate: dates.discontinueDate,
         status: publish ? "PUBLISHED" : "DRAFT",
@@ -125,7 +136,7 @@ export async function seedDemoProducts(
         summary: copy.summary,
         sellingPoints: copy.sellingPoints,
         brand,
-        primaryCategoryId: shirts.id,
+        primaryCategoryId: leaf.id,
         startDate: dates.startDate,
         discontinueDate: dates.discontinueDate,
         status: publish ? "PUBLISHED" : "DRAFT",
