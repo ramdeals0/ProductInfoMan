@@ -336,13 +336,19 @@ On category and search pages, the sidebar shows facets (brand, price range, cate
 
 ### Demo catalog
 
-The default demo catalog is the **apparel** taxonomy (`SHIRT-001` parent + 3 variants). To refresh after deploy:
+The default demo catalog includes **500** `DEMO-*` simple products plus the `SHIRT-001` parent and variants. To refresh after deploy:
 
 ```bash
 pnpm reseed:demo
 ```
 
-This removes any Fleet Farm (`FF-*`) products and reseeds the base demo only.
+Add or refresh demo products only (without full purge):
+
+```bash
+pnpm seed:demo-products --count=500
+```
+
+This removes any Fleet Farm (`FF-*`) products when using `reseed:demo`.
 
 ---
 
