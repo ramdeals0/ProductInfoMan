@@ -7,28 +7,28 @@ import type { FleetFarmCategoryConfig } from "./types.js";
  */
 export const FLEETFARM_CATEGORIES: FleetFarmCategoryConfig[] = [
   {
-    code: "tools-hardware",
+    code: "tools",
     name: "Tools & Hardware",
     listingUrl: "https://www.fleetfarm.com/c/tools-hardware",
     maxProducts: 25,
     categoryPath: ["Fleet Farm Demo", "Tools & Hardware"],
   },
   {
-    code: "outdoor-power",
+    code: "outdoor_power",
     name: "Outdoor Power Equipment",
     listingUrl: "https://www.fleetfarm.com/c/outdoor-power-equipment",
     maxProducts: 25,
     categoryPath: ["Fleet Farm Demo", "Outdoor Power Equipment"],
   },
   {
-    code: "clothing-workwear",
+    code: "clothing",
     name: "Clothing & Workwear",
     listingUrl: "https://www.fleetfarm.com/c/clothing-footwear",
     maxProducts: 25,
     categoryPath: ["Fleet Farm Demo", "Clothing & Workwear"],
   },
   {
-    code: "fishing-hunting",
+    code: "fishing",
     name: "Fishing & Hunting",
     listingUrl: "https://www.fleetfarm.com/c/fishing",
     maxProducts: 25,

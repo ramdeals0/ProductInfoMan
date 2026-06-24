@@ -6,7 +6,7 @@ import {
 } from "./config.js";
 import type { FleetFarmCategoryConfig } from "./types.js";
 import { getFixtureCatalog } from "./fixtures.js";
-import { simulatedRating, toPriceRange } from "./facets.js";
+import { simulatedRating } from "./facets.js";
 import { isUrlAllowedByRobots, parseProductDetailHtml, parseProductListHtml } from "./parsers.js";
 import { RateLimiter } from "./rate-limiter.js";
 import type { ScrapedProduct } from "./types.js";
@@ -74,7 +74,6 @@ async function scrapeCategory(
     if (brand) attributes.brand = brand;
     if (price != null) {
       attributes.price = price;
-      attributes.price_range = toPriceRange(price);
     }
     attributes.rating = simulatedRating(externalId);
     attributes.availability = "In Stock";

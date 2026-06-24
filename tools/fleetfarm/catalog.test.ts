@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FLEETFARM_CATEGORIES, ROBOTS_DISALLOWED_PREFIXES } from "./config.js";
 import { getFixtureCatalog } from "./fixtures.js";
-import { toPriceRange, simulatedRating } from "./facets.js";
+import { priceToBucketLabel, simulatedRating } from "./facets.js";
 import { isUrlAllowedByRobots, parsePrice, parseProductListHtml } from "./parsers.js";
 
 describe("fleetfarm fixtures", () => {
@@ -9,15 +9,16 @@ describe("fleetfarm fixtures", () => {
     const products = getFixtureCatalog();
     expect(products.length).toBe(80);
     const codes = new Set(products.map((product) => product.categoryCode));
-    expect(codes.size).toBe(4);
+    expect(codes).toEqual(new Set(["tools", "outdoor_power", "clothing", "fishing"]));
   });
 
   it("includes amazon-style global attributes", () => {
     const product = getFixtureCatalog()[0]!;
     expect(product.attributes.brand).toBeTruthy();
-    expect(product.attributes.price_range).toBeTruthy();
+    expect(product.attributes.price).toBeGreaterThan(0);
     expect(product.attributes.rating).toBeGreaterThanOrEqual(3.5);
     expect(product.attributes.availability).toBe("In Stock");
+    expect(product.attributes.price_range).toBeUndefined();
   });
 });
 
@@ -38,8 +39,8 @@ describe("fleetfarm parsers", () => {
   });
 
   it("buckets price ranges", () => {
-    expect(toPriceRange(10)).toBe("Under $25");
-    expect(toPriceRange(129)).toBe("$100 - $250");
+    expect(priceToBucketLabel(10)).toBe("Under $25");
+    expect(priceToBucketLabel(129)).toBe("$100 to $200");
     expect(simulatedRating("abc")).toBeGreaterThanOrEqual(3.5);
   });
 });

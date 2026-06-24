@@ -13,28 +13,43 @@ Demo/internal catalog seed inspired by [FleetFarm.com](https://www.fleetfarm.com
 
 | Code | Name | Products |
 |------|------|----------|
-| `tools-hardware` | Tools & Hardware | 20 |
-| `outdoor-power` | Outdoor Power Equipment | 20 |
-| `clothing-workwear` | Clothing & Workwear | 20 |
-| `fishing-hunting` | Fishing & Hunting | 20 |
+| `tools` | Tools & Hardware | 20 |
+| `outdoor_power` | Outdoor Power Equipment | 20 |
+| `clothing` | Clothing & Workwear | 20 |
+| `fishing` | Fishing & Hunting | 20 |
 
 ## Amazon-style facets
 
-**Global:** brand, price_range, rating, availability
+Shared configuration lives in `packages/config/facets.config.ts`.
+
+**Global:** brand, price (range buckets), rating, availability
 
 **Category-specific:**
-- Tools: tool_type, power_source
-- Outdoor power: engine_displacement, bar_length, fuel_type
-- Clothing: size, gender, color
-- Fishing: gear_type, species
+- Tools: tool_type, power_source, voltage
+- Outdoor power: equipment_type, bar_length_in, fuel_type
+- Clothing: apparel_gender, apparel_size, color, apparel_type
+- Fishing: category_subtype
+
+### Search projection (price bucketing)
+
+Numeric `price` attribute values are converted into configured range buckets when building search `facet_fields`:
+
+- Under $25
+- $25 to $50
+- $50 to $100
+- $100 to $200
+- $200 & Above
+
+Other facets use attribute values directly (brand, tool_type, etc.).
 
 ## Commands
 
 ```bash
 pnpm db:push
-pnpm db:seed              # base demo org + apparel sample
-pnpm seed:demo-catalog      # Fleet Farm fixtures + facets + reindex
-pnpm seed:demo-catalog:live # attempt live scrape (falls back to fixtures)
+pnpm db:seed                  # base demo org + apparel sample
+pnpm seed:attributes-facets   # attributes, groups, facet definitions + rules only
+pnpm seed:demo-catalog        # Fleet Farm fixtures + facets + reindex
+pnpm seed:demo-catalog:live   # attempt live scrape (falls back to fixtures)
 ```
 
 Options:
@@ -46,13 +61,16 @@ Options:
 
 | File | Purpose |
 |------|---------|
+| `packages/config/facets.config.ts` | Attribute + facet seed configuration |
+| `tools/seed-attributes-and-facets.ts` | Standalone attributes/facets seed CLI |
+| `tools/lib/seed-attributes-facets.ts` | Idempotent Prisma upsert logic |
 | `tools/fleetfarm/config.ts` | Category URLs and robots policy |
 | `tools/fleetfarm/fixtures.ts` | Curated product catalog |
 | `tools/fleetfarm/scraper.ts` | Live scrape + fixture fallback |
 | `tools/fleetfarm/parsers.ts` | HTML/JSON-LD parsers |
-| `tools/fleetfarm/facets.ts` | Attribute + facet definitions |
-| `tools/seed-demo-catalog.ts` | Orchestrator |
-| `tools/lib/seed-catalog.ts` | DB upsert helpers |
+| `tools/fleetfarm/facets.ts` | Re-exports shared facet config helpers |
+| `tools/seed-demo-catalog.ts` | Full catalog orchestrator |
+| `tools/lib/seed-catalog.ts` | Product upsert helpers |
 
 ## Verification
 
@@ -63,4 +81,4 @@ curl -H "X-Organization-Slug: demo" "http://localhost:3001/api/v1/search?pageSiz
 curl -H "X-Organization-Slug: demo" "http://localhost:3001/api/v1/search/facets"
 ```
 
-Storefront (`:3002`) should show categories under `/category/tools-hardware` etc. with brand and price facets.
+Storefront (`:3002`) should show categories under `/category/tools` etc. with brand and price facets.

@@ -15,6 +15,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "seed:demo-catalog": "SEARCH_SYNC=true tsx tools/seed-demo-catalog.ts",
     "seed:demo-catalog:live": "SEARCH_SYNC=true tsx tools/seed-demo-catalog.ts --live",
+    "seed:attributes-facets": "tsx tools/seed-attributes-and-facets.ts",
     "test:fleetfarm-seed": "pnpm exec vitest run --config tools/vitest.config.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",

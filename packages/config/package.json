@@ -2,7 +2,10 @@
   "name": "@productinfoman/config",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "exports": {
-    "./tsconfig": "./tsconfig.base.json"
+    "./tsconfig": "./tsconfig.base.json",
+    "./facets": "./facets.config.ts",
+    "./facets.config": "./facets.config.ts"
   }
 }
