@@ -11,6 +11,7 @@ High-performance ecommerce Product Information Management (PIM) platform.
 | Phase 2 — Taxonomy/Facets | **Implemented** ([spec alignment](./docs/implementation/phase-2-taxonomy-facet-spec.md)) |
 | Phase 3 — Import/Validation | **Implemented** ([spec alignment](./docs/implementation/phase-3-import-validation-spec.md)) |
 | Phase 4 — Workflow/Approval | **Implemented** ([spec alignment](./docs/implementation/phase-4-workflow-approval-spec.md)) |
+| Phase 5 — Search Projection | **Implemented** ([spec alignment](./docs/implementation/phase-5-search-projection-spec.md)) |
 
 ## Stack
 
