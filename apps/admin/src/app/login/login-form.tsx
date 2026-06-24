@@ -2,10 +2,12 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { useSession } from "@/lib/session";
 
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { refresh } = useSession();
   const [email, setEmail] = useState(process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "admin@demo.local");
   const [password, setPassword] = useState("");
   const [organizationSlug, setOrganizationSlug] = useState(
@@ -30,6 +32,8 @@ export default function LoginForm() {
         setError(payload.error ?? "Login failed");
         return;
       }
+
+      await refresh();
 
       const next = searchParams.get("next") ?? "/admin/dashboard";
       router.replace(next);
