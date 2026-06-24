@@ -4,18 +4,346 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
-model Product {
-  id          Int      @id @default(autoincrement())
-  sku         String   @unique
-  name        String
-  description String?
-  price       Decimal
-  quantity    Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+// ─── Platform ───────────────────────────────────────────────────────────────
 
-  @@index([name])
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users               User[]
+  products            Product[]
+  categories          Category[]
+  attributeGroups     AttributeGroup[]
+  attributeDefinitions AttributeDefinition[]
+  facetDefinitions    FacetDefinition[]
+  auditLogs           AuditLog[]
+
+  @@index([slug])
+}
+
+model User {
+  id             String   @id @default(cuid())
+  organizationId String
+  email          String
+  name           String
+  role           UserRole @default(EDITOR)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+}
+
+enum UserRole {
+  ADMIN
+  CATALOG_MANAGER
+  EDITOR
+  REVIEWER
+  VIEWER
+}
+
+// ─── Product Core ───────────────────────────────────────────────────────────
+
+model Product {
+  id                 String        @id @default(cuid())
+  organizationId     String
+  productType        ProductType
+  sku                String
+  parentId           String?
+  status             ProductStatus @default(DRAFT)
+  title              String
+  description        String?
+  brand              String?
+  primaryCategoryId  String?
+  deletedAt          DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  organization      Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent            Product?                @relation("ProductVariants", fields: [parentId], references: [id], onDelete: Restrict)
+  variants          Product[]               @relation("ProductVariants")
+  primaryCategory   Category?               @relation("PrimaryCategory", fields: [primaryCategoryId], references: [id], onDelete: SetNull)
+  attributeValues   ProductAttributeValue[]
+  secondaryCategories ProductCategory[]
+  media             ProductMedia[]
+  auditLogs         AuditLog[]              @relation("ProductAudit")
+
+  @@unique([organizationId, sku])
+  @@index([organizationId, status])
+  @@index([organizationId, parentId])
+  @@index([organizationId, productType])
+  @@index([primaryCategoryId])
+}
+
+enum ProductType {
+  SIMPLE
+  PARENT
+  VARIANT
+}
+
+enum ProductStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  PUBLISH_READY
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+}
+
+model ProductAttributeValue {
+  id                     String          @id @default(cuid())
+  productId              String
+  attributeDefinitionId  String
+  value                  Json
+  source                 AttributeSource @default(LOCAL)
+  inheritedFromProductId String?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  product             Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attributeDefinition AttributeDefinition @relation(fields: [attributeDefinitionId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, attributeDefinitionId])
+  @@index([attributeDefinitionId])
+}
+
+enum AttributeSource {
+  LOCAL
+  INHERITED
+  OVERRIDDEN
+}
+
+model ProductCategory {
+  id         String @id @default(cuid())
+  productId  String
+  categoryId String
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, categoryId])
+}
+
+model ProductMedia {
+  id        String    @id @default(cuid())
+  productId String
+  url       String
+  role      MediaRole @default(PRIMARY)
+  altText   String?
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+enum MediaRole {
+  PRIMARY
+  SWATCH
+  LIFESTYLE
+}
+
+// ─── Taxonomy & Facets ──────────────────────────────────────────────────────
+
+model Category {
+  id             String   @id @default(cuid())
+  organizationId String
+  parentId       String?
+  name           String
+  slug           String
+  path           String
+  depth          Int      @default(0)
+  sortOrder      Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization       Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent             Category?             @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children           Category[]            @relation("CategoryTree")
+  primaryProducts    Product[]             @relation("PrimaryCategory")
+  productCategories  ProductCategory[]
+  attributeSet       CategoryAttributeSet?
+  facetDefinitions   FacetDefinition[]
+
+  @@unique([organizationId, path])
+  @@unique([organizationId, slug, parentId])
+  @@index([organizationId, parentId])
+}
+
+model AttributeGroup {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  attributes   AttributeDefinition[]
+
+  @@unique([organizationId, name])
+}
+
+model AttributeDefinition {
+  id               String        @id @default(cuid())
+  organizationId   String
+  attributeGroupId String
+  key              String
+  label            String
+  description      String?
+  dataType         AttributeDataType
+  isGlobal         Boolean       @default(false)
+  isVariantAxis    Boolean       @default(false)
+  constraints      Json?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  organization     Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  attributeGroup   AttributeGroup            @relation(fields: [attributeGroupId], references: [id], onDelete: Cascade)
+  enumValues       AttributeEnumValue[]
+  categoryBindings CategoryAttributeBinding[]
+  productValues    ProductAttributeValue[]
+  facetDefinitions FacetDefinition[]
+
+  @@unique([organizationId, key])
+  @@index([organizationId, isVariantAxis])
+}
+
+enum AttributeDataType {
+  TEXT
+  RICH_TEXT
+  NUMBER
+  BOOLEAN
+  ENUM
+  DATE
+  URL
+  JSON
+}
+
+model AttributeEnumValue {
+  id                    String @id @default(cuid())
+  attributeDefinitionId String
+  value                 String
+  label                 String
+  sortOrder             Int    @default(0)
+
+  attributeDefinition AttributeDefinition @relation(fields: [attributeDefinitionId], references: [id], onDelete: Cascade)
+
+  @@unique([attributeDefinitionId, value])
+}
+
+model CategoryAttributeSet {
+  id         String   @id @default(cuid())
+  categoryId String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category Category                   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  bindings CategoryAttributeBinding[]
+}
+
+model CategoryAttributeBinding {
+  id                     String              @id @default(cuid())
+  categoryAttributeSetId String
+  attributeDefinitionId  String
+  requirement            AttributeRequirement @default(OPTIONAL)
+  inheritFromParent      Boolean             @default(true)
+  sortOrder              Int                 @default(0)
+
+  categoryAttributeSet CategoryAttributeSet @relation(fields: [categoryAttributeSetId], references: [id], onDelete: Cascade)
+  attributeDefinition  AttributeDefinition  @relation(fields: [attributeDefinitionId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryAttributeSetId, attributeDefinitionId])
+}
+
+enum AttributeRequirement {
+  REQUIRED
+  OPTIONAL
+  HIDDEN
+}
+
+model FacetDefinition {
+  id                    String     @id @default(cuid())
+  organizationId        String
+  key                   String
+  label                 String
+  sourceAttributeId     String
+  categoryId            String?
+  scope                 FacetScope @default(GLOBAL)
+  sortOrder             Int        @default(0)
+  isActive              Boolean    @default(true)
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceAttribute AttributeDefinition @relation(fields: [sourceAttributeId], references: [id], onDelete: Cascade)
+  category        Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  rules           FacetRule[]
+
+  @@unique([organizationId, key])
+  @@index([organizationId, categoryId])
+}
+
+enum FacetScope {
+  GLOBAL
+  CATEGORY
+}
+
+model FacetRule {
+  id                String        @id @default(cuid())
+  facetDefinitionId String
+  ruleType          FacetRuleType @default(DIRECT)
+  config            Json?
+  priority          Int           @default(0)
+
+  facetDefinition FacetDefinition @relation(fields: [facetDefinitionId], references: [id], onDelete: Cascade)
+}
+
+enum FacetRuleType {
+  DIRECT
+  NORMALIZE
+  RANGE_BUCKET
+  COMPOSITE
+}
+
+// ─── Audit ───────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id             String      @id @default(cuid())
+  organizationId String
+  entityType     String
+  entityId       String
+  productId      String?
+  action         AuditAction
+  actorId        String?
+  changes        Json?
+  correlationId  String?
+  createdAt      DateTime    @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product        Product?     @relation("ProductAudit", fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, entityType, entityId])
+  @@index([organizationId, createdAt])
+  @@index([productId])
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATE_CHANGE
+  IMPORT
+  EXPORT
 }

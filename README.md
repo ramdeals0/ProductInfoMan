@@ -1,27 +1,55 @@
 # ProductInfoMan
 
-Product Information Management (PIM) system for ecommerce catalog governance.
+High-performance ecommerce Product Information Management (PIM) platform.
 
-## Planning (Phase 0)
+## Status
 
-Foundation planning artifacts are in [`docs/planning/`](./docs/planning/README.md):
+| Phase | Status |
+|-------|--------|
+| Phase 0 — Planning | Complete ([docs/planning/](./docs/planning/)) |
+| Phase 1 — Product Core | **Implemented** |
+| Phases 2–8 | Planned ([docs/implementation/](./docs/implementation/)) |
 
-- Requirements, domain model, epics, MVP scope
-- Discovery workshop questionnaire
-- Repository structure and architecture outline
+## Stack
 
-**Status:** Planning complete. Implementation not started.
+Next.js (Phase 8) · Fastify · PostgreSQL · Redis/BullMQ · OpenSearch · S3 · Zod · Prisma
 
-## Development Setup (Scaffold)
-
-The repository includes an early Prisma 7 + TypeScript scaffold. This will evolve per the target structure in `docs/planning/06-repo-structure.md`.
+## Quick Start
 
 ```bash
-npm install
+pnpm install
 cp .env.example .env
-npm run db:migrate
-npm run db:seed
+
+# PostgreSQL — option A: Docker
+pnpm docker:up
+
+# PostgreSQL — option B: Prisma dev (no Docker)
+npx prisma dev -d
+# Copy DATABASE_URL from: npx prisma dev ls
+
+pnpm db:push
+pnpm db:seed
+pnpm dev
 ```
+
+API: http://localhost:3001  
+Health: `GET /health`  
+Products: `GET /api/v1/products`
+
+Header: `X-Organization-Slug: demo` (default)
+
+## Phase 1 API
+
+| Method | Path |
+|--------|------|
+| POST | `/api/v1/products` |
+| GET | `/api/v1/products` |
+| GET | `/api/v1/products/:id` |
+| PATCH | `/api/v1/products/:id` |
+| DELETE | `/api/v1/products/:id` |
+| PUT | `/api/v1/products/:id/attributes` |
+| POST | `/api/v1/products/:parentId/variants` |
+| GET | `/api/v1/products/:parentId/variants` |
 
 ## License
 
