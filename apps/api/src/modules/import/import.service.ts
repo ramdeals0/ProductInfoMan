@@ -510,6 +510,14 @@ export async function processImportJob(importJobId: string, organizationId: stri
       after: { status: "FAILED", errorMessage: message },
     });
 
+    await emitEvent(
+      createEvent("import.job.failed", organizationId, {
+        importJobId: job.id,
+        status: "FAILED",
+        errorMessage: message,
+      }),
+    );
+
     throw error;
   }
 }

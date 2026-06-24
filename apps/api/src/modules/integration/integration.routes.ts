@@ -46,6 +46,17 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  app.get("/events/:id", async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const event = await integrationService.getOutboxEvent(id, request.organizationId);
+      return reply.send(event);
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
   app.post("/events/replay", async (request, reply) => {
     try {
       const body = ReplayEventsSchema.parse(request.body ?? {});

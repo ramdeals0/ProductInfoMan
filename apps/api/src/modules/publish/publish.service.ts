@@ -654,16 +654,28 @@ export async function processPublishJob(publishJobId: string, organizationId: st
       },
     });
 
-    await emitEvent(
-      createEvent("publish.job.completed", organizationId, {
-        publishJobId: job.id,
-        channelId: job.channelId,
-        mode: job.mode,
-        successfulItems,
-        failedItems,
-        status: finalStatus,
-      }),
-    );
+    if (finalStatus === "FAILED") {
+      await emitEvent(
+        createEvent("publish.job.failed", organizationId, {
+          publishJobId: job.id,
+          channelId: job.channelId,
+          mode: job.mode,
+          status: finalStatus,
+          errorMessage: `${failedItems} item(s) failed; ${skippedItems} skipped`,
+        }),
+      );
+    } else {
+      await emitEvent(
+        createEvent("publish.job.completed", organizationId, {
+          publishJobId: job.id,
+          channelId: job.channelId,
+          mode: job.mode,
+          successfulItems,
+          failedItems,
+          status: finalStatus,
+        }),
+      );
+    }
 
     await recordChange({
       organizationId,
@@ -695,6 +707,16 @@ export async function processPublishJob(publishJobId: string, organizationId: st
     });
 
     if (shouldRetry) throw error;
+
+    await emitEvent(
+      createEvent("publish.job.failed", organizationId, {
+        publishJobId: job.id,
+        channelId: job.channelId,
+        mode: job.mode,
+        status: "FAILED",
+        errorMessage: message,
+      }),
+    );
   }
 }
 

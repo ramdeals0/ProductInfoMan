@@ -11,11 +11,13 @@ export const DOMAIN_EVENT_TYPES = [
   "taxonomy.category.created",
   "taxonomy.facet.updated",
   "import.job.completed",
+  "import.job.failed",
   "workflow.state.changed",
   "workflow.approval.recorded",
   "search.index.requested",
   "publish.job.requested",
   "publish.job.completed",
+  "publish.job.failed",
   "audit.record.created",
 ] as const;
 
@@ -66,6 +68,20 @@ export const ImportJobCompletedEventSchema = z.object({
   importJobId: z.string(),
   committedRows: z.number(),
   skippedRows: z.number(),
+  status: z.string(),
+});
+
+export const ImportJobFailedEventSchema = z.object({
+  importJobId: z.string(),
+  status: z.string(),
+  errorMessage: z.string().optional(),
+});
+
+export const PublishJobFailedEventSchema = z.object({
+  publishJobId: z.string(),
+  channelId: z.string(),
+  mode: z.enum(["DRY_RUN", "LIVE"]),
+  errorMessage: z.string().optional(),
   status: z.string(),
 });
 
@@ -122,17 +138,20 @@ export const EVENT_SCHEMAS: Record<DomainEventType, z.ZodType<Record<string, unk
   "taxonomy.category.created": TaxonomyCategoryCreatedEventSchema,
   "taxonomy.facet.updated": TaxonomyFacetUpdatedEventSchema,
   "import.job.completed": ImportJobCompletedEventSchema,
+  "import.job.failed": ImportJobFailedEventSchema,
   "workflow.state.changed": WorkflowStateChangedEventSchema,
   "workflow.approval.recorded": WorkflowApprovalRecordedEventSchema,
   "search.index.requested": SearchIndexRequestedEventSchema,
   "publish.job.requested": PublishJobRequestedEventSchema,
   "publish.job.completed": PublishJobCompletedEventSchema,
+  "publish.job.failed": PublishJobFailedEventSchema,
   "audit.record.created": AuditRecordCreatedEventSchema,
 };
 
 export const CONSUMER_NAMES = [
   "search-sync",
   "publish-sync",
+  "audit-sync",
   "reporting-sync",
   "notification-sync",
 ] as const;
@@ -140,19 +159,21 @@ export const CONSUMER_NAMES = [
 export type ConsumerName = (typeof CONSUMER_NAMES)[number];
 
 export const EVENT_CONSUMER_ROUTING: Record<DomainEventType, ConsumerName[]> = {
-  "product.created": ["search-sync", "reporting-sync"],
-  "product.updated": ["search-sync", "reporting-sync"],
-  "product.variant.created": ["search-sync", "reporting-sync"],
-  "product.deleted": ["search-sync", "reporting-sync"],
-  "product.attributes_changed": ["search-sync"],
-  "taxonomy.category.created": ["reporting-sync"],
+  "product.created": ["search-sync", "audit-sync", "reporting-sync"],
+  "product.updated": ["search-sync", "audit-sync", "reporting-sync"],
+  "product.variant.created": ["search-sync", "audit-sync", "reporting-sync"],
+  "product.deleted": ["search-sync", "audit-sync", "reporting-sync"],
+  "product.attributes_changed": ["search-sync", "audit-sync"],
+  "taxonomy.category.created": ["audit-sync", "reporting-sync"],
   "taxonomy.facet.updated": ["search-sync", "reporting-sync"],
-  "import.job.completed": ["reporting-sync", "notification-sync"],
-  "workflow.state.changed": ["search-sync", "publish-sync", "notification-sync"],
-  "workflow.approval.recorded": ["reporting-sync", "notification-sync"],
+  "import.job.completed": ["audit-sync", "reporting-sync", "notification-sync"],
+  "import.job.failed": ["audit-sync", "reporting-sync", "notification-sync"],
+  "workflow.state.changed": ["search-sync", "publish-sync", "audit-sync", "notification-sync"],
+  "workflow.approval.recorded": ["audit-sync", "reporting-sync", "notification-sync"],
   "search.index.requested": ["search-sync"],
   "publish.job.requested": ["publish-sync"],
-  "publish.job.completed": ["reporting-sync", "notification-sync"],
+  "publish.job.completed": ["audit-sync", "reporting-sync", "notification-sync"],
+  "publish.job.failed": ["audit-sync", "reporting-sync", "notification-sync"],
   "audit.record.created": ["reporting-sync"],
 };
 
@@ -230,4 +251,28 @@ export interface EventConsumer {
 export function getConsumersForEventType(eventType: string): ConsumerName[] {
   if (!isDomainEventType(eventType)) return [];
   return EVENT_CONSUMER_ROUTING[eventType];
+}
+
+/** Alias for publishDomainEvent in API layer */
+export type DomainEventInput = {
+  eventId: string;
+  organizationId: string;
+  eventType: DomainEventType;
+  eventVersion: number;
+  payload: Record<string, unknown>;
+  occurredAt: string;
+  correlationId?: string;
+  causationId?: string;
+  actorId?: string;
+};
+
+export function createValidatedEventPayload(
+  eventType: DomainEventType,
+  payload: unknown,
+): Record<string, unknown> {
+  const validation = validateEventPayload(eventType, payload);
+  if (!validation.valid) {
+    throw new Error(validation.error);
+  }
+  return validation.payload;
 }
