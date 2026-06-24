@@ -37,13 +37,27 @@ async function main() {
 
   console.log(`Purging Fleet Farm demo data (org=${orgSlug})...`);
 
-  const ffProducts = await prisma.product.deleteMany({
+  const fleetFarmCategories = await prisma.category.findMany({
     where: {
       organizationId: org.id,
-      sku: { startsWith: "FF-" },
+      code: { in: [FLEET_FARM_ROOT_CODE, ...FLEET_FARM_CHILD_CODES] },
+    },
+    select: { id: true, code: true },
+  });
+  const fleetFarmCategoryIds = fleetFarmCategories.map((category) => category.id);
+
+  const fleetFarmProducts = await prisma.product.deleteMany({
+    where: {
+      organizationId: org.id,
+      OR: [
+        { sku: { startsWith: "FF-" } },
+        ...(fleetFarmCategoryIds.length > 0
+          ? [{ primaryCategoryId: { in: fleetFarmCategoryIds } }]
+          : []),
+      ],
     },
   });
-  console.log(`  Deleted ${ffProducts.count} FF-* products`);
+  console.log(`  Deleted ${fleetFarmProducts.count} Fleet Farm products`);
 
   const fleetFarmSystemIds = await prisma.productSystemId.deleteMany({
     where: {
@@ -53,29 +67,13 @@ async function main() {
   });
   console.log(`  Deleted ${fleetFarmSystemIds.count} FLEETFARM system IDs`);
 
-  const fleetFarmCategories = await prisma.category.findMany({
-    where: {
-      organizationId: org.id,
-      code: { in: [FLEET_FARM_ROOT_CODE, ...FLEET_FARM_CHILD_CODES] },
-    },
-    select: { id: true, code: true, parentId: true },
-  });
-
-  const childCategories = fleetFarmCategories.filter((category) => category.code !== FLEET_FARM_ROOT_CODE);
-  const rootCategory = fleetFarmCategories.find((category) => category.code === FLEET_FARM_ROOT_CODE);
-
-  for (const category of childCategories) {
-    await prisma.category.delete({ where: { id: category.id } });
-  }
-  if (rootCategory) {
-    await prisma.category.delete({ where: { id: rootCategory.id } });
-  }
-  console.log(`  Deleted ${fleetFarmCategories.length} Fleet Farm categories`);
-
   const fleetFarmFacets = await prisma.facetDefinition.findMany({
     where: {
       organizationId: org.id,
-      key: { in: FLEET_FARM_FACET_KEYS },
+      OR: [
+        { key: { in: FLEET_FARM_FACET_KEYS } },
+        ...(fleetFarmCategoryIds.length > 0 ? [{ categoryId: { in: fleetFarmCategoryIds } }] : []),
+      ],
     },
     select: { id: true },
   });
@@ -92,6 +90,29 @@ async function main() {
     });
   }
   console.log(`  Deleted ${fleetFarmFacets.length} Fleet Farm facet definitions`);
+
+  const childCategories = fleetFarmCategories.filter((category) => category.code !== FLEET_FARM_ROOT_CODE);
+  const rootCategory = fleetFarmCategories.find((category) => category.code === FLEET_FARM_ROOT_CODE);
+
+  if (fleetFarmCategoryIds.length > 0) {
+    await prisma.categoryAttributeBinding.deleteMany({
+      where: { categoryAttributeSet: { categoryId: { in: fleetFarmCategoryIds } } },
+    });
+    await prisma.categoryAttributeSet.deleteMany({
+      where: { categoryId: { in: fleetFarmCategoryIds } },
+    });
+    await prisma.categoryAttributeGroup.deleteMany({
+      where: { categoryId: { in: fleetFarmCategoryIds } },
+    });
+  }
+
+  for (const category of childCategories) {
+    await prisma.category.delete({ where: { id: category.id } });
+  }
+  if (rootCategory) {
+    await prisma.category.delete({ where: { id: rootCategory.id } });
+  }
+  console.log(`  Deleted ${fleetFarmCategories.length} Fleet Farm categories`);
 
   const fleetFarmAttributes = await prisma.attributeDefinition.findMany({
     where: {
