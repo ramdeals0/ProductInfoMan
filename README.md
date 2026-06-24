@@ -20,6 +20,10 @@ High-performance ecommerce Product Information Management (PIM) platform.
 | Product MDM Layer | **Implemented** ([spec alignment](./docs/implementation/product-mdm-layer-spec.md)) |
 | Fleet Farm Demo Catalog | **Implemented** ([spec](./docs/implementation/fleetfarm-demo-catalog-spec.md)) |
 
+## Deploy on Railway
+
+See **[docs/deployment/railway.md](./docs/deployment/railway.md)** for Postgres + API + Admin + Storefront setup.
+
 ## Quick Start
 
 ```bash

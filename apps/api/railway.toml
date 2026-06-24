@@ -1,0 +1,24 @@
+# Railway config for the API service.
+# In Railway: Service → Settings → Config-as-code → /apps/api/railway.toml
+# Keep the project root directory empty (repo root) so pnpm workspace resolves.
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "pnpm install --frozen-lockfile && pnpm db:generate"
+watchPatterns = [
+  "apps/api/**",
+  "packages/**",
+  "prisma/**",
+  "generated/**",
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+]
+
+[deploy]
+preDeployCommand = "pnpm prisma migrate deploy"
+startCommand = "pnpm --filter @productinfoman/api start:railway"
+healthcheckPath = "/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

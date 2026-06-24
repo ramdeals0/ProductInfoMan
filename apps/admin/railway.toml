@@ -1,0 +1,22 @@
+# Railway config for the Admin UI (Next.js).
+# In Railway: Service → Settings → Config-as-code → /apps/admin/railway.toml
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @productinfoman/admin build"
+watchPatterns = [
+  "apps/admin/**",
+  "packages/api-client/**",
+  "packages/domain/**",
+  "packages/validation/**",
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+]
+
+[deploy]
+startCommand = "pnpm --filter @productinfoman/admin start"
+healthcheckPath = "/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

@@ -1,0 +1,21 @@
+# Railway config for the Storefront (Next.js).
+# In Railway: Service → Settings → Config-as-code → /apps/storefront/railway.toml
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @productinfoman/storefront build"
+watchPatterns = [
+  "apps/storefront/**",
+  "packages/api-client/**",
+  "packages/domain/**",
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+]
+
+[deploy]
+startCommand = "pnpm --filter @productinfoman/storefront start"
+healthcheckPath = "/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
