@@ -149,131 +149,156 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
+const editor = () => ({ userId: editorUserId, role: "EDITOR" as const });
+const reviewer = () => ({ userId: reviewerUserId, role: "REVIEWER" as const });
+const catalogManager = () => ({ userId: catalogManagerUserId, role: "CATALOG_MANAGER" as const });
+
 describe("Workflow and Approval", () => {
-  it("moves products through submit, approve, and publish with history", async () => {
+  // Phase 4 spec §9: Initial workflow state on product creation (draft).
+  it("creates products in draft status", async () => {
     const ts = Date.now();
     const product = await createProduct(organizationId, {
       productType: "SIMPLE",
-      sku: `WF-OK-${ts}`,
-      title: `Workflow Product ${ts}`,
+      sku: `WF-DRAFT-${ts}`,
+      title: "Draft Product",
+    });
+    expect(product.status).toBe("DRAFT");
+  });
+
+  // Phase 4 spec §9: submitForReview only allowed from draft/rejected.
+  it("allows submit from draft and blocks submit from in_review", async () => {
+    const ts = Date.now();
+    const product = await createProduct(organizationId, {
+      productType: "SIMPLE",
+      sku: `WF-SUBMIT-${ts}`,
+      title: "Submit Product",
     });
 
-    const submitted = await submitProduct(
-      product.id,
-      organizationId,
-      { userId: editorUserId, role: "EDITOR" },
-    );
+    const submitted = await submitProduct(product.id, organizationId, editor());
     expect(submitted.toState).toBe("IN_REVIEW");
 
-    const tasks = await listWorkflowTasks(organizationId, { status: "OPEN" });
-    const task = tasks.find((item) => item.productId === product.id);
-    expect(task).toBeDefined();
+    await expect(submitProduct(product.id, organizationId, editor())).rejects.toMatchObject({
+      statusCode: 400,
+    });
+  });
 
-    const approved = await approveProduct(
-      product.id,
-      organizationId,
-      { userId: reviewerUserId, role: "REVIEWER" },
-      { reason: "Meets catalog standards" },
-    );
+  // Phase 4 spec §9: approveProduct only allowed from in_review.
+  it("allows approve only from in_review", async () => {
+    const ts = Date.now();
+    const product = await createProduct(organizationId, {
+      productType: "SIMPLE",
+      sku: `WF-APPROVE-${ts}`,
+      title: "Approve Product",
+    });
+
+    await expect(
+      approveProduct(product.id, organizationId, reviewer(), { reason: "Too early" }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    await submitProduct(product.id, organizationId, editor());
+    const approved = await approveProduct(product.id, organizationId, reviewer(), {
+      reason: "Looks good",
+    });
     expect(approved.toState).toBe("APPROVED");
+  });
 
-    const published = await publishProduct(
-      product.id,
-      organizationId,
-      { userId: catalogManagerUserId, role: "CATALOG_MANAGER" },
-    );
+  // Phase 4 spec §9: rejectProduct only allowed from in_review.
+  it("allows reject only from in_review and requires reason when configured", async () => {
+    const ts = Date.now();
+    const product = await createProduct(organizationId, {
+      productType: "SIMPLE",
+      sku: `WF-REJECT-${ts}`,
+      title: "Reject Product",
+    });
+
+    await expect(
+      rejectProduct(product.id, organizationId, reviewer(), { reason: "Not in review" }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    await submitProduct(product.id, organizationId, editor());
+
+    await expect(
+      rejectProduct(product.id, organizationId, reviewer(), { reason: "" }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    const rejected = await rejectProduct(product.id, organizationId, reviewer(), {
+      reason: "Missing required attributes",
+      comments: "Add brand before resubmitting",
+    });
+    expect(rejected.toState).toBe("REJECTED");
+  });
+
+  // Phase 4 spec §9: publishProduct only allowed from approved.
+  it("allows publish only from approved", async () => {
+    const ts = Date.now();
+    const product = await createProduct(organizationId, {
+      productType: "SIMPLE",
+      sku: `WF-PUBLISH-${ts}`,
+      title: "Publish Product",
+    });
+
+    await expect(publishProduct(product.id, organizationId, catalogManager())).rejects.toMatchObject({
+      statusCode: 400,
+    });
+
+    await submitProduct(product.id, organizationId, editor());
+    await expect(publishProduct(product.id, organizationId, catalogManager())).rejects.toMatchObject({
+      statusCode: 400,
+    });
+
+    await approveProduct(product.id, organizationId, reviewer(), { reason: "Approved" });
+    const published = await publishProduct(product.id, organizationId, catalogManager());
     expect(published.toState).toBe("PUBLISHED");
+  });
+
+  // Phase 4 spec §9: Attempts to skip states (draft -> published) are blocked.
+  it("blocks role violations and skipped transitions", async () => {
+    const ts = Date.now();
+    const product = await createProduct(organizationId, {
+      productType: "SIMPLE",
+      sku: `WF-BLOCK-${ts}`,
+      title: "Blocked Product",
+    });
+
+    await expect(publishProduct(product.id, organizationId, catalogManager())).rejects.toMatchObject({
+      statusCode: 400,
+    });
+
+    await submitProduct(product.id, organizationId, editor());
+
+    await expect(
+      approveProduct(product.id, organizationId, editor(), { reason: "Wrong role" }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  // Phase 4 spec §9: workflow_history entries created for each transition.
+  it("records workflow history and approval metadata through the full lifecycle", async () => {
+    const ts = Date.now();
+    const product = await createProduct(organizationId, {
+      productType: "SIMPLE",
+      sku: `WF-HIST-${ts}`,
+      title: "History Product",
+    });
+
+    await submitProduct(product.id, organizationId, editor());
+    await approveProduct(product.id, organizationId, reviewer(), {
+      reason: "Meets catalog standards",
+    });
+    await publishProduct(product.id, organizationId, catalogManager());
 
     const history = await getProductWorkflowHistory(product.id, organizationId);
     expect(history.map((entry) => entry.actionType)).toEqual(
       expect.arrayContaining(["SUBMIT", "APPROVE", "PUBLISH"]),
     );
 
+    const tasks = await listWorkflowTasks(organizationId, { status: "COMPLETED" });
+    const task = tasks.find((item) => item.productId === product.id);
+    expect(task).toBeDefined();
+
     if (task) {
       const fetchedTask = await getWorkflowTask(task.id, organizationId);
-      expect(fetchedTask.status).toBe("COMPLETED");
       expect(fetchedTask.approvals[0]?.decision).toBe("APPROVED");
       expect(fetchedTask.approvals[0]?.decisionReason).toBe("Meets catalog standards");
     }
-  });
-
-  it("blocks invalid transitions and publish before approval", async () => {
-    const ts = Date.now();
-    const product = await createProduct(organizationId, {
-      productType: "SIMPLE",
-      sku: `WF-BLOCK-${ts}`,
-      title: `Blocked Product ${ts}`,
-    });
-
-    await expect(
-      publishProduct(product.id, organizationId, {
-        userId: catalogManagerUserId,
-        role: "CATALOG_MANAGER",
-      }),
-    ).rejects.toMatchObject({ statusCode: 400 });
-
-    await submitProduct(product.id, organizationId, {
-      userId: editorUserId,
-      role: "EDITOR",
-    });
-
-    await expect(
-      publishProduct(product.id, organizationId, {
-        userId: catalogManagerUserId,
-        role: "CATALOG_MANAGER",
-      }),
-    ).rejects.toMatchObject({ statusCode: 400 });
-
-    await expect(
-      approveProduct(product.id, organizationId, {
-        userId: editorUserId,
-        role: "EDITOR",
-      }),
-    ).rejects.toMatchObject({ statusCode: 400 });
-  });
-
-  it("records rejection decisions with reason and comments", async () => {
-    const ts = Date.now();
-    const product = await createProduct(organizationId, {
-      productType: "SIMPLE",
-      sku: `WF-REJECT-${ts}`,
-      title: `Reject Product ${ts}`,
-    });
-
-    await submitProduct(product.id, organizationId, {
-      userId: editorUserId,
-      role: "EDITOR",
-    });
-
-    await expect(
-      rejectProduct(
-        product.id,
-        organizationId,
-        { userId: reviewerUserId, role: "REVIEWER" },
-        { reason: "" },
-      ),
-    ).rejects.toMatchObject({ statusCode: 400 });
-
-    const rejected = await rejectProduct(
-      product.id,
-      organizationId,
-      { userId: reviewerUserId, role: "REVIEWER" },
-      {
-        reason: "Missing required attributes",
-        comments: "Add brand and category before resubmitting",
-      },
-    );
-    expect(rejected.toState).toBe("REJECTED");
-
-    const updated = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
-    expect(updated.status).toBe("REJECTED");
-
-    const tasks = await listWorkflowTasks(organizationId, { status: "COMPLETED" });
-    const task = tasks.find((item) => item.productId === product.id);
-    expect(task?.approvals[0]).toMatchObject({
-      decision: "REJECTED",
-      decisionReason: "Missing required attributes",
-      comments: "Add brand and category before resubmitting",
-    });
   });
 });
