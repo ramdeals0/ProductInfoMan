@@ -6,10 +6,10 @@ import { FormEvent, useState } from "react";
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState(process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "admin@demo.local");
+  const [email, setEmail] = useState(process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "");
   const [password, setPassword] = useState("");
   const [organizationSlug, setOrganizationSlug] = useState(
-    process.env.NEXT_PUBLIC_DEFAULT_ORG_SLUG ?? "demo",
+    process.env.NEXT_PUBLIC_DEFAULT_ORG_SLUG ?? "",
   );
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);

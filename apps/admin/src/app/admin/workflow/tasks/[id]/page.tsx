@@ -46,7 +46,7 @@ export default function WorkflowTaskDetailPage() {
   const rejectMutation = useMutation({
     mutationFn: () =>
       api.rejectProduct(data!.productId!, {
-        reason: reason || "Rejected from workflow task",
+        reason,
       }),
     onSuccess: () => {
       pushToast("Product rejected", "success");

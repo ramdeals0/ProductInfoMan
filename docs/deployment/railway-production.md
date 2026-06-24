@@ -53,7 +53,7 @@ curl -H "X-Organization-Slug: demo" \
 Expected:
 
 - `/health` → `{"status":"ok"}`
-- `/health/ready` → `{"status":"ok","checks":{...}}`
+- `/health/ready` → `{"status":"ok"}` (subsystem details only with `X-Health-Token` header when `HEALTH_INTERNAL_TOKEN` is set)
 - `/api/v1/products` → JSON list (may be empty before seed)
 
 ---
@@ -66,8 +66,9 @@ Create a **second** Railway service from the same repo with config `/apps/admin/
 API_URL=https://pim-api.up.railway.app
 JWT_SECRET=<same value as API>
 NEXT_PUBLIC_DEFAULT_ORG_SLUG=demo
-NEXT_PUBLIC_ADMIN_EMAIL=admin@demo.local
 ```
+
+Do **not** set `NEXT_PUBLIC_ADMIN_EMAIL` in production — the login form must not pre-fill credentials.
 
 **Important:** Set `API_URL` before the first Admin build. Redeploy Admin after changing it.
 

@@ -33,7 +33,16 @@ export default function FacetsPage() {
 
   const ruleColumns = useMemo<ColumnDef<FacetRow>[]>(
     () => [
-      { header: "Facet", accessorKey: "facetDefinitionId" },
+      {
+        header: "Facet",
+        cell: ({ row }) => {
+          const label = row.original.facetLabel;
+          const key = row.original.facetKey;
+          if (typeof label === "string" && label) return label;
+          if (typeof key === "string" && key) return key;
+          return String(row.original.facetDefinitionId ?? "—");
+        },
+      },
       { header: "Rule type", accessorKey: "ruleType" },
       { header: "Priority", accessorKey: "priority" },
     ],

@@ -71,8 +71,9 @@ CORS_ORIGINS=https://<admin-domain>,https://<storefront-domain>
 API_URL=https://${{api.RAILWAY_PUBLIC_DOMAIN}}
 JWT_SECRET=<same-as-api>
 NEXT_PUBLIC_DEFAULT_ORG_SLUG=demo
-NEXT_PUBLIC_ADMIN_EMAIL=admin@demo.local
 ```
+
+Do not set `NEXT_PUBLIC_ADMIN_EMAIL` in production.
 
 > Set `API_URL` **before the first build** so Next.js rewrites `/api/v1/*` to the backend.
 

@@ -72,6 +72,7 @@ function toFacetRuleDto(rule: {
   priority: number;
   createdAt: Date;
   updatedAt: Date;
+  facetDefinition?: { key: string; label: string };
 }): FacetRuleEntity {
   return {
     id: rule.id,
@@ -79,6 +80,8 @@ function toFacetRuleDto(rule: {
     categoryId: rule.categoryId,
     attributeDefinitionId: rule.attributeDefinitionId,
     facetDefinitionId: rule.facetDefinitionId,
+    facetKey: rule.facetDefinition?.key,
+    facetLabel: rule.facetDefinition?.label,
     ruleType: rule.ruleType,
     ruleConfig:
       rule.ruleConfig && typeof rule.ruleConfig === "object" && !Array.isArray(rule.ruleConfig)
@@ -257,7 +260,10 @@ export async function createFacetRule(
     }),
   );
 
-  return toFacetRuleDto(rule);
+  return toFacetRuleDto({
+    ...rule,
+    facetDefinition: { key: facet.key, label: facet.label },
+  });
 }
 
 export async function listFacetRules(
@@ -269,6 +275,9 @@ export async function listFacetRules(
       organizationId,
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
       ...(query.facetDefinitionId ? { facetDefinitionId: query.facetDefinitionId } : {}),
+    },
+    include: {
+      facetDefinition: { select: { key: true, label: true } },
     },
     orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
   });

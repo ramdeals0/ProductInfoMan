@@ -6,23 +6,10 @@ import {
   SetAttributesSchema,
   UpdateProductSchema,
 } from "@productinfoman/validation";
-import { AppError } from "@productinfoman/shared";
+import { sendRouteError } from "../../lib/route-errors.js";
 import { resolveTenant } from "../../plugins/tenant.js";
 import { authenticateJwt, requireRoleGroup } from "../../plugins/rbac.js";
 import * as productService from "./product.service.js";
-
-function handleError(error: unknown): { statusCode: number; message: string } {
-  if (error instanceof AppError) {
-    return { statusCode: error.statusCode, message: error.message };
-  }
-  if (error && typeof error === "object" && "statusCode" in error) {
-    return {
-      statusCode: (error as { statusCode: number }).statusCode,
-      message: (error as Error).message,
-    };
-  }
-  return { statusCode: 500, message: (error as Error).message ?? "Internal error" };
-}
 
 export async function productRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", resolveTenant);
@@ -37,8 +24,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       const product = await productService.createProduct(request.organizationId, body);
       return reply.code(201).send(product);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -51,8 +37,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       const result = await productService.listProducts(request.organizationId, query);
       return reply.send(result);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -65,8 +50,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       const tree = await productService.getProductTree(id, request.organizationId);
       return reply.send(tree);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -79,8 +63,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       const variants = await productService.listVariants(id, request.organizationId);
       return reply.send({ items: variants });
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -94,8 +77,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       const variant = await productService.createVariant(id, request.organizationId, body);
       return reply.code(201).send(variant);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -108,8 +90,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       const product = await productService.getProduct(id, request.organizationId);
       return reply.send(product);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -123,8 +104,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       const product = await productService.updateProduct(id, request.organizationId, body);
       return reply.send(product);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -137,8 +117,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       await productService.deleteProduct(id, request.organizationId);
       return reply.code(204).send();
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -156,8 +135,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       );
       return reply.send(product);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 }

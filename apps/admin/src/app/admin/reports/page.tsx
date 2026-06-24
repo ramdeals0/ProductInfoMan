@@ -8,6 +8,7 @@ import { DataTable } from "@/components/ui/DataTable";
 import { ErrorState, LoadingState } from "@/components/ui/States";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { useSession } from "@/lib/session";
+import { formatUserFacingError } from "@/lib/errors";
 
 function MetricCard({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
   return (
@@ -68,7 +69,7 @@ export default function ReportsPage() {
   );
 
   if (isLoading) return <LoadingState />;
-  if (error) return <ErrorState message={(error as Error).message} />;
+  if (error) return <ErrorState message={formatUserFacingError(error)} />;
 
   const dash = dashboard.data!;
   const comp = completeness.data!;

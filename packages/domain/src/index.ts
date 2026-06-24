@@ -126,6 +126,8 @@ export interface FacetRuleEntity {
   categoryId: string | null;
   attributeDefinitionId: string | null;
   facetDefinitionId: string;
+  facetKey?: string;
+  facetLabel?: string;
   ruleType: FacetRuleType;
   ruleConfig: Record<string, unknown> | null;
   priority: number;

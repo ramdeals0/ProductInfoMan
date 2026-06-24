@@ -5,23 +5,10 @@ import {
   ListImportsQuerySchema,
   UploadImportSchema,
 } from "@productinfoman/validation";
-import { AppError } from "@productinfoman/shared";
+import { sendRouteError } from "../../lib/route-errors.js";
 import { resolveTenant } from "../../plugins/tenant.js";
 import { authenticateJwt, assertRoleGroup } from "../../plugins/rbac.js";
 import * as importService from "./import.service.js";
-
-function handleError(error: unknown): { statusCode: number; message: string } {
-  if (error instanceof AppError) {
-    return { statusCode: error.statusCode, message: error.message };
-  }
-  if (error && typeof error === "object" && "statusCode" in error) {
-    return {
-      statusCode: (error as { statusCode: number }).statusCode,
-      message: (error as Error).message,
-    };
-  }
-  return { statusCode: 500, message: (error as Error).message ?? "Internal error" };
-}
 
 export async function importRoutes(app: FastifyInstance): Promise<void> {
   await app.register(multipart, {
@@ -57,8 +44,7 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
 
       return reply.code(201).send(job);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -69,8 +55,7 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
       const job = await importService.validateImport(id, request.organizationId);
       return reply.send(job);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -81,8 +66,7 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
       const job = await importService.startImport(id, request.organizationId);
       return reply.send(job);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -92,8 +76,7 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
       const job = await importService.getImportJob(id, request.organizationId);
       return reply.send(job);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -103,8 +86,7 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
       const result = await importService.listImportJobs(request.organizationId, query);
       return reply.send(result);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -114,8 +96,7 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
       const errors = await importService.getImportErrors(id, request.organizationId);
       return reply.send({ items: errors });
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -127,8 +108,7 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
       reply.header("Content-Disposition", `attachment; filename="import-${id}-errors.csv"`);
       return reply.send(report);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -139,8 +119,7 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
       const template = await importService.createImportTemplate(request.organizationId, body);
       return reply.code(201).send(template);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -149,8 +128,7 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
       const templates = await importService.listImportTemplates(request.organizationId);
       return reply.send({ items: templates });
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 }

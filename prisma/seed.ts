@@ -31,33 +31,80 @@ async function seedRoles() {
   }
 }
 
-async function seedAdminUser(organizationId: string) {
-  const adminEmail = process.env.ADMIN_EMAIL ?? "admin@demo.local";
-  const adminPassword = process.env.ADMIN_PASSWORD ?? "Admin123!@#demo";
-  const passwordHash = await bcrypt.hash(adminPassword, 10);
-
-  const adminUser = await prisma.user.upsert({
-    where: { organizationId_email: { organizationId, email: adminEmail } },
+async function seedRoleUser(
+  organizationId: string,
+  input: {
+    email: string;
+    name: string;
+    password: string;
+    legacyRole: "ADMIN" | "EDITOR" | "REVIEWER" | "VIEWER";
+    roleCode: string;
+  },
+) {
+  const passwordHash = await bcrypt.hash(input.password, 10);
+  const user = await prisma.user.upsert({
+    where: { organizationId_email: { organizationId, email: input.email } },
     create: {
       organizationId,
-      email: adminEmail,
-      name: "Demo Admin",
-      role: "ADMIN",
+      email: input.email,
+      name: input.name,
+      role: input.legacyRole,
       passwordHash,
       isActive: true,
     },
     update: {
+      name: input.name,
       passwordHash,
       isActive: true,
-      role: "ADMIN",
+      role: input.legacyRole,
     },
   });
 
-  const adminRole = await prisma.role.findUniqueOrThrow({ where: { code: "admin" } });
+  const role = await prisma.role.findUniqueOrThrow({ where: { code: input.roleCode } });
   await prisma.userRoleMembership.upsert({
-    where: { userId_roleId: { userId: adminUser.id, roleId: adminRole.id } },
-    create: { userId: adminUser.id, roleId: adminRole.id },
+    where: { userId_roleId: { userId: user.id, roleId: role.id } },
+    create: { userId: user.id, roleId: role.id },
     update: {},
+  });
+}
+
+async function seedAdminUser(organizationId: string) {
+  const adminEmail = process.env.ADMIN_EMAIL ?? "admin@demo.local";
+  const adminPassword = process.env.ADMIN_PASSWORD ?? "Admin123!@#demo";
+  await seedRoleUser(organizationId, {
+    email: adminEmail,
+    name: "Demo Admin",
+    password: adminPassword,
+    legacyRole: "ADMIN",
+    roleCode: "admin",
+  });
+}
+
+async function seedDemoUsers(organizationId: string) {
+  await seedAdminUser(organizationId);
+
+  const demoPassword =
+    process.env.DEMO_USER_PASSWORD ?? process.env.ADMIN_PASSWORD ?? "Admin123!@#demo";
+  await seedRoleUser(organizationId, {
+    email: "editor@demo.local",
+    name: "Demo Editor",
+    password: demoPassword,
+    legacyRole: "EDITOR",
+    roleCode: "product_editor",
+  });
+  await seedRoleUser(organizationId, {
+    email: "approver@demo.local",
+    name: "Demo Approver",
+    password: demoPassword,
+    legacyRole: "REVIEWER",
+    roleCode: "product_approver",
+  });
+  await seedRoleUser(organizationId, {
+    email: "ops@demo.local",
+    name: "Demo Ops",
+    password: demoPassword,
+    legacyRole: "VIEWER",
+    roleCode: "ops",
   });
 }
 
@@ -69,7 +116,7 @@ async function main() {
   });
 
   await seedRoles();
-  await seedAdminUser(org.id);
+  await seedDemoUsers(org.id);
 
   const specsGroup = await prisma.attributeGroup.upsert({
     where: { organizationId_code: { organizationId: org.id, code: "specifications" } },

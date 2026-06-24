@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Breadcrumb, PageHeader } from "@/components/layout/AdminShell";
 import { ErrorState, LoadingState } from "@/components/ui/States";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { formatUserFacingError } from "@/lib/errors";
 import { canApproveWorkflow, canEditProducts, canSubmitForReview } from "@/lib/roles";
 import { useSession } from "@/lib/session";
 
@@ -63,7 +64,7 @@ export default function ProductDetailPage() {
   });
 
   if (productQuery.isLoading) return <LoadingState />;
-  if (productQuery.error) return <ErrorState message={(productQuery.error as Error).message} />;
+  if (productQuery.error) return <ErrorState message={formatUserFacingError(productQuery.error)} />;
 
   const product = productQuery.data!;
 
@@ -137,7 +138,7 @@ export default function ProductDetailPage() {
           <div className="card p-5">
             <h2 className="font-medium">Workflow</h2>
             <p className="mt-1 text-sm text-slate-600">
-              Signed in as {user?.email} ({roles.join(", ") || "no roles"})
+              Signed in as {user?.name || "User"}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               {canSubmit ? (
@@ -158,11 +159,14 @@ export default function ProductDetailPage() {
             </div>
             {canApprove ? (
             <div className="mt-4">
-              <label className="label">Reject reason</label>
+              <label className="label">Reject reason (required)</label>
               <input
                 className="input"
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
+                required
+                minLength={1}
+                placeholder="Explain why this product is rejected"
               />
               <button
                 className="btn-danger mt-2"

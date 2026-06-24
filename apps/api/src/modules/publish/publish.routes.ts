@@ -5,23 +5,10 @@ import {
   ListPublishJobsQuerySchema,
   PublishRunSchema,
 } from "@productinfoman/validation";
-import { AppError } from "@productinfoman/shared";
+import { sendRouteError } from "../../lib/route-errors.js";
 import { resolveTenant } from "../../plugins/tenant.js";
 import { authenticateJwt, assertRoles, ROLE_GROUPS } from "../../plugins/rbac.js";
 import * as publishService from "./publish.service.js";
-
-function handleError(error: unknown): { statusCode: number; message: string } {
-  if (error instanceof AppError) {
-    return { statusCode: error.statusCode, message: error.message };
-  }
-  if (error && typeof error === "object" && "statusCode" in error) {
-    return {
-      statusCode: (error as { statusCode: number }).statusCode,
-      message: (error as Error).message,
-    };
-  }
-  return { statusCode: 500, message: (error as Error).message ?? "Internal error" };
-}
 
 export async function publishRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", resolveTenant);
@@ -38,8 +25,7 @@ export async function publishRoutes(app: FastifyInstance): Promise<void> {
       const channel = await publishService.createChannel(request.organizationId, body);
       return reply.code(201).send(channel);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -48,8 +34,7 @@ export async function publishRoutes(app: FastifyInstance): Promise<void> {
       const channels = await publishService.listChannels(request.organizationId);
       return reply.send({ items: channels });
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -60,8 +45,7 @@ export async function publishRoutes(app: FastifyInstance): Promise<void> {
       const mappings = await publishService.createChannelMappings(id, request.organizationId, body);
       return reply.code(201).send({ items: mappings });
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -71,8 +55,7 @@ export async function publishRoutes(app: FastifyInstance): Promise<void> {
       const mappings = await publishService.getChannelMappings(id, request.organizationId);
       return reply.send({ items: mappings });
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -83,8 +66,7 @@ export async function publishRoutes(app: FastifyInstance): Promise<void> {
       const preview = await publishService.previewChannel(id, request.organizationId, productId);
       return reply.send(preview);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -94,8 +76,7 @@ export async function publishRoutes(app: FastifyInstance): Promise<void> {
       const job = await publishService.startDryRun(request.organizationId, body);
       return reply.code(202).send(job);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -105,8 +86,7 @@ export async function publishRoutes(app: FastifyInstance): Promise<void> {
       const job = await publishService.startPublishRun(request.organizationId, body);
       return reply.code(202).send(job);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -116,8 +96,7 @@ export async function publishRoutes(app: FastifyInstance): Promise<void> {
       const result = await publishService.listPublishJobs(request.organizationId, query);
       return reply.send(result);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -127,8 +106,7 @@ export async function publishRoutes(app: FastifyInstance): Promise<void> {
       const job = await publishService.getPublishJob(id, request.organizationId);
       return reply.send(job);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -140,8 +118,7 @@ export async function publishRoutes(app: FastifyInstance): Promise<void> {
       reply.header("Content-Disposition", `attachment; filename="${artifact.fileName}"`);
       return reply.send(content);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 
@@ -151,8 +128,7 @@ export async function publishRoutes(app: FastifyInstance): Promise<void> {
       const job = await publishService.retryPublishJob(id, request.organizationId);
       return reply.code(202).send(job);
     } catch (e) {
-      const { statusCode, message } = handleError(e);
-      return reply.code(statusCode).send({ error: message });
+      return sendRouteError(reply, request, e);
     }
   });
 }

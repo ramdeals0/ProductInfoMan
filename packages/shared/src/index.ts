@@ -2,6 +2,11 @@ import { prisma } from "@productinfoman/db";
 
 export { AppError, appError } from "./errors.js";
 export {
+  GENERIC_HTTP_ERROR_MESSAGE,
+  resolveHttpError,
+  type ResolvedHttpError,
+} from "./http-errors.js";
+export {
   RBAC_ROLE_CODES,
   ROLE_GROUPS,
   ROLE_SEEDS,

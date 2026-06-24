@@ -52,12 +52,14 @@ export async function verifyToken(token: string): Promise<JwtPayload> {
   };
 }
 
-export function getRefreshTokenTtlMs(): number {
-  const { JWT_REFRESH_EXPIRES_IN } = loadApiEnv();
-  const match = JWT_REFRESH_EXPIRES_IN.match(/^(\d+)([smhd])$/);
-  if (!match) return 7 * 24 * 60 * 60 * 1000;
+export function getRefreshTokenTtlMs(roles: string[] = []): number {
+  const { JWT_REFRESH_EXPIRES_IN, JWT_REFRESH_EXPIRES_IN_PRIVILEGED } = loadApiEnv();
+  const privileged = roles.some((role) => role === "admin" || role === "product_approver");
+  const ttl = privileged ? JWT_REFRESH_EXPIRES_IN_PRIVILEGED : JWT_REFRESH_EXPIRES_IN;
+  const match = ttl.match(/^(\d+)([smhd])$/);
+  if (!match) return 24 * 60 * 60 * 1000;
   const amount = Number(match[1]);
   const unit = match[2];
   const multipliers: Record<string, number> = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 };
-  return amount * (multipliers[unit] ?? 86_400_000);
+  return amount * (multipliers[unit] ?? 3_600_000);
 }

@@ -74,6 +74,9 @@ export class ApiClient {
       } catch {
         // ignore
       }
+      if (response.status >= 500) {
+        message = "Something went wrong. Please try again.";
+      }
       throw new ApiError(message, response.status);
     }
 
