@@ -1,8 +1,12 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import type { ColumnDef } from "@tanstack/react-table";
+import { useMemo } from "react";
 import { PageHeader } from "@/components/layout/AdminShell";
+import { DataTable } from "@/components/ui/DataTable";
 import { ErrorState, LoadingState } from "@/components/ui/States";
+import { StatusChip } from "@/components/ui/StatusChip";
 import { useSession } from "@/lib/session";
 
 function MetricCard({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
@@ -17,86 +21,167 @@ function MetricCard({ label, value, hint }: { label: string; value: string | num
 
 export default function ReportsPage() {
   const { api } = useSession();
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["reports-summary"],
-    queryFn: () => api.getReportsSummary(),
+
+  const dashboard = useQuery({
+    queryKey: ["reports-dashboard"],
+    queryFn: () => api.getReportsDashboard(),
   });
+  const completeness = useQuery({
+    queryKey: ["reports-completeness"],
+    queryFn: () => api.getReportsCompleteness(),
+  });
+  const workflow = useQuery({
+    queryKey: ["reports-workflow"],
+    queryFn: () => api.getReportsWorkflow(),
+  });
+  const imports = useQuery({
+    queryKey: ["reports-imports"],
+    queryFn: () => api.getReportsImports(),
+  });
+  const publishes = useQuery({
+    queryKey: ["reports-publishes"],
+    queryFn: () => api.getReportsPublishes(),
+  });
+
+  const isLoading =
+    dashboard.isLoading ||
+    completeness.isLoading ||
+    workflow.isLoading ||
+    imports.isLoading ||
+    publishes.isLoading;
+
+  const error =
+    dashboard.error ?? completeness.error ?? workflow.error ?? imports.error ?? publishes.error;
+
+  const categoryColumns = useMemo<
+    ColumnDef<{ categoryName: string; productCount: number; averageScore: number }>[]
+  >(
+    () => [
+      { header: "Category", accessorKey: "categoryName" },
+      { header: "Products", accessorKey: "productCount" },
+      {
+        header: "Completeness",
+        cell: ({ row }) => `${row.original.averageScore}%`,
+      },
+    ],
+    [],
+  );
 
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState message={(error as Error).message} />;
+
+  const dash = dashboard.data!;
+  const comp = completeness.data!;
+  const wf = workflow.data!;
+  const imp = imports.data!;
+  const pub = publishes.data!;
 
   return (
     <div>
       <PageHeader
         title="Operations reports"
-        description="Catalog completeness, workflow throughput, import success, and publish success."
+        description="Dashboard, completeness, workflow throughput, and import/publish success rates."
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Catalog completeness" value={`${data!.catalog.completenessPct}%`} />
-        <MetricCard label="Approved products" value={data!.catalog.approvedProducts} />
-        <MetricCard label="Open workflow tasks" value={data!.workflow.openTasks} />
-        <MetricCard label="Dead letter events" value={data!.eventing.deadLetterCount} />
-      </div>
+      <section className="mb-8">
+        <h2 className="mb-4 text-lg font-semibold text-slate-900">Dashboard</h2>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard label="Total products" value={dash.totalProducts} />
+          <MetricCard label="Approved products" value={dash.approvedProducts} />
+          <MetricCard label="Published products" value={dash.publishedProducts} />
+          <MetricCard
+            label="Average completeness"
+            value={`${dash.averageCompletenessScore}%`}
+          />
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <MetricCard
+            label="Import jobs"
+            value={`${dash.imports.completedJobs}/${dash.imports.totalJobs} completed`}
+            hint={`Success rate ${dash.imports.successRate}%`}
+          />
+          <MetricCard
+            label="Publish jobs"
+            value={`${dash.publishing.completedJobs}/${dash.publishing.totalJobs} completed`}
+            hint={`Success rate ${dash.publishing.successRate}%`}
+          />
+        </div>
+      </section>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <div className="card p-5">
-          <h2 className="font-medium">Import success</h2>
-          <dl className="mt-4 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span>Completed</span>
-              <span className="font-medium text-emerald-700">{data!.imports.completed}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Failed</span>
-              <span className="font-medium text-red-700">{data!.imports.failed}</span>
-            </div>
-          </dl>
+      <section className="mb-8">
+        <h2 className="mb-4 text-lg font-semibold text-slate-900">Completeness</h2>
+        <div className="mb-4 grid gap-4 md:grid-cols-3">
+          <MetricCard label="Global score" value={`${comp.globalScore}%`} />
+          <MetricCard label="Products measured" value={comp.totalProducts} />
+          <MetricCard label="Categories" value={comp.byCategory.length} />
         </div>
-        <div className="card p-5">
-          <h2 className="font-medium">Publish success</h2>
-          <dl className="mt-4 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span>Completed</span>
-              <span className="font-medium text-emerald-700">{data!.publishing.completed}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Failed</span>
-              <span className="font-medium text-red-700">{data!.publishing.failed}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Active channels</span>
-              <span className="font-medium">{data!.publishing.activeChannels}</span>
-            </div>
-          </dl>
+        {comp.byCategory.length > 0 ? (
+          <DataTable data={comp.byCategory} columns={categoryColumns} />
+        ) : (
+          <p className="text-sm text-slate-500">No category completeness data for this period.</p>
+        )}
+      </section>
+
+      <section className="mb-8">
+        <h2 className="mb-4 text-lg font-semibold text-slate-900">Workflow throughput</h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          <MetricCard label="Transitions to approved" value={wf.transitionsToApproved} />
+          <MetricCard label="Transitions to published" value={wf.transitionsToPublished} />
+          <MetricCard label="Total transitions" value={wf.totalTransitions} />
         </div>
-        <div className="card p-5">
-          <h2 className="font-medium">Workflow throughput</h2>
-          <dl className="mt-4 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span>Open</span>
-              <span className="font-medium">{data!.workflow.openTasks}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Completed</span>
-              <span className="font-medium">{data!.workflow.completedTasks}</span>
-            </div>
-          </dl>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="mb-4 text-lg font-semibold text-slate-900">Imports</h2>
+        <div className="mb-4 grid gap-4 md:grid-cols-4">
+          <MetricCard label="Total jobs" value={imp.totalJobs} />
+          <MetricCard label="Completed" value={imp.completedJobs} />
+          <MetricCard label="Failed" value={imp.failedJobs} />
+          <MetricCard label="Avg valid row rate" value={`${imp.averageValidRowRate}%`} />
         </div>
-        <div className="card p-5">
-          <h2 className="font-medium">Catalog coverage</h2>
-          <dl className="mt-4 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span>Total products</span>
-              <span className="font-medium">{data!.catalog.totalProducts}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Categories</span>
-              <span className="font-medium">{data!.catalog.categoryCount}</span>
-            </div>
-          </dl>
+        <ul className="card divide-y divide-slate-100 text-sm">
+          {imp.jobs.slice(0, 10).map((job) => (
+            <li key={job.importJobId} className="flex items-center justify-between px-4 py-3">
+              <span>{job.fileName}</span>
+              <div className="flex items-center gap-3">
+                <StatusChip status={job.status} />
+                <span>{job.successRate}% valid</span>
+              </div>
+            </li>
+          ))}
+          {imp.jobs.length === 0 ? (
+            <li className="px-4 py-3 text-slate-500">No import jobs in this period.</li>
+          ) : null}
+        </ul>
+      </section>
+
+      <section>
+        <h2 className="mb-4 text-lg font-semibold text-slate-900">Publishing</h2>
+        <div className="mb-4 grid gap-4 md:grid-cols-4">
+          <MetricCard label="Total jobs" value={pub.totalJobs} />
+          <MetricCard label="Completed" value={pub.completedJobs} />
+          <MetricCard label="Failed" value={pub.failedJobs} />
+          <MetricCard label="Avg item success" value={`${pub.averageItemSuccessRate}%`} />
         </div>
-      </div>
+        <ul className="card divide-y divide-slate-100 text-sm">
+          {pub.jobs.slice(0, 10).map((job) => (
+            <li key={job.publishJobId} className="flex items-center justify-between px-4 py-3">
+              <span>
+                {job.mode} · {job.publishJobId.slice(0, 8)}…
+              </span>
+              <div className="flex items-center gap-3">
+                <StatusChip status={job.status} />
+                <span>
+                  {job.successfulItems}/{job.totalItems} items
+                </span>
+              </div>
+            </li>
+          ))}
+          {pub.jobs.length === 0 ? (
+            <li className="px-4 py-3 text-slate-500">No publish jobs in this period.</li>
+          ) : null}
+        </ul>
+      </section>
     </div>
   );
 }

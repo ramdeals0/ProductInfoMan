@@ -9,11 +9,14 @@ import type {
   ExportArtifactEntity,
   ImportJobEntity,
   ImportJobErrorEntity,
+  ImportReportEntity,
   OperationsReportEntity,
   OutboxEventEntity,
   ProductEntity,
   PublishJobEntity,
+  PublishReportEntity,
   WorkflowHistoryEntity,
+  WorkflowReportEntity,
   WorkflowTaskEntity,
   WorkflowTransitionResult,
 } from "@productinfoman/domain";
@@ -265,6 +268,10 @@ export class ApiClient {
     return this.request<{ items: AuditLogEntity[]; total: number }>(`/api/v1/audit?${params}`);
   }
 
+  getAuditLog(id: string) {
+    return this.request<AuditLogEntity>(`/api/v1/audit/${id}`);
+  }
+
   getReportsSummary() {
     return this.request<OperationsReportEntity>("/api/v1/reports/summary");
   }
@@ -283,6 +290,30 @@ export class ApiClient {
       if (value) params.set(key, value);
     }
     return this.request<CompletenessReportEntity>(`/api/v1/reports/completeness?${params}`);
+  }
+
+  getReportsWorkflow(query: Record<string, string | undefined> = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value) params.set(key, value);
+    }
+    return this.request<WorkflowReportEntity>(`/api/v1/reports/workflow?${params}`);
+  }
+
+  getReportsImports(query: Record<string, string | undefined> = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value) params.set(key, value);
+    }
+    return this.request<ImportReportEntity>(`/api/v1/reports/imports?${params}`);
+  }
+
+  getReportsPublishes(query: Record<string, string | undefined> = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value) params.set(key, value);
+    }
+    return this.request<PublishReportEntity>(`/api/v1/reports/publishes?${params}`);
   }
 
   getEntityHistory(entityType: string, entityId: string) {

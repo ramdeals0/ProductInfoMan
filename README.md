@@ -15,7 +15,7 @@ High-performance ecommerce Product Information Management (PIM) platform.
 | Phase 6 — Publishing/Syndication | **Implemented** ([spec alignment](./docs/implementation/phase-6-publishing-syndication-spec.md)) |
 | Phase 7 — Audit/Reporting | **Implemented** ([spec alignment](./docs/implementation/phase-7-audit-reporting-spec.md)) |
 | Phase 8 — Integration/Eventing | **Implemented** ([spec alignment](./docs/implementation/phase-8-integration-eventing-spec.md)) |
-| Phase 9 — Admin UI | **Implemented** ([apps/admin/README.md](./apps/admin/README.md)) |
+| Phase 9 — Admin UI | **Implemented** ([spec alignment](./docs/implementation/phase-9-admin-ui-spec.md), [admin README](./apps/admin/README.md)) |
 
 ## Quick Start
 
