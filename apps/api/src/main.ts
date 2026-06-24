@@ -16,8 +16,9 @@ import { taxonomyRoutes } from "./modules/taxonomy/taxonomy.routes.js";
 import { workflowRoutes } from "./modules/workflow/workflow.routes.js";
 import { mdmRoutes } from "./modules/mdm/mdm.routes.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
+import { registerRateLimitHook } from "./plugins/rate-limit.js";
 
-const app = Fastify({ logger: true });
+const app = Fastify({ logger: true, trustProxy: true });
 
 await app.register(cors, { origin: true });
 await app.register(authRoutes, { prefix: "/api/v1" });
@@ -31,6 +32,8 @@ await app.register(integrationRoutes, { prefix: "/api/v1" });
 await app.register(auditRoutes, { prefix: "/api/v1" });
 await app.register(reportsRoutes, { prefix: "/api/v1" });
 await app.register(mdmRoutes, { prefix: "/api/v1" });
+
+registerRateLimitHook(app);
 
 await startImportWorker();
 await startSearchWorker();

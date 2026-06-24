@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { resolveTenant } from "../../plugins/tenant.js";
 import { authenticateJwt } from "../../plugins/rbac.js";
+import { RateLimit } from "../../plugins/rate-limit.js";
 import * as authService from "./auth.service.js";
 
 const LoginSchema = z.object({
@@ -21,7 +22,10 @@ function handleError(error: unknown): { statusCode: number; message: string } {
 }
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
-  app.post("/auth/login", async (request, reply) => {
+  app.post(
+    "/auth/login",
+    { config: RateLimit("login", "ip") },
+    async (request, reply) => {
     try {
       const body = LoginSchema.parse(request.body);
       const profile = await authService.validateUser(body.organizationSlug, body.email, body.password);
@@ -34,7 +38,8 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       const { statusCode, message } = handleError(error);
       return reply.code(statusCode).send({ error: message });
     }
-  });
+  },
+  );
 
   app.get(
     "/auth/me",
