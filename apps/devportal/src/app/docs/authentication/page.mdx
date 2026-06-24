@@ -1,0 +1,73 @@
+export const metadata = {
+  title: "Authentication",
+};
+
+import { CodeBlock } from "@/components/docs/mdx";
+
+# Authentication
+
+ProductInfoMan uses **organization-scoped** requests. Every API call is resolved to a tenant via headers.
+
+## Required: organization context
+
+Every request must include the organization slug header:
+
+| Header | Required | Description |
+|--------|----------|-------------|
+| `X-Organization-Slug` | Yes* | Tenant slug (`demo` locally when omitted) |
+
+\* Defaults to `demo` in local development when omitted.
+
+## Actor identity (workflow & write operations)
+
+Workflow transitions (`submit`, `approve`, `reject`, `publish`) require an actor. The API resolves actors from headers:
+
+| Header | Purpose |
+|--------|---------|
+| `X-User-Email` | Maps to a user in the organization |
+| `X-Actor-Role` | Role override for the request (`ADMIN`, `EDITOR`, `REVIEWER`, etc.) |
+
+<Callout variant="info">
+  Bearer token authentication (`Authorization: Bearer &lt;token&gt;`) is the recommended production pattern. Map JWT claims to `X-Organization-Slug`, user email, and role in your API gateway or BFF.
+</Callout>
+
+## Roles
+
+| Role | Typical use |
+|------|-------------|
+| `ADMIN` | Full platform configuration |
+| `EDITOR` | Create/edit products, submit for review |
+| `REVIEWER` | Approve or reject submissions |
+| `OPS` | Imports, publishing, reindex |
+| `READONLY` | Reports and audit read access |
+| Storefront | Read-only catalog via org slug (no actor headers) |
+
+## Examples
+
+<CodeBlock language="bash" title="Read products (org only)">
+{`curl "https://api.yourpim.com/api/v1/products?page=1&pageSize=10" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>
+
+<CodeBlock language="bash" title="Workflow action (actor headers)">
+{`curl -X POST "https://api.yourpim.com/api/v1/products/PRODUCT_ID/workflow/submit" \\
+  -H "Content-Type: application/json" \\
+  -H "X-Organization-Slug: demo" \\
+  -H "X-User-Email: editor@demo.local" \\
+  -H "X-Actor-Role: EDITOR" \\
+  -d '{"comment":"Ready for review"}'`}
+</CodeBlock>
+
+<CodeBlock language="typescript" title="JavaScript fetch">
+{`const res = await fetch("https://api.yourpim.com/api/v1/products?page=1&pageSize=10", {
+  headers: {
+    "X-Organization-Slug": "demo",
+    Authorization: \`Bearer \${token}\`,
+  },
+});
+const data = await res.json();`}
+</CodeBlock>
+
+## Admin UI session
+
+The admin app proxies `/api/*` to the backend and sends `X-Organization-Slug` from `NEXT_PUBLIC_DEFAULT_ORG_SLUG`. See [Admin UI](http://localhost:3000/admin) when running locally.

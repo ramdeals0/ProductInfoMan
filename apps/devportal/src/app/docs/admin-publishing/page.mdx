@@ -1,0 +1,88 @@
+export const metadata = {
+  title: "Publishing & Channels",
+};
+
+import { CodeBlock } from "@/components/docs/mdx";
+
+# Publishing & Channels API
+
+Syndicate approved products to sales channels with field mappings and export artifacts.
+
+<Callout variant="tip">
+  Admin UI: `/admin/publishing` and job detail `/admin/publishing/[id]`
+</Callout>
+
+## Channels
+
+<Endpoint method="GET" path="/api/v1/channels" description="List syndication channels." adminLink="http://localhost:3000/admin/publishing" />
+<Endpoint method="POST" path="/api/v1/channels" description="Create a channel (e.g. Amazon, Google Shopping)." />
+<Endpoint method="GET" path="/api/v1/channels/:id/mappings" description="Active field mapping version." />
+<Endpoint method="POST" path="/api/v1/channels/:id/mappings" description="Create a new mapping version." />
+<Endpoint method="GET" path="/api/v1/channels/:id/preview" description="Preview mapped output for sample products." />
+
+## Publish jobs
+
+<Endpoint method="POST" path="/api/v1/publish/dry-run" description="Validate mapping without exporting." />
+<Endpoint method="POST" path="/api/v1/publish/run" description="Start a publish/export job." />
+<Endpoint method="GET" path="/api/v1/publish/jobs" description="List publish jobs." adminLink="http://localhost:3000/admin/publishing" />
+<Endpoint method="GET" path="/api/v1/publish/jobs/:id" description="Job status and item counts." />
+<Endpoint method="GET" path="/api/v1/publish/jobs/:id/artifact" description="Download export file (CSV/JSON)." />
+<Endpoint method="POST" path="/api/v1/publish/jobs/:id/retry" description="Retry failed items." />
+
+## Example: trigger publish job
+
+<CodeBlock language="bash" title="Start publish run">
+{`curl -X POST "https://api.yourpim.com/api/v1/publish/run" \\
+  -H "Content-Type: application/json" \\
+  -H "X-Organization-Slug: demo" \\
+  -d '{
+    "channelId": "CHANNEL_ID",
+    "mode": "EXPORT",
+    "productIds": ["PRODUCT_ID_1", "PRODUCT_ID_2"]
+  }'`}
+</CodeBlock>
+
+<CodeBlock language="bash" title="Dry run first">
+{`curl -X POST "https://api.yourpim.com/api/v1/publish/dry-run" \\
+  -H "Content-Type: application/json" \\
+  -H "X-Organization-Slug: demo" \\
+  -d '{
+    "channelId": "CHANNEL_ID",
+    "productIds": ["PRODUCT_ID_1"]
+  }'`}
+</CodeBlock>
+
+<CodeBlock language="json" title="Job response">
+{`{
+  "id": "pub_123",
+  "status": "PROCESSING",
+  "channelId": "CHANNEL_ID",
+  "totalItems": 2,
+  "exportedItems": 0,
+  "failedItems": 0
+}`}
+</CodeBlock>
+
+## Download artifact
+
+<CodeBlock language="bash">
+{`curl "https://api.yourpim.com/api/v1/publish/jobs/JOB_ID/artifact" \\
+  -H "X-Organization-Slug: demo" \\
+  -o export.csv`}
+</CodeBlock>
+
+## JavaScript
+
+<CodeBlock language="typescript">
+{`const res = await fetch("https://api.yourpim.com/api/v1/publish/run", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "X-Organization-Slug": "demo",
+  },
+  body: JSON.stringify({ channelId, mode: "EXPORT" }),
+});
+const job = await res.json();`}
+</CodeBlock>
+
+Only **APPROVED** or **PUBLISHED** products are exportable. Ensure workflow approval first — see [Workflow](/docs/admin-workflow).

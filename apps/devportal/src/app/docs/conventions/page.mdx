@@ -1,0 +1,94 @@
+export const metadata = {
+  title: "Conventions",
+};
+
+import { CodeBlock } from "@/components/docs/mdx";
+
+# Conventions
+
+Shared patterns across admin and storefront APIs.
+
+## Base path
+
+All JSON APIs are under **`/api/v1`**.
+
+```
+https://api.yourpim.com/api/v1/products
+```
+
+## Pagination
+
+List endpoints accept:
+
+<ParamsTable
+  rows={[
+    { name: "page", in: "query", type: "integer", description: "1-based page number (default 1)" },
+    { name: "pageSize", in: "query", type: "integer", description: "Items per page (default 20, max 100)" },
+  ]}
+/>
+
+Response shape:
+
+```json
+{
+  "items": [],
+  "total": 42,
+  "page": 1,
+  "pageSize": 20
+}
+```
+
+## Filtering
+
+Common query parameters (endpoint-specific):
+
+| Parameter | Example | Description |
+|-----------|---------|-------------|
+| `status` | `PUBLISHED` | Product workflow/status filter |
+| `categoryId` | `clx…` | Primary category |
+| `q` | `drill` | Full-text search (search endpoints) |
+| `filters[brand]` | `DEWALT` | Facet filter (search) |
+| `updatedSince` | `2026-01-01T00:00:00Z` | Audit / list filters |
+
+## Sorting
+
+Search endpoints support `sortBy` and `sortOrder` (`asc` | `desc`).
+
+## Error format
+
+Validation and application errors return JSON:
+
+```json
+{
+  "error": "Field sku is required"
+}
+```
+
+Structured error codes (gateway/BFF layer):
+
+```json
+{
+  "code": "VALIDATION_ERROR",
+  "message": "Field external_id is required",
+  "details": {
+    "field": "external_id"
+  }
+}
+```
+
+HTTP status codes: `400` validation, `401` actor required, `404` not found, `409` conflict, `500` server error.
+
+## Content type
+
+Send JSON bodies with `Content-Type: application/json`. Import upload uses `multipart/form-data`.
+
+## Idempotency
+
+Import and publish jobs are keyed by server-generated IDs. Retry failed event deliveries via `POST /events/:id/retry`.
+
+## Example: paginated list
+
+<CodeBlock language="bash">
+{`curl "https://api.yourpim.com/api/v1/products?page=2&pageSize=25&status=PUBLISHED" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>

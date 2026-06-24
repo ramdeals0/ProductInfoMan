@@ -1,0 +1,84 @@
+export const metadata = {
+  title: "Events & Eventing",
+};
+
+import { CodeBlock } from "@/components/docs/mdx";
+
+# Events & Eventing API
+
+Transactional outbox for domain events: search reindex, webhooks, metrics, and integrations.
+
+## Endpoints
+
+<Endpoint method="GET" path="/api/v1/events/outbox" description="List pending and dispatched outbox events." />
+<Endpoint method="GET" path="/api/v1/events/dead-letter" description="Events that failed after max retries." />
+<Endpoint method="GET" path="/api/v1/events/:id" description="Get a single outbox event." />
+<Endpoint method="POST" path="/api/v1/events/:id/retry" description="Retry a failed event delivery." />
+<Endpoint method="POST" path="/api/v1/events/replay" description="Replay events by type or correlation ID." />
+
+## Event types
+
+| Event | Trigger |
+|-------|---------|
+| `product.created` | New product |
+| `product.updated` | Core field change |
+| `product.attributes_changed` | Attribute values updated |
+| `product.deleted` | Soft delete |
+| `taxonomy.category.created` | Category created |
+| `taxonomy.facet.updated` | Facet definition changed |
+| `import.job.completed` | Import committed |
+| `import.job.failed` | Import failed |
+| `workflow.state.changed` | Status transition |
+| `search.index.requested` | Reindex queued |
+| `publish.job.completed` | Export finished |
+| `publish.job.failed` | Export failed |
+| `product.mdm.matched` | MDM golden record match |
+
+## Payload envelope
+
+<CodeBlock language="json">
+{`{
+  "id": "evt_123",
+  "eventType": "product.updated",
+  "organizationId": "org_…",
+  "correlationId": "corr_…",
+  "payload": {
+    "productId": "clx…",
+    "changedFields": ["title", "status"]
+  },
+  "status": "PENDING",
+  "createdAt": "2026-06-23T12:00:00.000Z"
+}`}
+</CodeBlock>
+
+## List outbox
+
+<CodeBlock language="bash">
+{`curl "https://api.yourpim.com/api/v1/events/outbox?status=PENDING&page=1" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>
+
+## Retry failed event
+
+<CodeBlock language="bash">
+{`curl -X POST "https://api.yourpim.com/api/v1/events/EVENT_ID/retry" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>
+
+## Replay by correlation
+
+<CodeBlock language="bash">
+{`curl -X POST "https://api.yourpim.com/api/v1/events/replay" \\
+  -H "Content-Type: application/json" \\
+  -H "X-Organization-Slug: demo" \\
+  -d '{
+    "eventType": "product.updated",
+    "correlationId": "corr_import_42"
+  }'`}
+</CodeBlock>
+
+<Callout variant="info">
+  Consumers run in-process when `EVENT_SYNC=true` (no Redis). With Redis, workers process the queue asynchronously.
+</Callout>
+
+Webhooks and external subscribers are configured via integration routes. Audit records mirror many events — see [Audit](/docs/admin-audit).

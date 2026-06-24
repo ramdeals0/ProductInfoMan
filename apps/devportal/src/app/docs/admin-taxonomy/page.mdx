@@ -1,0 +1,87 @@
+export const metadata = {
+  title: "Taxonomy & Facets",
+};
+
+import { CodeBlock } from "@/components/docs/mdx";
+
+# Taxonomy & Facets API
+
+Categories, attribute definitions, attribute groups, facet definitions, and facet rules.
+
+<Callout variant="tip">
+  Admin UI: `/admin/taxonomy/categories`, `/admin/taxonomy/attributes`, `/admin/taxonomy/facets`
+</Callout>
+
+## Categories
+
+<Endpoint method="GET" path="/api/v1/categories" description="Flat list of categories." adminLink="http://localhost:3000/admin/taxonomy/categories" />
+<Endpoint method="GET" path="/api/v1/categories/tree" description="Nested category tree." adminLink="http://localhost:3000/admin/taxonomy/categories" />
+<Endpoint method="POST" path="/api/v1/categories" description="Create a category." />
+<Endpoint method="PATCH" path="/api/v1/categories/:id" description="Update category metadata." />
+<Endpoint method="GET" path="/api/v1/categories/:id/attributes" description="Attributes bound to a category." />
+<Endpoint method="GET" path="/api/v1/categories/:id/facets" description="Facet definitions for a category scope." />
+<Endpoint method="GET" path="/api/v1/facets/categories/:categoryId" description="Resolved facets for storefront filters." />
+
+## Attributes
+
+<Endpoint method="GET" path="/api/v1/attributes" description="List attribute definitions." adminLink="http://localhost:3000/admin/taxonomy/attributes" />
+<Endpoint method="POST" path="/api/v1/attributes" description="Create an attribute definition." />
+<Endpoint method="GET" path="/api/v1/attribute-groups" description="List attribute groups (general, specs, fit)." />
+<Endpoint method="POST" path="/api/v1/attribute-groups" description="Create an attribute group." />
+
+## Facets
+
+<Endpoint method="GET" path="/api/v1/facet-definitions" description="List facet definitions (global + category)." adminLink="http://localhost:3000/admin/taxonomy/facets" />
+<Endpoint method="POST" path="/api/v1/facet-definitions" description="Create a facet definition." />
+<Endpoint method="GET" path="/api/v1/facet-rules" description="List facet rules (range buckets, normalize, etc.)." />
+<Endpoint method="POST" path="/api/v1/facet-rules" description="Create or update a facet rule." />
+
+## Example: category tree
+
+<CodeBlock language="bash">
+{`curl "https://api.yourpim.com/api/v1/categories/tree" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>
+
+<CodeBlock language="json" title="Response">
+{`{
+  "items": [
+    {
+      "id": "cat_root",
+      "code": "fleetfarm-demo",
+      "name": "Fleet Farm Demo",
+      "children": [
+        { "id": "cat_tools", "code": "tools", "name": "Tools & Hardware", "children": [] }
+      ]
+    }
+  ]
+}`}
+</CodeBlock>
+
+## Example: create attribute
+
+<CodeBlock language="bash">
+{`curl -X POST "https://api.yourpim.com/api/v1/attributes" \\
+  -H "Content-Type: application/json" \\
+  -H "X-Organization-Slug: demo" \\
+  -d '{
+    "key": "tool_type",
+    "label": "Tool Type",
+    "dataType": "ENUM",
+    "isFilterable": true,
+    "attributeGroupId": "GROUP_ID"
+  }'`}
+</CodeBlock>
+
+## Example: facets for category
+
+<CodeBlock language="bash">
+{`curl "https://api.yourpim.com/api/v1/facets/categories/CATEGORY_ID" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>
+
+<Callout variant="info">
+  Demo seed config lives in `packages/config/facets.config.ts`. Run `pnpm seed:attributes-facets` to load FleetFarm-style facets.
+</Callout>
+
+Storefront category pages use these facets — see [Storefront Catalog](/docs/storefront-catalog).

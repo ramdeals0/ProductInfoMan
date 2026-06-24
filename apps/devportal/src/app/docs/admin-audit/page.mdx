@@ -1,0 +1,76 @@
+export const metadata = {
+  title: "Audit & Reporting",
+};
+
+import { CodeBlock } from "@/components/docs/mdx";
+
+# Audit & Reporting API
+
+Operational visibility: who changed what, and aggregate health dashboards.
+
+<Callout variant="tip">
+  Admin UI: `/admin/audit` and `/admin/reports`
+</Callout>
+
+## Audit logs
+
+<Endpoint method="GET" path="/api/v1/audit/logs" description="List audit log entries (alias: GET /audit)." adminLink="http://localhost:3000/admin/audit" />
+<Endpoint method="GET" path="/api/v1/audit/:id" description="Get a single audit log entry." />
+<Endpoint method="GET" path="/api/v1/entities/:entityType/:entityId/history" description="Change history for a specific entity." />
+
+### Audit query parameters
+
+<ParamsTable
+  rows={[
+    { name: "page", in: "query", type: "integer", description: "Page number" },
+    { name: "pageSize", in: "query", type: "integer", description: "Page size" },
+    { name: "entityType", in: "query", type: "string", description: "product, category, import_job, …" },
+    { name: "entityId", in: "query", type: "string", description: "Filter by entity ID" },
+    { name: "action", in: "query", type: "string", description: "CREATE, UPDATE, DELETE, IMPORT, EXPORT" },
+    { name: "performedBy", in: "query", type: "string", description: "Actor user ID" },
+  ]}
+/>
+
+<CodeBlock language="bash">
+{`curl "https://api.yourpim.com/api/v1/audit/logs?entityType=product&page=1&pageSize=20" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>
+
+## Reports
+
+<Endpoint method="GET" path="/api/v1/reports/dashboard" description="High-level KPIs." adminLink="http://localhost:3000/admin/reports" />
+<Endpoint method="GET" path="/api/v1/reports/completeness" description="Attribute completeness by category." />
+<Endpoint method="GET" path="/api/v1/reports/workflow" description="Workflow throughput and bottlenecks." />
+<Endpoint method="GET" path="/api/v1/reports/imports" description="Import job statistics." />
+<Endpoint method="GET" path="/api/v1/reports/publishes" description="Publish job statistics." />
+<Endpoint method="GET" path="/api/v1/reports/summary" description="Compact operations summary." />
+
+## Entity history
+
+<CodeBlock language="bash" title="Product change history">
+{`curl "https://api.yourpim.com/api/v1/entities/product/PRODUCT_ID/history" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>
+
+<CodeBlock language="json" title="History response">
+{`{
+  "entityType": "product",
+  "entityId": "clx…",
+  "items": [
+    {
+      "action": "UPDATE",
+      "performedAt": "2026-06-23T10:00:00.000Z",
+      "changes": [{ "field": "status", "from": "DRAFT", "to": "IN_REVIEW" }]
+    }
+  ]
+}`}
+</CodeBlock>
+
+## Dashboard
+
+<CodeBlock language="bash">
+{`curl "https://api.yourpim.com/api/v1/reports/dashboard" \\
+  -H "X-Organization-Slug: demo"`}
+</CodeBlock>
+
+Audit entries are also emitted as domain events — see [Events](/docs/admin-events).

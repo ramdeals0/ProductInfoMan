@@ -19,6 +19,7 @@ High-performance ecommerce Product Information Management (PIM) platform.
 | Phase 11 — Headless Storefront | **Implemented** ([spec alignment](./docs/implementation/phase-11-storefront-spec.md)) |
 | Product MDM Layer | **Implemented** ([spec alignment](./docs/implementation/product-mdm-layer-spec.md)) |
 | Fleet Farm Demo Catalog | **Implemented** ([spec](./docs/implementation/fleetfarm-demo-catalog-spec.md)) |
+| Developer Portal | **Implemented** ([apps/devportal](./apps/devportal/README.md)) |
 
 ## Deploy on Railway
 
@@ -43,7 +44,9 @@ pnpm dev
 ```
 
 API: http://localhost:3001  
+Admin: http://localhost:3000  
 Storefront: http://localhost:3002  
+Developer Portal: http://localhost:3003  
 Health: `GET /health`  
 Products: `GET /api/v1/products`
 
