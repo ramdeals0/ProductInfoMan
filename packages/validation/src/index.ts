@@ -187,6 +187,7 @@ export const UploadImportSchema = z.object({
   duplicatePolicy: z.enum(["REJECT", "UPDATE", "SKIP"]).optional(),
   blankCellPolicy: z.enum(["IGNORE", "CLEAR"]).optional(),
   sourceSystem: z.string().min(1).max(64).optional(),
+  fileType: z.enum(["CSV", "XML", "JSON"]).optional(),
 });
 
 export const ListImportsQuerySchema = z.object({
@@ -205,6 +206,10 @@ export const ListImportsQuerySchema = z.object({
     .optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export const ListImportRowsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
 export const ImportTemplateMappingSchema = z.object({
@@ -447,6 +452,7 @@ export type CreateFacetRuleInput = z.infer<typeof CreateFacetRuleSchema>;
 export type ListFacetRulesQuery = z.infer<typeof ListFacetRulesQuerySchema>;
 export type UploadImportInput = z.infer<typeof UploadImportSchema>;
 export type ListImportsQuery = z.infer<typeof ListImportsQuerySchema>;
+export type ListImportRowsQuery = z.infer<typeof ListImportRowsQuerySchema>;
 export type CreateImportTemplateInput = z.infer<typeof CreateImportTemplateSchema>;
 export type CreateWorkflowDefinitionInput = z.infer<typeof CreateWorkflowDefinitionSchema>;
 export type WorkflowDecisionInput = z.infer<typeof WorkflowDecisionSchema>;

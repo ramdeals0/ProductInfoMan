@@ -2,6 +2,20 @@ export type ProductType = "SIMPLE" | "PARENT" | "VARIANT";
 export type DuplicatePolicy = "REJECT" | "UPDATE" | "SKIP";
 export type BlankCellPolicy = "IGNORE" | "CLEAR";
 
+export {
+  collectImportRows,
+  fieldsToStringRecord,
+  flattenObject,
+  inferImportFileType,
+  ImportParseError,
+  parseJson,
+  parseXml,
+  type ImportFileType,
+  type ImportRow,
+  type JsonParseOptions,
+  type XmlParseOptions,
+} from "./parser.js";
+
 export interface TemplateMapping {
   sourceColumn: string;
   targetField: string;

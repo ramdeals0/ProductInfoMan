@@ -1,0 +1,22 @@
+[
+  {
+    "sku": "JSON-001",
+    "product_type": "SIMPLE",
+    "title": "JSON Import Shirt",
+    "category_code": "oxford",
+    "attributes": {
+      "color": "Blue",
+      "size": "M"
+    }
+  },
+  {
+    "sku": "JSON-002",
+    "product_type": "SIMPLE",
+    "title": "JSON Import Tee",
+    "category_code": "oxford",
+    "attributes": {
+      "color": "White",
+      "size": "L"
+    }
+  }
+]

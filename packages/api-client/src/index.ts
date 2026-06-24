@@ -11,6 +11,7 @@ import type {
   ExportArtifactEntity,
   ImportJobEntity,
   ImportJobErrorEntity,
+  ImportJobRowEntity,
   ImportReportEntity,
   OperationsReportEntity,
   OutboxEventEntity,
@@ -229,6 +230,23 @@ export class ApiClient {
 
   getImportErrors(id: string) {
     return this.request<{ items: ImportJobErrorEntity[] }>(`/api/v1/imports/${id}/errors`);
+  }
+
+  getImportRows(id: string, limit = 20) {
+    return this.request<{ items: ImportJobRowEntity[] }>(`/api/v1/imports/${id}/rows?limit=${limit}`);
+  }
+
+  uploadImport(formData: FormData) {
+    return this.request<ImportJobEntity>("/api/v1/imports/upload", {
+      method: "POST",
+      headers: {
+        "X-Organization-Slug": this.config.organizationSlug,
+        ...(this.config.accessToken ? { Authorization: `Bearer ${this.config.accessToken}` } : {}),
+        ...(this.config.userEmail ? { "X-User-Email": this.config.userEmail } : {}),
+        ...(this.config.actorRole ? { "X-Actor-Role": this.config.actorRole } : {}),
+      },
+      body: formData,
+    });
   }
 
   validateImport(id: string) {
