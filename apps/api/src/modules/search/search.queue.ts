@@ -3,6 +3,9 @@ import {
   executeReindexJob,
   executeRemoveProductJob,
 } from "./search.service.js";
+import { loadApiEnv } from "@productinfoman/config";
+import { getQueueDepth } from "../../lib/queue-backpressure.js";
+import { observeWorkerJob, setQueueDepthMetrics } from "../../plugins/metrics.js";
 
 export type SearchQueuePayload = {
   jobId: string;
@@ -13,6 +16,8 @@ export type SearchQueuePayload = {
   productIds?: string[];
   sourceEvent?: string;
 };
+
+const QUEUE_NAME = "search-projection-jobs";
 
 let searchQueue: import("bullmq").Queue<SearchQueuePayload> | null = null;
 let searchWorker: import("bullmq").Worker<SearchQueuePayload> | null = null;
@@ -27,7 +32,7 @@ async function getQueue() {
 
   const { Queue } = await import("bullmq");
   const connection = { url: process.env.REDIS_URL! };
-  searchQueue = new Queue<SearchQueuePayload>("search-projection-jobs", { connection });
+  searchQueue = new Queue<SearchQueuePayload>(QUEUE_NAME, { connection });
   return searchQueue;
 }
 
@@ -85,19 +90,32 @@ export async function startSearchWorker(): Promise<void> {
   if (useSyncProcessing() || searchWorker) return;
 
   const { Worker } = await import("bullmq");
+  const { SEARCH_WORKER_CONCURRENCY } = loadApiEnv();
   const connection = { url: process.env.REDIS_URL! };
 
   searchWorker = new Worker<SearchQueuePayload>(
-    "search-projection-jobs",
+    QUEUE_NAME,
     async (job) => {
-      await processSearchJob(job.data);
+      const startedAt = Date.now();
+      try {
+        await processSearchJob(job.data);
+        observeWorkerJob("search", "success", startedAt);
+      } catch (error) {
+        observeWorkerJob("search", "failure", startedAt);
+        throw error;
+      }
     },
-    { connection },
+    { connection, concurrency: SEARCH_WORKER_CONCURRENCY },
   );
 
   searchWorker.on("failed", (job, error) => {
     console.error(`Search projection job ${job?.id} failed`, error);
   });
+
+  setInterval(async () => {
+    const depth = await getQueueDepth(QUEUE_NAME);
+    setQueueDepthMetrics(QUEUE_NAME, depth);
+  }, 15_000).unref();
 }
 
 export async function closeSearchQueue(): Promise<void> {

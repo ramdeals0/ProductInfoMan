@@ -175,7 +175,9 @@ model Product {
   @@index([organizationId, status])
   @@index([organizationId, parentId])
   @@index([organizationId, productType])
-  @@index([primaryCategoryId])
+  @@index([organizationId, primaryCategoryId])
+  @@index([organizationId, updatedAt])
+  @@index([organizationId, status, updatedAt])
 }
 
 enum ProductType {
@@ -208,6 +210,7 @@ model ProductAttributeValue {
   attributeDefinition AttributeDefinition @relation(fields: [attributeDefinitionId], references: [id], onDelete: Cascade)
 
   @@unique([productId, attributeDefinitionId])
+  @@index([productId])
   @@index([attributeDefinitionId])
 }
 
@@ -1222,6 +1225,7 @@ model PublishJob {
   history        PublishHistory[]
 
   @@index([organizationId, status])
+  @@index([channelId, status, createdAt])
   @@index([channelId, createdAt])
 }
 

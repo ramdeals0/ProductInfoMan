@@ -29,6 +29,8 @@ import type { Prisma } from "../../../../generated/prisma/client.js";
 import { emitEvent } from "../../lib/events.js";
 import { loadCanonicalProduct, loadPublishableProductIds } from "./publish.projection.js";
 import { enqueuePublishJob } from "./publish.queue.js";
+import { assertHeavyJobCapacity } from "../../lib/queue-backpressure.js";
+import { loadApiEnv } from "@productinfoman/config";
 import { readArtifact, storeExportArtifact } from "./publish.storage.js";
 
 function toChannelDto(channel: {
@@ -401,6 +403,8 @@ export async function startDryRun(
     ? input.productIds
     : await loadPublishableProductIds(organizationId);
 
+  await assertHeavyJobCapacity("publish-jobs");
+
   const job = await createPublishJobRecord({
     organizationId,
     channelId: input.channelId,
@@ -438,6 +442,8 @@ export async function startPublishRun(
   const productIds = input.productIds?.length
     ? input.productIds
     : await loadPublishableProductIds(organizationId);
+
+  await assertHeavyJobCapacity("publish-jobs");
 
   const job = await createPublishJobRecord({
     organizationId,
@@ -530,6 +536,8 @@ export async function processPublishJob(publishJobId: string, organizationId: st
 
     let successfulItems = 0;
     let failedItems = 0;
+    const { PUBLISH_BATCH_SIZE, PUBLISH_BATCH_DELAY_MS } = loadApiEnv();
+    let batchCount = 0;
 
     for (const item of job.items) {
       const row = rowByProductId.get(item.productId);
@@ -580,6 +588,14 @@ export async function processPublishJob(publishJobId: string, organizationId: st
         status: "SUCCESS",
         details: { fields: row.fields },
       });
+
+      batchCount += 1;
+      if (batchCount >= PUBLISH_BATCH_SIZE) {
+        batchCount = 0;
+        if (PUBLISH_BATCH_DELAY_MS > 0) {
+          await new Promise((resolve) => setTimeout(resolve, PUBLISH_BATCH_DELAY_MS));
+        }
+      }
     }
 
     const successfulRows = exportRows.filter((row) => row.errors.length === 0);

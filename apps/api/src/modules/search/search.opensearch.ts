@@ -1,17 +1,23 @@
 import type { SearchDocument } from "@productinfoman/search-projection";
 import { defaultIndexName, PRODUCT_SEARCH_INDEX_MAPPING } from "@productinfoman/search-projection";
+import { loadApiEnv } from "@productinfoman/config";
 import type { SearchStore } from "./search.store.js";
+import { getCircuitBreaker } from "../../lib/resilience/circuit-breaker.js";
+import { withTimeout } from "../../lib/resilience/timeout.js";
 
 type OpenSearchClient = {
   indices: {
     exists: (params: { index: string }) => Promise<{ body: boolean }>;
     create: (params: { index: string; body: unknown }) => Promise<unknown>;
+    delete: (params: { index: string }) => Promise<unknown>;
   };
   index: (params: { index: string; id: string; body: unknown; refresh?: boolean }) => Promise<unknown>;
   delete: (params: { index: string; id: string; refresh?: boolean }) => Promise<unknown>;
   get: (params: { index: string; id: string }) => Promise<{ body: { _source: SearchDocument } }>;
   search: (params: { index: string; body: unknown }) => Promise<{ body: Record<string, unknown> }>;
 };
+
+const OPENSEARCH_BREAKER = "opensearch";
 
 export class OpenSearchStore implements SearchStore {
   private client: OpenSearchClient | null = null;
@@ -25,6 +31,13 @@ export class OpenSearchStore implements SearchStore {
     return this.client;
   }
 
+  private async guarded<T>(label: string, operation: () => Promise<T>): Promise<T> {
+    const { DB_QUERY_TIMEOUT_MS } = loadApiEnv();
+    return getCircuitBreaker(OPENSEARCH_BREAKER).execute(() =>
+      withTimeout(operation(), DB_QUERY_TIMEOUT_MS, label),
+    );
+  }
+
   private indexForOrg(organizationId: string): string {
     return defaultIndexName(organizationId);
   }
@@ -32,42 +45,50 @@ export class OpenSearchStore implements SearchStore {
   async ensureIndex(organizationId: string): Promise<void> {
     const client = await this.getClient();
     const index = this.indexForOrg(organizationId);
-    const exists = await client.indices.exists({ index });
-    if (!exists.body) {
-      await client.indices.create({
-        index,
-        body: PRODUCT_SEARCH_INDEX_MAPPING,
-      });
-    }
+    await this.guarded("opensearchEnsureIndex", async () => {
+      const exists = await client.indices.exists({ index });
+      if (!exists.body) {
+        await client.indices.create({
+          index,
+          body: PRODUCT_SEARCH_INDEX_MAPPING,
+        });
+      }
+    });
   }
 
   async indexDocument(organizationId: string, document: SearchDocument): Promise<void> {
     const client = await this.getClient();
-    await this.ensureIndex(organizationId);
-    await client.index({
-      index: this.indexForOrg(organizationId),
-      id: document.product_id,
-      body: document,
-      refresh: true,
+    await this.guarded("opensearchIndex", async () => {
+      await this.ensureIndex(organizationId);
+      await client.index({
+        index: this.indexForOrg(organizationId),
+        id: document.product_id,
+        body: document,
+        refresh: true,
+      });
     });
   }
 
   async removeDocument(organizationId: string, productId: string): Promise<void> {
     const client = await this.getClient();
-    await client.delete({
-      index: this.indexForOrg(organizationId),
-      id: productId,
-      refresh: true,
+    await this.guarded("opensearchDelete", async () => {
+      await client.delete({
+        index: this.indexForOrg(organizationId),
+        id: productId,
+        refresh: true,
+      });
     });
   }
 
   async getDocument(organizationId: string, productId: string): Promise<SearchDocument | null> {
     const client = await this.getClient();
     try {
-      const response = await client.get({
-        index: this.indexForOrg(organizationId),
-        id: productId,
-      });
+      const response = await this.guarded("opensearchGet", () =>
+        client.get({
+          index: this.indexForOrg(organizationId),
+          id: productId,
+        }),
+      );
       return response.body._source;
     } catch {
       return null;
@@ -77,12 +98,12 @@ export class OpenSearchStore implements SearchStore {
   async clearOrganization(organizationId: string): Promise<void> {
     const client = await this.getClient();
     const index = this.indexForOrg(organizationId);
-    const exists = await client.indices.exists({ index });
-    if (exists.body) {
-      const { indices } = await import("@opensearch-project/opensearch");
-      const osClient = new (await import("@opensearch-project/opensearch")).Client({ node: this.node });
-      await osClient.indices.delete({ index });
-    }
+    await this.guarded("opensearchClearOrg", async () => {
+      const exists = await client.indices.exists({ index });
+      if (exists.body) {
+        await client.indices.delete({ index });
+      }
+    });
   }
 
   async search(organizationId: string, query: import("@productinfoman/search-projection").SearchQueryInput, facetKeys: string[] = []) {
@@ -125,10 +146,12 @@ export class OpenSearchStore implements SearchStore {
       );
     }
 
-    const response = await client.search({
-      index: this.indexForOrg(organizationId),
-      body,
-    });
+    const response = await this.guarded("opensearchSearch", () =>
+      client.search({
+        index: this.indexForOrg(organizationId),
+        body,
+      }),
+    );
 
     const hits = (response.body.hits as { total?: { value?: number }; hits?: Array<{ _source: SearchDocument }> }) ?? {};
     const total = typeof hits.total === "object" ? hits.total.value ?? 0 : 0;
