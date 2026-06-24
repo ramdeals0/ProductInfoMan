@@ -47,6 +47,7 @@ When deploying to production (e.g. Railway), use your assigned Admin and Storefr
 | **API** | https://pim-api.up.railway.app |
 | **API health** | https://pim-api.up.railway.app/health/ready |
 | **Admin** | https://pim-admin.up.railway.app/login |
+| **Storefront** | https://pim-store.up.railway.app |
 
 Setup details: [deployment/railway-production.md](./deployment/railway-production.md)
 

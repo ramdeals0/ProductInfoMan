@@ -2,7 +2,8 @@
 
 **Project:** `PIM`  
 **Public API domain:** https://pim-api.up.railway.app  
-**Public Admin domain:** https://pim-admin.up.railway.app
+**Public Admin domain:** https://pim-admin.up.railway.app  
+**Public Storefront domain:** https://pim-store.up.railway.app
 
 Use this document when configuring the live Railway environment. The monorepo normally runs as **separate services** (API, Admin, Storefront). If you only have one public domain so far, assign it to the **API** service first.
 
@@ -14,7 +15,7 @@ Use this document when configuring the live Railway environment. The monorepo no
 |---------|-------------|------------------|
 | **API** | `/apps/api/railway.toml` | `pim-api.up.railway.app` |
 | **Admin** | `/apps/admin/railway.toml` | `pim-admin.up.railway.app` |
-| **Storefront** | `/apps/storefront/railway.toml` | Generate a third domain (optional) |
+| **Storefront** | `/apps/storefront/railway.toml` | `pim-store.up.railway.app` |
 | **Postgres** | Railway plugin | Internal only |
 
 ---
@@ -52,7 +53,7 @@ ADMIN_PASSWORD=<strong password, min 12 chars>
 ```
 
 ```env
-CORS_ORIGINS=https://pim-admin.up.railway.app
+CORS_ORIGINS=https://pim-admin.up.railway.app,https://pim-store.up.railway.app
 ```
 
 ### Verify API (after deploy)
@@ -98,15 +99,27 @@ Sign in at: https://pim-admin.up.railway.app/login
 
 ---
 
-## Storefront service variables (optional)
+## Storefront service variables
 
-Config: `/apps/storefront/railway.toml`
+Railway service **PIM-STORE** → `pim-store.up.railway.app`. Config: `/apps/storefront/railway.toml`.
 
 ```env
 API_URL=https://pim-api.up.railway.app
+NEXT_PUBLIC_API_URL=https://pim-api.up.railway.app
 NEXT_PUBLIC_ORG_SLUG=demo
-NEXT_PUBLIC_SITE_URL=https://<storefront-domain>.up.railway.app
+NEXT_PUBLIC_SITE_URL=https://pim-store.up.railway.app
+NODE_ENV=production
 ```
+
+If not using config-as-code, set Railpack commands:
+
+```env
+RAILPACK_INSTALL_CMD=corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile
+RAILPACK_BUILD_CMD=pnpm --filter @productinfoman/storefront build
+RAILPACK_START_CMD=pnpm --filter @productinfoman/storefront start
+```
+
+Set `API_URL` and `NEXT_PUBLIC_*` before the first build.
 
 ---
 
@@ -150,6 +163,6 @@ Then sign in to Admin with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 | API ready | https://pim-api.up.railway.app/health/ready |
 | API products | https://pim-api.up.railway.app/api/v1/products |
 | Admin login | https://pim-admin.up.railway.app/login |
-| Storefront | `https://<storefront-domain>/` (optional) |
+| Storefront | https://pim-store.up.railway.app |
 
 See also: [railway.md](./railway.md) (general guide), [user-guide.md](../user-guide.md) (end users).

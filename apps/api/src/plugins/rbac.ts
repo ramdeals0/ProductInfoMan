@@ -34,7 +34,10 @@ function extractBearerToken(request: FastifyRequest): string | null {
 
 function isPublicReadRoute(request: FastifyRequest): boolean {
   if (request.method !== "GET") return false;
-  const path = request.url.split("?")[0] ?? request.url;
+  let path = request.url.split("?")[0] ?? request.url;
+  if (path.startsWith("/api/v1")) {
+    path = path.slice("/api/v1".length) || "/";
+  }
   return PUBLIC_READ_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }
 
