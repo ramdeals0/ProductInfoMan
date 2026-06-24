@@ -15,6 +15,7 @@ import {
   canManageTaxonomy,
 } from "@/lib/roles";
 import { useSession } from "@/lib/session";
+import { isValidTaxonomyKey, normalizeTaxonomyKey } from "@/lib/taxonomy-keys";
 
 type FacetRow = Record<string, unknown>;
 type FacetRuleRow = Record<string, unknown>;
@@ -31,9 +32,10 @@ function summarizeRuleConfig(rule: FacetRuleRow): string {
 }
 
 export default function FacetsPage() {
-  const { api, roles } = useSession();
+  const { api, user } = useSession();
   const { pushToast } = useToast();
   const queryClient = useQueryClient();
+  const roles = user?.roles ?? [];
   const canEditDefs = canManageTaxonomy(roles);
   const canEditRules = canEditFacetRules(roles);
   const canApproveRules = canApproveFacetRules(roles);
@@ -103,13 +105,18 @@ export default function FacetsPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: () =>
-      api.createFacetDefinition({
-        key: facetKey,
+    mutationFn: () => {
+      const key = normalizeTaxonomyKey(facetKey);
+      if (!isValidTaxonomyKey(key)) {
+        throw new Error("Enter a valid key using letters, numbers, or underscores (e.g. price_range)");
+      }
+      return api.createFacetDefinition({
+        key,
         label: facetLabel,
         sourceAttributeId,
         ...(categoryId ? { categoryId } : {}),
-      }),
+      });
+    },
     onSuccess: () => {
       pushToast("Facet created", "success");
       setFacetKey("");
@@ -346,7 +353,13 @@ export default function FacetsPage() {
         <div className="card mb-6 space-y-3 p-5">
           <h2 className="font-medium">Create facet definition</h2>
           <div className="grid gap-3 md:grid-cols-2">
-            <input className="input" placeholder="Key" value={facetKey} onChange={(e) => setFacetKey(e.target.value)} />
+            <input
+              className="input"
+              placeholder="Key (e.g. price_range)"
+              value={facetKey}
+              onChange={(e) => setFacetKey(e.target.value)}
+              onBlur={() => setFacetKey((current) => normalizeTaxonomyKey(current))}
+            />
             <input
               className="input"
               placeholder="Label"

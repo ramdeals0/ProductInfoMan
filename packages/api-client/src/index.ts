@@ -47,6 +47,46 @@ export class ApiError extends Error {
   }
 }
 
+type ZodIssueLike = { path?: Array<string | number>; message?: string };
+
+function formatApiErrorMessage(body: unknown): string | null {
+  if (!body) return null;
+  if (typeof body === "object" && body !== null && "error" in body) {
+    const error = (body as { error?: unknown }).error;
+    if (typeof error === "string") return humanizeValidationMessage(error);
+    if (Array.isArray(error)) return formatZodIssues(error as ZodIssueLike[]);
+  }
+  if (Array.isArray(body)) return formatZodIssues(body as ZodIssueLike[]);
+  return null;
+}
+
+function formatZodIssues(issues: ZodIssueLike[]): string {
+  return issues
+    .map((issue) => {
+      const field = issue.path?.length ? `${issue.path.join(".")}: ` : "";
+      const detail =
+        issue.message && issue.message !== "Invalid"
+          ? issue.message
+          : "value is invalid";
+      return `${field}${detail}`;
+    })
+    .join("; ");
+}
+
+function humanizeValidationMessage(message: string): string {
+  const trimmed = message.trim();
+  if (!trimmed.startsWith("[")) return message;
+  try {
+    const issues = JSON.parse(trimmed) as ZodIssueLike[];
+    if (Array.isArray(issues) && issues.length > 0) {
+      return formatZodIssues(issues);
+    }
+  } catch {
+    // keep original message
+  }
+  return message;
+}
+
 export class ApiClient {
   constructor(private readonly config: ApiClientConfig) {}
 
@@ -70,8 +110,8 @@ export class ApiClient {
     if (!response.ok) {
       let message = response.statusText;
       try {
-        const body = (await response.json()) as { error?: string };
-        if (body.error) message = body.error;
+        const body = (await response.json()) as unknown;
+        message = formatApiErrorMessage(body) ?? message;
       } catch {
         // ignore
       }
