@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<products>
+  <product>
+    <sku>XML-001</sku>
+    <product_type>SIMPLE</product_type>
+    <title>XML Import Shirt</title>
+    <category_code>oxford</category_code>
+    <attributes>
+      <color>Navy</color>
+      <size>S</size>
+    </attributes>
+  </product>
+  <product>
+    <sku>XML-002</sku>
+    <product_type>SIMPLE</product_type>
+    <title>XML Import Polo</title>
+    <category_code>oxford</category_code>
+    <attributes>
+      <color>Gray</color>
+      <size>M</size>
+    </attributes>
+  </product>
+</products>

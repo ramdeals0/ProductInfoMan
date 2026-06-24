@@ -162,6 +162,7 @@ export type ImportJobStatus =
   | "FAILED"
   | "CANCELLED";
 export type ImportType = "CREATE" | "UPDATE" | "UPSERT";
+export type ImportFileType = "CSV" | "XML" | "JSON";
 export type ImportEntityType = "PRODUCT" | "VARIANT" | "CATEGORY";
 export type DuplicatePolicy = "REJECT" | "UPDATE" | "SKIP";
 export type BlankCellPolicy = "IGNORE" | "CLEAR";
@@ -195,6 +196,7 @@ export interface ImportJobEntity {
   importTemplateId: string | null;
   fileName: string;
   filePath: string;
+  fileType: ImportFileType;
   importType: ImportType;
   status: ImportJobStatus;
   duplicatePolicy: DuplicatePolicy;
@@ -218,6 +220,16 @@ export interface ImportJobErrorEntity {
   errorCode: string;
   errorMessage: string;
   rawValue: string | null;
+}
+
+export interface ImportJobRowEntity {
+  id: string;
+  importJobId: string;
+  rowNumber: number;
+  rawData: Record<string, unknown>;
+  normalizedData: Record<string, unknown> | null;
+  status: "PENDING" | "VALID" | "INVALID" | "COMMITTED" | "SKIPPED";
+  entityId: string | null;
 }
 
 export interface ImportRunSummaryEntity {

@@ -664,6 +664,12 @@ enum ImportRowStatus {
   SKIPPED
 }
 
+enum ImportFileType {
+  CSV
+  XML
+  JSON
+}
+
 model ImportTemplate {
   id             String           @id @default(cuid())
   organizationId String
@@ -705,6 +711,7 @@ model ImportJob {
   importTemplateId String?
   fileName         String
   filePath         String
+  fileType         ImportFileType   @default(CSV)
   importType       ImportType       @default(CREATE)
   status           ImportJobStatus  @default(UPLOADED)
   duplicatePolicy  DuplicatePolicy  @default(REJECT)

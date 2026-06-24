@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import multipart from "@fastify/multipart";
 import {
   CreateImportTemplateSchema,
+  ListImportRowsQuerySchema,
   ListImportsQuerySchema,
   UploadImportSchema,
 } from "@productinfoman/validation";
@@ -36,16 +37,29 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
       assertRoleGroup(request, "IMPORT_OPS");
       const file = await request.file();
       if (!file) {
-        return reply.code(400).send({ error: "CSV file is required" });
+        return reply.code(400).send({ error: "Import file is required" });
       }
 
+      const query = request.query as { file_type?: string };
       const fields = file.fields as Record<string, { value?: string } | undefined>;
+      const fileTypeRaw =
+        fields.file_type?.value ??
+        fields.fileType?.value ??
+        query.file_type;
+      const normalizedFileType = fileTypeRaw?.trim().toUpperCase();
+
       const input = UploadImportSchema.parse({
         importTemplateId: fields.importTemplateId?.value,
         importType: fields.importType?.value,
         duplicatePolicy: fields.duplicatePolicy?.value,
         blankCellPolicy: fields.blankCellPolicy?.value,
         sourceSystem: fields.sourceSystem?.value,
+        fileType:
+          normalizedFileType === "CSV" ||
+          normalizedFileType === "XML" ||
+          normalizedFileType === "JSON"
+            ? normalizedFileType
+            : undefined,
       });
 
       const buffer = await file.toBuffer();
@@ -102,6 +116,18 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
       const query = ListImportsQuerySchema.parse(request.query ?? {});
       const result = await importService.listImportJobs(request.organizationId, query);
       return reply.send(result);
+    } catch (e) {
+      const { statusCode, message } = handleError(e);
+      return reply.code(statusCode).send({ error: message });
+    }
+  });
+
+  app.get("/imports/:id/rows", async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const query = ListImportRowsQuerySchema.parse(request.query ?? {});
+      const rows = await importService.getImportRows(id, request.organizationId, query);
+      return reply.send(rows);
     } catch (e) {
       const { statusCode, message } = handleError(e);
       return reply.code(statusCode).send({ error: message });
