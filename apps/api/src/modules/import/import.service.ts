@@ -26,6 +26,8 @@ import { createEvent } from "@productinfoman/contracts";
 import { emitEvent } from "../../lib/events.js";
 import { emitAuditRecordEvent } from "../../lib/audit-events.js";
 import { createProduct, setProductAttributes } from "../product-core/product.service.js";
+import { processImportRowThroughMdm } from "../mdm/mdm.service.js";
+import { normalizeSourcePayload } from "@productinfoman/mdm-engine";
 import { enqueueImportJob } from "./import.queue.js";
 
 const UPLOAD_ROOT = path.resolve(process.cwd(), "../../uploads");
@@ -46,6 +48,7 @@ function toImportJobDto(job: {
   status: ImportJobEntity["status"];
   duplicatePolicy: ImportJobEntity["duplicatePolicy"];
   blankCellPolicy: ImportJobEntity["blankCellPolicy"];
+  sourceSystem: string | null;
   totalRows: number;
   validRows: number;
   invalidRows: number;
@@ -65,6 +68,7 @@ function toImportJobDto(job: {
     status: job.status,
     duplicatePolicy: job.duplicatePolicy,
     blankCellPolicy: job.blankCellPolicy,
+    sourceSystem: job.sourceSystem,
     totalRows: job.totalRows,
     validRows: job.validRows,
     invalidRows: job.invalidRows,
@@ -183,6 +187,7 @@ export async function uploadImport(
       importType: input.importType ?? "CREATE",
       duplicatePolicy: input.duplicatePolicy ?? "REJECT",
       blankCellPolicy: input.blankCellPolicy ?? "IGNORE",
+      sourceSystem: input.sourceSystem,
       status: "UPLOADED",
     },
   });
@@ -397,6 +402,45 @@ export async function processImportJob(importJobId: string, organizationId: stri
     for (const row of sortedRows) {
       const normalized = row.normalizedData as NormalizedImportRow | null;
       if (!normalized) continue;
+
+      if (job.sourceSystem && normalized.productType !== "VARIANT") {
+        const rawPayload = row.rawData as Record<string, unknown>;
+        const mdmResult = await processImportRowThroughMdm({
+          organizationId,
+          sourceSystem: job.sourceSystem,
+          sourceRecordId: `${job.id}:${row.rowNumber}`,
+          rawPayload,
+          normalizedPayload: normalizeSourcePayload({
+            ...rawPayload,
+            sku: normalized.sku,
+            title: normalized.title,
+            description: normalized.description,
+            brand: normalized.brand,
+            external_id:
+              (rawPayload.external_id as string | undefined) ??
+              (rawPayload.erp_id as string | undefined) ??
+              normalized.sku,
+            attributes: normalized.attributes,
+          }),
+          createIfUnmatched: job.importType === "CREATE" || job.importType === "UPSERT",
+        });
+
+        if (mdmResult.productId) {
+          committedRows++;
+          skuToProductId.set(normalized.sku, mdmResult.productId);
+          await prisma.importJobRow.update({
+            where: { id: row.id },
+            data: { status: "COMMITTED", entityId: mdmResult.productId },
+          });
+        } else {
+          skippedRows++;
+          await prisma.importJobRow.update({
+            where: { id: row.id },
+            data: { status: "SKIPPED" },
+          });
+        }
+        continue;
+      }
 
       let product;
       if (normalized.productType === "VARIANT") {

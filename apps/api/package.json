@@ -18,6 +18,7 @@
     "@productinfoman/facet-engine": "workspace:*",
     "@productinfoman/import-engine": "workspace:*",
     "@productinfoman/inheritance-engine": "workspace:*",
+    "@productinfoman/mdm-engine": "workspace:*",
     "@productinfoman/publish-engine": "workspace:*",
     "@productinfoman/search-projection": "workspace:*",
     "@productinfoman/shared": "workspace:*",

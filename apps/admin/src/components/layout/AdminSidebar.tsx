@@ -19,6 +19,14 @@ const NAV = [
   { href: "/admin/imports", label: "Imports" },
   { href: "/admin/workflow", label: "Workflow" },
   { href: "/admin/publishing", label: "Publishing" },
+  {
+    href: "/admin/mdm",
+    label: "MDM",
+    children: [
+      { href: "/admin/mdm/source-records", label: "Source records" },
+      { href: "/admin/mdm/survivorship-rules", label: "Survivorship rules" },
+    ],
+  },
   { href: "/admin/audit", label: "Audit" },
   { href: "/admin/reports", label: "Reports" },
 ];

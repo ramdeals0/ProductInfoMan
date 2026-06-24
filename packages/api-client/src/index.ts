@@ -15,7 +15,12 @@ import type {
   OperationsReportEntity,
   OutboxEventEntity,
   ProductEntity,
+  ProductMatchCandidateEntity,
+  ProductSourceRecordDetailEntity,
+  ProductSourceRecordEntity,
+  ProductSystemIdEntity,
   PublishJobEntity,
+  SurvivorshipRuleEntity,
   PublishReportEntity,
   WorkflowHistoryEntity,
   WorkflowReportEntity,
@@ -330,6 +335,57 @@ export class ApiClient {
       if (value != null) params.set(key, String(value));
     }
     return this.request<{ items: OutboxEventEntity[]; total: number }>(`/api/v1/events/outbox?${params}`);
+  }
+
+  // Product MDM
+  listProductSystemIds(productId: string) {
+    return this.request<{ items: ProductSystemIdEntity[] }>(`/api/v1/mdm/products/${productId}/systems`);
+  }
+
+  upsertProductSystemId(productId: string, body: Record<string, unknown>) {
+    return this.request<ProductSystemIdEntity>(`/api/v1/mdm/products/${productId}/systems`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  listMdmSourceRecords(query: Record<string, string | number | undefined> = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value != null && value !== "") params.set(key, String(value));
+    }
+    return this.request<{ items: ProductSourceRecordEntity[]; total: number; page: number; pageSize: number }>(
+      `/api/v1/mdm/source-records?${params}`,
+    );
+  }
+
+  getMdmSourceRecord(id: string) {
+    return this.request<ProductSourceRecordDetailEntity>(`/api/v1/mdm/source-records/${id}`);
+  }
+
+  resolveMdmMatch(id: string, body: Record<string, unknown>) {
+    return this.request<ProductSourceRecordEntity>(`/api/v1/mdm/source-records/${id}/match`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  listSurvivorshipRules() {
+    return this.request<{ items: SurvivorshipRuleEntity[] }>("/api/v1/mdm/survivorship-rules");
+  }
+
+  createSurvivorshipRule(body: Record<string, unknown>) {
+    return this.request<SurvivorshipRuleEntity>("/api/v1/mdm/survivorship-rules", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  inboundMdmProduct(body: Record<string, unknown>) {
+    return this.request<{ sourceRecord: ProductSourceRecordEntity; productId: string | null }>(
+      "/api/v1/mdm/products/inbound",
+      { method: "POST", body: JSON.stringify(body) },
+    );
   }
 
   health() {

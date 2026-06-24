@@ -42,6 +42,7 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
         importType: fields.importType?.value,
         duplicatePolicy: fields.duplicatePolicy?.value,
         blankCellPolicy: fields.blankCellPolicy?.value,
+        sourceSystem: fields.sourceSystem?.value,
       });
 
       const buffer = await file.toBuffer();

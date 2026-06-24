@@ -869,6 +869,74 @@ async function main() {
       }
     }
   }
+
+  const survivorshipRules = [
+    {
+      code: "title",
+      name: "Product title",
+      attributeCode: "title",
+      ruleType: "SOURCE_PRIORITY" as const,
+      ruleConfigJson: { source_priority: ["PLM", "ERP", "SUPPLIER_FEED"] },
+    },
+    {
+      code: "brand",
+      name: "Brand",
+      attributeCode: "brand",
+      ruleType: "SOURCE_PRIORITY" as const,
+      ruleConfigJson: { source_priority: ["PLM", "ERP", "SUPPLIER_FEED"] },
+    },
+    {
+      code: "description",
+      name: "Description",
+      attributeCode: "description",
+      ruleType: "MOST_RECENT" as const,
+      ruleConfigJson: {},
+    },
+    {
+      code: "gtin",
+      name: "GTIN",
+      attributeCode: "gtin",
+      ruleType: "SOURCE_PRIORITY" as const,
+      ruleConfigJson: { source_priority: ["PLM", "ERP", "SUPPLIER_FEED"] },
+    },
+  ];
+
+  for (const rule of survivorshipRules) {
+    await prisma.survivorshipRule.upsert({
+      where: { organizationId_code: { organizationId: org.id, code: rule.code } },
+      create: {
+        organizationId: org.id,
+        ...rule,
+      },
+      update: {
+        name: rule.name,
+        attributeCode: rule.attributeCode,
+        ruleType: rule.ruleType,
+        ruleConfigJson: rule.ruleConfigJson,
+        isActive: true,
+      },
+    });
+  }
+
+  if (parentProduct) {
+    await prisma.productSystemId.upsert({
+      where: {
+        organizationId_systemCode_externalKey: {
+          organizationId: org.id,
+          systemCode: "ERP",
+          externalKey: "ERP-SHIRT-001",
+        },
+      },
+      create: {
+        organizationId: org.id,
+        productId: parentProduct.id,
+        systemCode: "ERP",
+        externalKey: "ERP-SHIRT-001",
+        isPrimary: true,
+      },
+      update: { productId: parentProduct.id, isPrimary: true },
+    });
+  }
 }
 
 main()

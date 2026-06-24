@@ -17,6 +17,7 @@ High-performance ecommerce Product Information Management (PIM) platform.
 | Phase 8 — Integration/Eventing | **Implemented** ([spec alignment](./docs/implementation/phase-8-integration-eventing-spec.md)) |
 | Phase 9 — Admin UI | **Implemented** ([spec alignment](./docs/implementation/phase-9-admin-ui-spec.md), [admin README](./apps/admin/README.md)) |
 | Phase 11 — Headless Storefront | **Implemented** ([spec alignment](./docs/implementation/phase-11-storefront-spec.md)) |
+| Product MDM Layer | **Implemented** ([spec alignment](./docs/implementation/product-mdm-layer-spec.md)) |
 
 ## Quick Start
 

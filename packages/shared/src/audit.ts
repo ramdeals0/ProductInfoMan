@@ -11,7 +11,7 @@ export type AuditAction =
 
 export type EntityChangeType = "SNAPSHOT" | "CREATE" | "UPDATE" | "DELETE";
 
-export type AuditSource = "api" | "import" | "workflow" | "publishing";
+export type AuditSource = "api" | "import" | "workflow" | "publishing" | "mdm";
 
 function computeChangedFields(
   before?: Record<string, unknown>,

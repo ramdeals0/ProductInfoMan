@@ -42,7 +42,9 @@ async function searchSyncConsumer(event: ConsumerEvent): Promise<void> {
     case "product.variant.created":
     case "product.deleted":
     case "product.attributes_changed":
-    case "workflow.state.changed": {
+    case "workflow.state.changed":
+    case "product.mdm.merged":
+    case "product.mdm.attribute_overridden": {
       const productId = getProductId(event.payload);
       if (!productId) return;
       await handleProductChange(event.organizationId, productId, event.eventType);
@@ -76,6 +78,17 @@ async function publishSyncConsumer(event: ConsumerEvent): Promise<void> {
   if (event.eventType === "publish.job.requested") {
     // Actual publish processing is handled by the publish module queue.
     return;
+  }
+
+  if (
+    event.eventType === "product.mdm.merged" ||
+    event.eventType === "product.mdm.attribute_overridden"
+  ) {
+    const productId = getProductId(event.payload);
+    if (productId) {
+      // Publishing is orchestrated via publish.job.requested events from the publish service.
+      return;
+    }
   }
 }
 

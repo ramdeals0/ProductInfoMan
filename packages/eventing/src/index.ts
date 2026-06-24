@@ -19,6 +19,9 @@ export const DOMAIN_EVENT_TYPES = [
   "publish.job.completed",
   "publish.job.failed",
   "audit.record.created",
+  "product.mdm.matched",
+  "product.mdm.merged",
+  "product.mdm.attribute_overridden",
 ] as const;
 
 export type DomainEventType = (typeof DOMAIN_EVENT_TYPES)[number];
@@ -129,6 +132,25 @@ export const AuditRecordCreatedEventSchema = z.object({
   productId: z.string().nullable().optional(),
 });
 
+export const ProductMdmMatchedEventSchema = z.object({
+  productId: z.string(),
+  sourceRecordId: z.string(),
+  sourceSystem: z.string(),
+});
+
+export const ProductMdmMergedEventSchema = z.object({
+  productId: z.string(),
+  sourceRecordId: z.string(),
+  changedFields: z.array(z.string()),
+});
+
+export const ProductMdmAttributeOverriddenEventSchema = z.object({
+  productId: z.string(),
+  attributeCode: z.string(),
+  sourceRecordId: z.string(),
+  sourceSystem: z.string(),
+});
+
 export const EVENT_SCHEMAS: Record<DomainEventType, z.ZodType<Record<string, unknown>>> = {
   "product.created": ProductCreatedEventSchema,
   "product.updated": ProductUpdatedEventSchema,
@@ -146,6 +168,9 @@ export const EVENT_SCHEMAS: Record<DomainEventType, z.ZodType<Record<string, unk
   "publish.job.completed": PublishJobCompletedEventSchema,
   "publish.job.failed": PublishJobFailedEventSchema,
   "audit.record.created": AuditRecordCreatedEventSchema,
+  "product.mdm.matched": ProductMdmMatchedEventSchema,
+  "product.mdm.merged": ProductMdmMergedEventSchema,
+  "product.mdm.attribute_overridden": ProductMdmAttributeOverriddenEventSchema,
 };
 
 export const CONSUMER_NAMES = [
@@ -175,6 +200,9 @@ export const EVENT_CONSUMER_ROUTING: Record<DomainEventType, ConsumerName[]> = {
   "publish.job.completed": ["audit-sync", "reporting-sync", "notification-sync"],
   "publish.job.failed": ["audit-sync", "reporting-sync", "notification-sync"],
   "audit.record.created": ["reporting-sync"],
+  "product.mdm.matched": ["audit-sync", "reporting-sync"],
+  "product.mdm.merged": ["search-sync", "publish-sync", "audit-sync", "reporting-sync"],
+  "product.mdm.attribute_overridden": ["search-sync", "publish-sync", "audit-sync"],
 };
 
 export function isDomainEventType(value: string): value is DomainEventType {
@@ -229,6 +257,9 @@ export function resolveAggregate(
   }
   if (eventType.startsWith("audit.")) {
     return { aggregateType: "AuditLog", aggregateId: String(payload.auditLogId ?? "unknown") };
+  }
+  if (eventType.startsWith("product.mdm.")) {
+    return { aggregateType: "Product", aggregateId: String(payload.productId ?? "unknown") };
   }
   return { aggregateType: "Unknown", aggregateId: "unknown" };
 }

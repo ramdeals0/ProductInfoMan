@@ -15,7 +15,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
-    "test": "pnpm --filter @productinfoman/inheritance-engine test && pnpm --filter @productinfoman/facet-engine test && pnpm --filter @productinfoman/import-engine test && pnpm --filter @productinfoman/workflow-engine test && pnpm --filter @productinfoman/search-projection test && pnpm --filter @productinfoman/publish-engine test && pnpm --filter @productinfoman/eventing test && pnpm --filter @productinfoman/api-client test && pnpm --filter @productinfoman/api test && pnpm --filter @productinfoman/admin test && pnpm --filter @productinfoman/storefront test",
+    "test": "pnpm --filter @productinfoman/inheritance-engine test && pnpm --filter @productinfoman/facet-engine test && pnpm --filter @productinfoman/import-engine test && pnpm --filter @productinfoman/workflow-engine test && pnpm --filter @productinfoman/search-projection test && pnpm --filter @productinfoman/publish-engine test && pnpm --filter @productinfoman/eventing test && pnpm --filter @productinfoman/mdm-engine test && pnpm --filter @productinfoman/api-client test && pnpm --filter @productinfoman/api test && pnpm --filter @productinfoman/admin test && pnpm --filter @productinfoman/storefront test",
     "docker:up": "docker compose -f docker/docker-compose.yml up -d",
     "docker:down": "docker compose -f docker/docker-compose.yml down"
   },

@@ -47,6 +47,9 @@ model Organization {
   entityChangeHistory EntityChangeHistory[]
   metricDefinitions   MetricDefinition[]
   reportSnapshots     ReportSnapshot[]
+  productSystemIds    ProductSystemId[]
+  productSourceRecords ProductSourceRecord[]
+  survivorshipRules   SurvivorshipRule[]
 
   @@index([slug])
 }
@@ -110,6 +113,9 @@ model Product {
   searchSyncEvents  SearchSyncEvent[]
   publishJobItems   PublishJobItem[]
   publishHistory    PublishHistory[]
+  systemIds         ProductSystemId[]
+  sourceRecords     ProductSourceRecord[]
+  matchCandidates   ProductMatchCandidate[]
 
   @@unique([organizationId, sku])
   @@index([organizationId, status])
@@ -213,6 +219,93 @@ enum ProductRelationshipType {
   ACCESSORY
   REPLACEMENT
   COLLECTION_MEMBER
+}
+
+// ─── Product MDM ────────────────────────────────────────────────────────────
+
+enum SourceRecordStatus {
+  UNMATCHED
+  MATCHED
+  REJECTED
+}
+
+enum SurvivorshipRuleType {
+  SOURCE_PRIORITY
+  MOST_RECENT
+  MOST_COMPLETE
+}
+
+model ProductSystemId {
+  id             String   @id @default(cuid())
+  organizationId String
+  productId      String
+  systemCode     String
+  externalKey    String
+  isPrimary      Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, systemCode, externalKey])
+  @@index([productId])
+  @@index([organizationId, systemCode])
+}
+
+model ProductSourceRecord {
+  id                    String             @id @default(cuid())
+  organizationId        String
+  productId             String?
+  sourceSystem          String
+  sourceRecordId        String
+  rawPayloadJson        Json
+  normalizedPayloadJson Json?
+  status                SourceRecordStatus @default(UNMATCHED)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  organization    Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product         Product?                @relation(fields: [productId], references: [id], onDelete: SetNull)
+  matchCandidates ProductMatchCandidate[]
+
+  @@unique([organizationId, sourceSystem, sourceRecordId])
+  @@index([organizationId, sourceSystem, status])
+  @@index([productId])
+}
+
+model ProductMatchCandidate {
+  id                 String   @id @default(cuid())
+  sourceRecordId     String
+  candidateProductId String
+  matchScore         Decimal  @db.Decimal(5, 4)
+  matchReason        String
+  createdAt          DateTime @default(now())
+
+  sourceRecord     ProductSourceRecord @relation(fields: [sourceRecordId], references: [id], onDelete: Cascade)
+  candidateProduct Product             @relation(fields: [candidateProductId], references: [id], onDelete: Cascade)
+
+  @@index([sourceRecordId])
+  @@index([candidateProductId])
+}
+
+model SurvivorshipRule {
+  id             String               @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  entityType     String               @default("product")
+  attributeCode  String
+  ruleType       SurvivorshipRuleType
+  ruleConfigJson Json
+  isActive       Boolean              @default(true)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, code])
+  @@index([organizationId, entityType, isActive])
 }
 
 // ─── Taxonomy & Facets ──────────────────────────────────────────────────────
@@ -553,6 +646,7 @@ model ImportJob {
   status           ImportJobStatus  @default(UPLOADED)
   duplicatePolicy  DuplicatePolicy  @default(REJECT)
   blankCellPolicy  BlankCellPolicy  @default(IGNORE)
+  sourceSystem     String?
   totalRows        Int              @default(0)
   validRows        Int              @default(0)
   invalidRows      Int              @default(0)

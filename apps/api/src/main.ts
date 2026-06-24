@@ -14,6 +14,7 @@ import { publishRoutes } from "./modules/publish/publish.routes.js";
 import { startPublishWorker } from "./modules/publish/publish.queue.js";
 import { taxonomyRoutes } from "./modules/taxonomy/taxonomy.routes.js";
 import { workflowRoutes } from "./modules/workflow/workflow.routes.js";
+import { mdmRoutes } from "./modules/mdm/mdm.routes.js";
 
 const app = Fastify({ logger: true });
 
@@ -27,6 +28,7 @@ await app.register(publishRoutes, { prefix: "/api/v1" });
 await app.register(integrationRoutes, { prefix: "/api/v1" });
 await app.register(auditRoutes, { prefix: "/api/v1" });
 await app.register(reportsRoutes, { prefix: "/api/v1" });
+await app.register(mdmRoutes, { prefix: "/api/v1" });
 
 await startImportWorker();
 await startSearchWorker();
