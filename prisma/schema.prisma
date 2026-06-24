@@ -1,0 +1,1319 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Platform ───────────────────────────────────────────────────────────────
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users               User[]
+  products            Product[]
+  categories          Category[]
+  attributeGroups     AttributeGroup[]
+  attributeDefinitions AttributeDefinition[]
+  facetDefinitions    FacetDefinition[]
+  facetRules          FacetRule[]
+  auditLogs           AuditLog[]
+  importTemplates     ImportTemplate[]
+  importJobs          ImportJob[]
+  validationRules     ValidationRule[]
+  workflowDefinitions WorkflowDefinition[]
+  workflowTasks       WorkflowTask[]
+  workflowHistory     WorkflowHistory[]
+  searchIndexVersions SearchIndexVersion[]
+  searchProjectionJobs SearchProjectionJob[]
+  searchSyncEvents    SearchSyncEvent[]
+  searchReindexRuns   SearchReindexRun[]
+  channels            Channel[]
+  publishJobs         PublishJob[]
+  channelValidationRules ChannelValidationRule[]
+  publishHistory      PublishHistory[]
+  outboxEvents        OutboxEvent[]
+  integrationEvents   IntegrationEvent[]
+  eventConsumptionLogs EventConsumptionLog[]
+  deadLetterEvents    DeadLetterEvent[]
+  integrationEndpoints IntegrationEndpoint[]
+  integrationRetries  IntegrationRetry[]
+
+  @@index([slug])
+}
+
+model User {
+  id             String   @id @default(cuid())
+  organizationId String
+  email          String
+  name           String
+  role           UserRole @default(EDITOR)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  importJobs     ImportJob[] @relation("ImportJobCreator")
+  workflowTasksAssigned WorkflowTask[] @relation("WorkflowTaskAssignee")
+  workflowApprovals     WorkflowApproval[] @relation("WorkflowApprover")
+  workflowHistory       WorkflowHistory[] @relation("WorkflowHistoryActor")
+  publishJobsCreated    PublishJob[] @relation("PublishJobCreator")
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+}
+
+enum UserRole {
+  ADMIN
+  CATALOG_MANAGER
+  EDITOR
+  REVIEWER
+  VIEWER
+}
+
+// ─── Product Core ───────────────────────────────────────────────────────────
+
+model Product {
+  id                 String        @id @default(cuid())
+  organizationId     String
+  productType        ProductType
+  sku                String
+  parentId           String?
+  status             ProductStatus @default(DRAFT)
+  title              String
+  description        String?
+  brand              String?
+  primaryCategoryId  String?
+  deletedAt          DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  organization      Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent            Product?                @relation("ProductVariants", fields: [parentId], references: [id], onDelete: Restrict)
+  variants          Product[]               @relation("ProductVariants")
+  primaryCategory   Category?               @relation("PrimaryCategory", fields: [primaryCategoryId], references: [id], onDelete: SetNull)
+  attributeValues   ProductAttributeValue[]
+  secondaryCategories ProductCategory[]
+  media             ProductMedia[]
+  auditLogs         AuditLog[]              @relation("ProductAudit")
+  sourceRelationships ProductRelationship[] @relation("SourceRelationships")
+  targetRelationships ProductRelationship[] @relation("TargetRelationships")
+  workflowTasks     WorkflowTask[]
+  searchSyncEvents  SearchSyncEvent[]
+  publishJobItems   PublishJobItem[]
+  publishHistory    PublishHistory[]
+
+  @@unique([organizationId, sku])
+  @@index([organizationId, status])
+  @@index([organizationId, parentId])
+  @@index([organizationId, productType])
+  @@index([primaryCategoryId])
+}
+
+enum ProductType {
+  SIMPLE
+  PARENT
+  VARIANT
+}
+
+enum ProductStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  PUBLISH_READY
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+}
+
+model ProductAttributeValue {
+  id                     String          @id @default(cuid())
+  productId              String
+  attributeDefinitionId  String
+  value                  Json
+  source                 AttributeSource @default(LOCAL)
+  inheritedFromProductId String?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  product             Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attributeDefinition AttributeDefinition @relation(fields: [attributeDefinitionId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, attributeDefinitionId])
+  @@index([attributeDefinitionId])
+}
+
+enum AttributeSource {
+  LOCAL
+  INHERITED
+  OVERRIDDEN
+}
+
+model ProductCategory {
+  id         String @id @default(cuid())
+  productId  String
+  categoryId String
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, categoryId])
+}
+
+model ProductMedia {
+  id        String    @id @default(cuid())
+  productId String
+  url       String
+  role      MediaRole @default(PRIMARY)
+  altText   String?
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+enum MediaRole {
+  PRIMARY
+  SWATCH
+  LIFESTYLE
+}
+
+model ProductRelationship {
+  id               String                  @id @default(cuid())
+  organizationId   String
+  sourceProductId  String
+  targetProductId  String
+  relationshipType ProductRelationshipType
+  quantity         Int?
+  sortOrder        Int                     @default(0)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  sourceProduct Product @relation("SourceRelationships", fields: [sourceProductId], references: [id], onDelete: Cascade)
+  targetProduct Product @relation("TargetRelationships", fields: [targetProductId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceProductId, targetProductId, relationshipType])
+  @@index([organizationId])
+  @@index([targetProductId])
+}
+
+enum ProductRelationshipType {
+  VARIANT_OF
+  BUNDLE_COMPONENT
+  ACCESSORY
+  REPLACEMENT
+  COLLECTION_MEMBER
+}
+
+// ─── Taxonomy & Facets ──────────────────────────────────────────────────────
+
+model Category {
+  id             String         @id @default(cuid())
+  organizationId String
+  parentId       String?
+  code           String
+  name           String
+  slug           String
+  path           String
+  depth          Int            @default(0)
+  sortOrder      Int            @default(0)
+  status         CategoryStatus @default(ACTIVE)
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization          Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent                Category?               @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children              Category[]              @relation("CategoryTree")
+  primaryProducts       Product[]               @relation("PrimaryCategory")
+  productCategories     ProductCategory[]
+  attributeSet          CategoryAttributeSet?
+  attributeGroups       CategoryAttributeGroup[]
+  facetDefinitions      FacetDefinition[]
+  facetRules            FacetRule[]
+
+  @@unique([organizationId, code])
+  @@unique([organizationId, path])
+  @@unique([organizationId, slug, parentId])
+  @@index([organizationId, parentId])
+  @@index([organizationId, status])
+}
+
+enum CategoryStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+model AttributeGroup {
+  id             String   @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  description    String?
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  attributes   AttributeDefinition[]
+  categories   CategoryAttributeGroup[]
+
+  @@unique([organizationId, code])
+  @@unique([organizationId, name])
+}
+
+model AttributeDefinition {
+  id               String            @id @default(cuid())
+  organizationId   String
+  attributeGroupId String
+  key              String
+  label            String
+  description      String?
+  dataType         AttributeDataType
+  isGlobal         Boolean           @default(false)
+  isVariantAxis    Boolean           @default(false)
+  isRequired       Boolean           @default(false)
+  isFilterable     Boolean           @default(false)
+  isSearchable     Boolean           @default(false)
+  allowedValuesType AllowedValuesType @default(FREE_TEXT)
+  constraints      Json?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  organization     Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  attributeGroup   AttributeGroup            @relation(fields: [attributeGroupId], references: [id], onDelete: Cascade)
+  enumValues       AttributeEnumValue[]
+  categoryBindings CategoryAttributeBinding[]
+  productValues    ProductAttributeValue[]
+  facetDefinitions FacetDefinition[]
+  facetRules       FacetRule[]
+
+  @@unique([organizationId, key])
+  @@index([organizationId, isVariantAxis])
+  @@index([organizationId, isFilterable])
+}
+
+enum AllowedValuesType {
+  FREE_TEXT
+  CONTROLLED_LIST
+  NUMERIC_RANGE
+}
+
+enum AttributeDataType {
+  TEXT
+  RICH_TEXT
+  NUMBER
+  BOOLEAN
+  ENUM
+  DATE
+  URL
+  JSON
+}
+
+model AttributeEnumValue {
+  id                    String @id @default(cuid())
+  attributeDefinitionId String
+  value                 String
+  label                 String
+  sortOrder             Int    @default(0)
+
+  attributeDefinition AttributeDefinition @relation(fields: [attributeDefinitionId], references: [id], onDelete: Cascade)
+  facetValues         FacetValue[]
+
+  @@unique([attributeDefinitionId, value])
+}
+
+model CategoryAttributeGroup {
+  id               String   @id @default(cuid())
+  categoryId       String
+  attributeGroupId String
+  sortOrder        Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  category       Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  attributeGroup AttributeGroup @relation(fields: [attributeGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, attributeGroupId])
+  @@index([attributeGroupId])
+}
+
+model CategoryAttributeSet {
+  id         String   @id @default(cuid())
+  categoryId String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category Category                   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  bindings CategoryAttributeBinding[]
+}
+
+model CategoryAttributeBinding {
+  id                     String              @id @default(cuid())
+  categoryAttributeSetId String
+  attributeDefinitionId  String
+  requirement            AttributeRequirement @default(OPTIONAL)
+  inheritFromParent      Boolean             @default(true)
+  sortOrder              Int                 @default(0)
+
+  categoryAttributeSet CategoryAttributeSet @relation(fields: [categoryAttributeSetId], references: [id], onDelete: Cascade)
+  attributeDefinition  AttributeDefinition  @relation(fields: [attributeDefinitionId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryAttributeSetId, attributeDefinitionId])
+}
+
+enum AttributeRequirement {
+  REQUIRED
+  OPTIONAL
+  HIDDEN
+}
+
+model FacetDefinition {
+  id                String     @id @default(cuid())
+  organizationId    String
+  key               String
+  label             String
+  sourceAttributeId String
+  categoryId        String?
+  scope             FacetScope @default(GLOBAL)
+  sortOrder         Int        @default(0)
+  isDynamic         Boolean    @default(false)
+  isActive          Boolean    @default(true)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceAttribute AttributeDefinition @relation(fields: [sourceAttributeId], references: [id], onDelete: Cascade)
+  category        Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  rules           FacetRule[]
+  values          FacetValue[]
+
+  @@unique([organizationId, key])
+  @@index([organizationId, categoryId])
+}
+
+enum FacetScope {
+  GLOBAL
+  CATEGORY
+}
+
+model FacetRule {
+  id                    String        @id @default(cuid())
+  organizationId        String
+  categoryId            String?
+  attributeDefinitionId String?
+  facetDefinitionId     String
+  ruleType              FacetRuleType @default(DIRECT)
+  ruleConfig            Json?
+  priority              Int           @default(0)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category            Category?            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  attributeDefinition AttributeDefinition? @relation(fields: [attributeDefinitionId], references: [id], onDelete: SetNull)
+  facetDefinition     FacetDefinition      @relation(fields: [facetDefinitionId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, categoryId])
+  @@index([facetDefinitionId])
+}
+
+enum FacetRuleType {
+  DIRECT
+  NORMALIZE
+  RANGE_BUCKET
+  COMPOSITE
+}
+
+model FacetValue {
+  id                String   @id @default(cuid())
+  facetDefinitionId String
+  value             String
+  label             String
+  sortOrder         Int      @default(0)
+  isActive          Boolean  @default(true)
+  sourceEnumValueId String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  facetDefinition FacetDefinition     @relation(fields: [facetDefinitionId], references: [id], onDelete: Cascade)
+  sourceEnumValue AttributeEnumValue? @relation(fields: [sourceEnumValueId], references: [id], onDelete: SetNull)
+
+  @@unique([facetDefinitionId, value])
+  @@index([facetDefinitionId, isActive])
+}
+
+// ─── Import & Validation ────────────────────────────────────────────────────
+
+enum ImportJobStatus {
+  UPLOADED
+  VALIDATING
+  VALIDATED
+  VALIDATION_FAILED
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ImportType {
+  CREATE
+  UPDATE
+  UPSERT
+}
+
+enum ImportEntityType {
+  PRODUCT
+  VARIANT
+  CATEGORY
+}
+
+enum DuplicatePolicy {
+  REJECT
+  UPDATE
+  SKIP
+}
+
+enum BlankCellPolicy {
+  IGNORE
+  CLEAR
+}
+
+enum ValidationRuleType {
+  REQUIRED_FIELD
+  DUPLICATE_KEY
+  DATA_TYPE
+  PARENT_REFERENCE
+  CATEGORY_REFERENCE
+  CUSTOM
+}
+
+enum ImportRowStatus {
+  PENDING
+  VALID
+  INVALID
+  COMMITTED
+  SKIPPED
+}
+
+model ImportTemplate {
+  id             String           @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  entityType     ImportEntityType @default(PRODUCT)
+  sourceFormat   String           @default("CSV")
+  configJson     Json?
+  isDefault      Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  mappings     ImportTemplateMapping[]
+  jobs         ImportJob[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, isDefault])
+}
+
+model ImportTemplateMapping {
+  id               String  @id @default(cuid())
+  importTemplateId String
+  sourceColumn     String
+  targetField      String
+  transform        String?
+  isRequired       Boolean @default(false)
+  sortOrder        Int     @default(0)
+
+  importTemplate ImportTemplate @relation(fields: [importTemplateId], references: [id], onDelete: Cascade)
+
+  @@unique([importTemplateId, sourceColumn])
+  @@index([importTemplateId])
+}
+
+model ImportJob {
+  id               String           @id @default(cuid())
+  organizationId   String
+  importTemplateId String?
+  fileName         String
+  filePath         String
+  importType       ImportType       @default(CREATE)
+  status           ImportJobStatus  @default(UPLOADED)
+  duplicatePolicy  DuplicatePolicy  @default(REJECT)
+  blankCellPolicy  BlankCellPolicy  @default(IGNORE)
+  totalRows        Int              @default(0)
+  validRows        Int              @default(0)
+  invalidRows      Int              @default(0)
+  committedRows    Int              @default(0)
+  createdById      String?
+  errorMessage     String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  importTemplate ImportTemplate? @relation(fields: [importTemplateId], references: [id], onDelete: SetNull)
+  createdBy      User?           @relation("ImportJobCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  rows           ImportJobRow[]
+  errors         ImportJobError[]
+  summary        ImportRunSummary?
+
+  @@index([organizationId, status])
+  @@index([organizationId, createdAt])
+}
+
+model ImportJobRow {
+  id             String          @id @default(cuid())
+  importJobId    String
+  rowNumber      Int
+  rawData        Json
+  normalizedData Json?
+  status         ImportRowStatus @default(PENDING)
+  entityId       String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  importJob ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+
+  @@unique([importJobId, rowNumber])
+  @@index([importJobId, status])
+}
+
+model ImportJobError {
+  id           String  @id @default(cuid())
+  importJobId  String
+  rowNumber    Int
+  fieldName    String
+  errorCode    String
+  errorMessage String
+  rawValue     String?
+
+  importJob ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+
+  @@index([importJobId, rowNumber])
+  @@index([importJobId, errorCode])
+}
+
+model ValidationRule {
+  id             String             @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  entityType     ImportEntityType   @default(PRODUCT)
+  ruleType       ValidationRuleType
+  ruleConfig     Json?
+  isActive       Boolean            @default(true)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, code])
+  @@index([organizationId, entityType, isActive])
+}
+
+model ImportRunSummary {
+  id            String    @id @default(cuid())
+  importJobId   String    @unique
+  totalRows     Int
+  validRows     Int
+  invalidRows   Int
+  committedRows Int       @default(0)
+  skippedRows   Int       @default(0)
+  duplicateRows Int       @default(0)
+  summaryJson   Json?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  importJob ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+}
+
+// ─── Workflow & Approval ──────────────────────────────────────────────────────
+
+enum WorkflowEntityType {
+  PRODUCT
+  CATEGORY
+}
+
+enum WorkflowTaskStatus {
+  OPEN
+  COMPLETED
+  CANCELLED
+}
+
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+}
+
+model WorkflowDefinition {
+  id             String             @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  entityType     WorkflowEntityType @default(PRODUCT)
+  isActive       Boolean            @default(true)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organization      Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  states            WorkflowState[]
+  transitions       WorkflowTransition[]
+  assignmentRules   WorkflowAssignmentRule[]
+  tasks             WorkflowTask[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, entityType, isActive])
+}
+
+model WorkflowState {
+  id                   String  @id @default(cuid())
+  workflowDefinitionId String
+  code                 String
+  name                 String
+  productStatus        ProductStatus
+  isInitial            Boolean @default(false)
+  isTerminal           Boolean @default(false)
+  sortOrder            Int     @default(0)
+
+  workflowDefinition WorkflowDefinition   @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
+  transitionsFrom    WorkflowTransition[] @relation("TransitionFrom")
+  transitionsTo      WorkflowTransition[] @relation("TransitionTo")
+  tasks              WorkflowTask[]
+
+  @@unique([workflowDefinitionId, code])
+  @@index([workflowDefinitionId, sortOrder])
+}
+
+model WorkflowTransition {
+  id                    String  @id @default(cuid())
+  workflowDefinitionId  String
+  fromStateId           String
+  toStateId             String
+  actionType            String
+  allowedRoles          Json
+  requiresApproval      Boolean @default(false)
+  requiresJustification Boolean @default(false)
+  isActive              Boolean @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  workflowDefinition WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
+  fromState          WorkflowState      @relation("TransitionFrom", fields: [fromStateId], references: [id], onDelete: Cascade)
+  toState            WorkflowState      @relation("TransitionTo", fields: [toStateId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowDefinitionId, fromStateId, actionType])
+  @@index([workflowDefinitionId, actionType])
+}
+
+model WorkflowAssignmentRule {
+  id                   String   @id @default(cuid())
+  workflowDefinitionId String
+  name                 String
+  assignToRole         UserRole
+  productTypes         Json?
+  categoryCodes        Json?
+  priority             Int      @default(0)
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  workflowDefinition WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
+
+  @@index([workflowDefinitionId, isActive])
+}
+
+model WorkflowTask {
+  id                   String             @id @default(cuid())
+  organizationId       String
+  workflowDefinitionId String
+  workflowStateId      String
+  entityType           WorkflowEntityType @default(PRODUCT)
+  entityId             String
+  productId            String?
+  assignedRole         UserRole?
+  assignedUserId       String?
+  status               WorkflowTaskStatus @default(OPEN)
+  actionType           String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  completedAt          DateTime?
+
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workflowDefinition WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
+  workflowState      WorkflowState      @relation(fields: [workflowStateId], references: [id], onDelete: Restrict)
+  product            Product?           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  assignedUser       User?              @relation("WorkflowTaskAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  approvals          WorkflowApproval[]
+
+  @@index([organizationId, status])
+  @@index([entityType, entityId])
+  @@index([assignedRole, status])
+  @@index([productId])
+}
+
+model WorkflowApproval {
+  id             String           @id @default(cuid())
+  workflowTaskId String
+  approverUserId String
+  decision       ApprovalDecision
+  decisionReason String?
+  comments       String?
+  decidedAt      DateTime         @default(now())
+
+  workflowTask WorkflowTask @relation(fields: [workflowTaskId], references: [id], onDelete: Cascade)
+  approver     User         @relation("WorkflowApprover", fields: [approverUserId], references: [id], onDelete: Restrict)
+
+  @@index([workflowTaskId])
+  @@index([approverUserId])
+}
+
+model WorkflowHistory {
+  id             String             @id @default(cuid())
+  organizationId String
+  entityId       String
+  entityType     WorkflowEntityType @default(PRODUCT)
+  productId      String?
+  fromState      String
+  toState        String
+  actionType     String
+  performedById  String?
+  performedAt    DateTime           @default(now())
+  metadata       Json?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  performedBy    User?        @relation("WorkflowHistoryActor", fields: [performedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, entityType, entityId])
+  @@index([productId])
+  @@index([performedAt])
+}
+
+// ─── Search Projection ───────────────────────────────────────────────────────
+
+enum SearchProjectionJobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  RETRYING
+}
+
+enum SearchSyncEventType {
+  INDEX
+  UPDATE
+  REMOVE
+  REINDEX
+}
+
+enum SearchSyncEventStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+enum SearchReindexStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model SearchIndexVersion {
+  id             String   @id @default(cuid())
+  organizationId String
+  indexName      String
+  version        Int      @default(1)
+  mappingJson    Json
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  reindexRuns  SearchReindexRun[]
+
+  @@unique([organizationId, indexName, version])
+  @@index([organizationId, isActive])
+}
+
+model SearchProjectionJob {
+  id             String                    @id @default(cuid())
+  organizationId String
+  jobType        String
+  productId      String?
+  status         SearchProjectionJobStatus @default(QUEUED)
+  attempts       Int                       @default(0)
+  maxAttempts    Int                       @default(3)
+  errorMessage   String?
+  payload        Json?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+  completedAt    DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@index([productId])
+}
+
+model SearchSyncEvent {
+  id             String                @id @default(cuid())
+  organizationId String
+  productId      String?
+  eventType      SearchSyncEventType
+  status         SearchSyncEventStatus   @default(PENDING)
+  sourceEvent    String?
+  payload        Json?
+  errorMessage   String?
+  createdAt      DateTime              @default(now())
+  processedAt    DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product        Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@index([productId])
+  @@index([createdAt])
+}
+
+model SearchReindexRun {
+  id             String              @id @default(cuid())
+  organizationId String
+  indexVersionId String?
+  status         SearchReindexStatus @default(QUEUED)
+  totalProducts  Int                 @default(0)
+  indexedCount   Int                 @default(0)
+  failedCount    Int                 @default(0)
+  errorMessage   String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  indexVersion SearchIndexVersion? @relation(fields: [indexVersionId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+}
+
+// ─── Publishing & Syndication ────────────────────────────────────────────────
+
+enum ChannelType {
+  ECOMMERCE
+  MARKETPLACE
+  B2B
+  CUSTOM
+}
+
+enum ChannelDestinationType {
+  CSV
+  JSON
+  HTTP_WEBHOOK
+  SFTP
+}
+
+enum ChannelTransformType {
+  DIRECT
+  TEMPLATE
+  CONCAT
+  LOOKUP
+  DEFAULT
+}
+
+enum PublishJobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  RETRYING
+}
+
+enum PublishJobMode {
+  DRY_RUN
+  LIVE
+}
+
+enum PublishJobItemStatus {
+  PENDING
+  EXPORTED
+  FAILED
+  SKIPPED
+}
+
+enum PublishHistoryAction {
+  DRY_RUN
+  EXPORT
+  RETRY
+  VALIDATION_FAILED
+}
+
+enum PublishHistoryStatus {
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+
+enum ChannelValidationRuleType {
+  REQUIRED_FIELD
+  ALLOWED_STATUS
+  REQUIRED_ATTRIBUTE
+}
+
+model Channel {
+  id              String                 @id @default(cuid())
+  organizationId  String
+  code            String
+  name            String
+  type            ChannelType            @default(ECOMMERCE)
+  destinationType ChannelDestinationType @default(CSV)
+  configJson      Json?
+  isActive        Boolean                @default(true)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  organization      Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  mappingVersions   ChannelMappingVersion[]
+  fieldMappings     ChannelFieldMapping[]
+  validationRules   ChannelValidationRule[]
+  publishJobs       PublishJob[]
+  publishHistory    PublishHistory[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, isActive])
+}
+
+model ChannelMappingVersion {
+  id        String   @id @default(cuid())
+  channelId String
+  version   Int      @default(1)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  channel       Channel               @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  fieldMappings ChannelFieldMapping[]
+
+  @@unique([channelId, version])
+  @@index([channelId, isActive])
+}
+
+model ChannelFieldMapping {
+  id                 String               @id @default(cuid())
+  channelId          String
+  mappingVersionId   String
+  sourceField        String
+  targetField        String
+  transformType      ChannelTransformType @default(DIRECT)
+  transformConfigJson Json?
+  isRequired         Boolean              @default(false)
+  sortOrder          Int                  @default(0)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  channel        Channel               @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  mappingVersion ChannelMappingVersion @relation(fields: [mappingVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([mappingVersionId, targetField])
+  @@index([channelId, sortOrder])
+}
+
+model ChannelValidationRule {
+  id             String                    @id @default(cuid())
+  organizationId String
+  channelId      String
+  code           String
+  name           String
+  ruleType       ChannelValidationRuleType
+  ruleConfig     Json
+  isActive       Boolean                   @default(true)
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  channel        Channel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, code])
+  @@index([organizationId, isActive])
+}
+
+model PublishJob {
+  id               String           @id @default(cuid())
+  organizationId   String
+  channelId        String
+  status           PublishJobStatus @default(QUEUED)
+  mode             PublishJobMode
+  totalItems       Int              @default(0)
+  successfulItems  Int              @default(0)
+  failedItems      Int              @default(0)
+  attempts         Int              @default(0)
+  maxAttempts      Int              @default(3)
+  errorMessage     String?
+  createdById      String?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  channel        Channel           @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  createdBy      User?             @relation("PublishJobCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  items          PublishJobItem[]
+  artifacts      ExportArtifact[]
+  history        PublishHistory[]
+
+  @@index([organizationId, status])
+  @@index([channelId, createdAt])
+}
+
+model PublishJobItem {
+  id              String               @id @default(cuid())
+  publishJobId    String
+  productId       String
+  status          PublishJobItemStatus @default(PENDING)
+  exportedPayload Json?
+  errorMessage    String?
+  processedAt     DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  publishJob PublishJob @relation(fields: [publishJobId], references: [id], onDelete: Cascade)
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([publishJobId, productId])
+  @@index([publishJobId, status])
+}
+
+model ExportArtifact {
+  id           String   @id @default(cuid())
+  publishJobId String
+  fileName     String
+  filePath     String
+  fileType     String
+  byteSize     Int      @default(0)
+  generatedAt  DateTime @default(now())
+
+  publishJob PublishJob @relation(fields: [publishJobId], references: [id], onDelete: Cascade)
+
+  @@index([publishJobId])
+}
+
+model PublishHistory {
+  id             String               @id @default(cuid())
+  organizationId String
+  channelId      String
+  publishJobId   String
+  productId      String?
+  action         PublishHistoryAction
+  status         PublishHistoryStatus
+  details        Json?
+  createdAt      DateTime             @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  channel        Channel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  publishJob     PublishJob   @relation(fields: [publishJobId], references: [id], onDelete: Cascade)
+  product        Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, channelId, createdAt])
+  @@index([publishJobId])
+  @@index([productId])
+}
+
+// ─── Integration & Eventing ──────────────────────────────────────────────────
+
+enum OutboxEventStatus {
+  PENDING
+  PUBLISHED
+  FAILED
+}
+
+enum IntegrationEventStatus {
+  DISPATCHED
+  DELIVERED
+  FAILED
+}
+
+enum EventConsumptionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+enum IntegrationEndpointType {
+  WEBHOOK
+  QUEUE
+  SFTP
+  INTERNAL
+}
+
+enum IntegrationRetryStatus {
+  SCHEDULED
+  PROCESSING
+  COMPLETED
+  FAILED
+  EXHAUSTED
+}
+
+model OutboxEvent {
+  id             String            @id @default(cuid())
+  organizationId String
+  eventType      String
+  eventVersion   Int               @default(1)
+  aggregateType  String
+  aggregateId    String
+  payloadJson    Json
+  metadataJson   Json?
+  status         OutboxEventStatus @default(PENDING)
+  occurredAt     DateTime
+  publishedAt    DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization       Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integrationEvent   IntegrationEvent?
+  consumptionLogs    EventConsumptionLog[]
+  deadLetterEvents   DeadLetterEvent[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, eventType])
+  @@index([aggregateType, aggregateId])
+  @@index([occurredAt])
+}
+
+model IntegrationEvent {
+  id             String                 @id @default(cuid())
+  organizationId String
+  outboxEventId  String                 @unique
+  eventType      String
+  eventVersion   Int
+  payloadJson    Json
+  status         IntegrationEventStatus @default(DISPATCHED)
+  dispatchedAt   DateTime               @default(now())
+  deliveredAt    DateTime?
+  createdAt      DateTime               @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  outboxEvent    OutboxEvent  @relation(fields: [outboxEventId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, eventType])
+  @@index([dispatchedAt])
+}
+
+model EventConsumptionLog {
+  id             String                 @id @default(cuid())
+  organizationId String
+  eventId        String
+  consumerName   String
+  idempotencyKey String
+  status         EventConsumptionStatus @default(PENDING)
+  attemptCount   Int                    @default(0)
+  lastError      String?
+  processedAt    DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  outboxEvent    OutboxEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, consumerName, idempotencyKey])
+  @@index([organizationId, consumerName, status])
+  @@index([eventId])
+}
+
+model DeadLetterEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  eventId        String
+  consumerName   String
+  eventType      String
+  payloadJson    Json
+  lastError      String
+  attemptCount   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  outboxEvent    OutboxEvent        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  retries        IntegrationRetry[]
+
+  @@unique([eventId, consumerName])
+  @@index([organizationId, consumerName])
+}
+
+model IntegrationEndpoint {
+  id             String                  @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  endpointType   IntegrationEndpointType @default(INTERNAL)
+  configJson     Json?
+  isActive       Boolean                 @default(true)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, code])
+  @@index([organizationId, isActive])
+}
+
+model IntegrationRetry {
+  id                String                 @id @default(cuid())
+  organizationId    String
+  deadLetterEventId String
+  status            IntegrationRetryStatus @default(SCHEDULED)
+  attemptCount      Int                    @default(0)
+  maxAttempts       Int                    @default(3)
+  scheduledAt       DateTime               @default(now())
+  processedAt       DateTime?
+  lastError         String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deadLetterEvent DeadLetterEvent @relation(fields: [deadLetterEventId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@index([deadLetterEventId])
+}
+
+// ─── Audit ───────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id             String      @id @default(cuid())
+  organizationId String
+  entityType     String
+  entityId       String
+  productId      String?
+  action         AuditAction
+  actorId        String?
+  changes        Json?
+  correlationId  String?
+  createdAt      DateTime    @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product        Product?     @relation("ProductAudit", fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, entityType, entityId])
+  @@index([organizationId, createdAt])
+  @@index([productId])
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATE_CHANGE
+  IMPORT
+  EXPORT
+}
