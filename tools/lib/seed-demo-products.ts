@@ -1,4 +1,6 @@
 import type { PrismaClient } from "../../generated/prisma/client.js";
+import { merchandisingValuesForIndex } from "./product-attribute-values.js";
+import { upsertProductAttribute } from "./upsert-product-attribute.js";
 
 export type SeedDemoProductsOptions = {
   count?: number;
@@ -25,6 +27,19 @@ const STYLES = [
   "Chino Pant",
   "Utility Jacket",
   "Canvas Short",
+] as const;
+
+const REQUIRED_ATTR_KEYS = [
+  "brand",
+  "color",
+  "size",
+  "fabric",
+  "price",
+  "rating",
+  "availability",
+  "warranty_years",
+  "material",
+  "fit",
 ] as const;
 
 function padSku(prefix: string, index: number): string {
@@ -54,12 +69,12 @@ export async function seedDemoProducts(
   const attributes = await prisma.attributeDefinition.findMany({
     where: {
       organizationId,
-      key: { in: ["brand", "color", "size", "fabric"] },
+      key: { in: [...REQUIRED_ATTR_KEYS] },
     },
     select: { id: true, key: true },
   });
   const attrByKey = new Map(attributes.map((attribute) => [attribute.key, attribute.id]));
-  for (const key of ["brand", "color", "size", "fabric"] as const) {
+  for (const key of REQUIRED_ATTR_KEYS) {
     if (!attrByKey.has(key)) {
       throw new Error(`Attribute "${key}" not found — run pnpm db:seed first`);
     }
@@ -75,6 +90,7 @@ export async function seedDemoProducts(
     const size = pick(SIZES, index);
     const fabric = pick(FABRICS, index);
     const style = pick(STYLES, index);
+    const merch = merchandisingValuesForIndex(index);
     const title = `${brand} ${style} ${index}`;
 
     const existing = await prisma.product.findUnique({
@@ -111,25 +127,16 @@ export async function seedDemoProducts(
       { key: "color", value: color },
       { key: "size", value: size },
       { key: "fabric", value: fabric },
+      { key: "price", value: merch.price },
+      { key: "rating", value: merch.rating },
+      { key: "availability", value: merch.availability },
+      { key: "warranty_years", value: merch.warranty_years },
+      { key: "material", value: merch.material },
+      { key: "fit", value: merch.fit },
     ] as const;
 
     for (const { key, value } of attributeValues) {
-      const attributeDefinitionId = attrByKey.get(key)!;
-      await prisma.productAttributeValue.upsert({
-        where: {
-          productId_attributeDefinitionId: {
-            productId: product.id,
-            attributeDefinitionId,
-          },
-        },
-        create: {
-          productId: product.id,
-          attributeDefinitionId,
-          value,
-          source: "LOCAL",
-        },
-        update: { value },
-      });
+      await upsertProductAttribute(prisma, product.id, attrByKey.get(key)!, value);
     }
   }
 

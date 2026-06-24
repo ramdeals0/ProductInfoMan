@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import pg from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client.js";
+import { PRICE_FACET_BUCKETS } from "../packages/config/facets.config.js";
 import { ROLE_SEEDS } from "../packages/shared/src/rbac.js";
 
 const connectionString = process.env.DATABASE_URL;
@@ -156,14 +157,104 @@ async function main() {
       key: "fabric",
       label: "Fabric",
       dataType: "TEXT",
+      isFilterable: true,
       isSearchable: true,
     },
-    update: {},
+    update: { isFilterable: true, isSearchable: true },
+  });
+
+  const priceAttr = await prisma.attributeDefinition.upsert({
+    where: { organizationId_key: { organizationId: org.id, key: "price" } },
+    create: {
+      organizationId: org.id,
+      attributeGroupId: marketingGroup.id,
+      key: "price",
+      label: "Price",
+      dataType: "NUMBER",
+      isGlobal: true,
+      isFilterable: true,
+    },
+    update: { isGlobal: true, isFilterable: true },
+  });
+
+  const ratingAttr = await prisma.attributeDefinition.upsert({
+    where: { organizationId_key: { organizationId: org.id, key: "rating" } },
+    create: {
+      organizationId: org.id,
+      attributeGroupId: marketingGroup.id,
+      key: "rating",
+      label: "Customer Rating",
+      dataType: "NUMBER",
+      isGlobal: true,
+      isFilterable: true,
+    },
+    update: { isGlobal: true, isFilterable: true },
+  });
+
+  const availabilityAttr = await prisma.attributeDefinition.upsert({
+    where: { organizationId_key: { organizationId: org.id, key: "availability" } },
+    create: {
+      organizationId: org.id,
+      attributeGroupId: marketingGroup.id,
+      key: "availability",
+      label: "Availability",
+      dataType: "ENUM",
+      isGlobal: true,
+      isFilterable: true,
+      allowedValuesType: "CONTROLLED_LIST",
+    },
+    update: { isGlobal: true, isFilterable: true, allowedValuesType: "CONTROLLED_LIST" },
+  });
+
+  const warrantyAttr = await prisma.attributeDefinition.upsert({
+    where: { organizationId_key: { organizationId: org.id, key: "warranty_years" } },
+    create: {
+      organizationId: org.id,
+      attributeGroupId: specsGroup.id,
+      key: "warranty_years",
+      label: "Warranty (Years)",
+      dataType: "NUMBER",
+      isGlobal: true,
+      isFilterable: true,
+    },
+    update: { isGlobal: true, isFilterable: true },
+  });
+
+  const materialAttr = await prisma.attributeDefinition.upsert({
+    where: { organizationId_key: { organizationId: org.id, key: "material" } },
+    create: {
+      organizationId: org.id,
+      attributeGroupId: specsGroup.id,
+      key: "material",
+      label: "Material",
+      dataType: "ENUM",
+      isGlobal: true,
+      isFilterable: true,
+      allowedValuesType: "CONTROLLED_LIST",
+    },
+    update: { isGlobal: true, isFilterable: true, allowedValuesType: "CONTROLLED_LIST" },
+  });
+
+  const fitAttr = await prisma.attributeDefinition.upsert({
+    where: { organizationId_key: { organizationId: org.id, key: "fit" } },
+    create: {
+      organizationId: org.id,
+      attributeGroupId: specsGroup.id,
+      key: "fit",
+      label: "Fit",
+      dataType: "ENUM",
+      isFilterable: true,
+      allowedValuesType: "CONTROLLED_LIST",
+    },
+    update: { isFilterable: true, allowedValuesType: "CONTROLLED_LIST" },
   });
 
   for (const [attr, values] of [
     [colorAttr, ["Blue", "White", "Navy"]],
     [sizeAttr, ["S", "M", "L"]],
+    [availabilityAttr, ["In Stock", "Limited Stock", "Out of Stock"]],
+    [materialAttr, ["Cotton", "Polyester", "Metal", "Plastic", "Wood", "Composite", "Leather", "Glass"]],
+    [fitAttr, ["Regular", "Slim", "Relaxed"]],
   ] as const) {
     for (let i = 0; i < values.length; i++) {
       await prisma.attributeEnumValue.upsert({
@@ -266,6 +357,12 @@ async function main() {
     [sizeAttr, "REQUIRED", false],
     [fabricAttr, "OPTIONAL", true],
     [brandAttr, "REQUIRED", true],
+    [priceAttr, "OPTIONAL", true],
+    [ratingAttr, "OPTIONAL", true],
+    [availabilityAttr, "OPTIONAL", true],
+    [warrantyAttr, "OPTIONAL", true],
+    [materialAttr, "OPTIONAL", true],
+    [fitAttr, "OPTIONAL", true],
   ] as const) {
     await prisma.categoryAttributeBinding.upsert({
       where: {
@@ -291,11 +388,11 @@ async function main() {
       key: "color",
       label: "Color",
       sourceAttributeId: colorAttr.id,
-      categoryId: shirts.id,
-      scope: "CATEGORY",
+      categoryId: null,
+      scope: "GLOBAL",
       sortOrder: 2,
     },
-    update: {},
+    update: { sourceAttributeId: colorAttr.id, categoryId: null, scope: "GLOBAL", isActive: true },
   });
 
   const sizeFacet = await prisma.facetDefinition.upsert({
@@ -305,11 +402,11 @@ async function main() {
       key: "size",
       label: "Size",
       sourceAttributeId: sizeAttr.id,
-      categoryId: shirts.id,
-      scope: "CATEGORY",
+      categoryId: null,
+      scope: "GLOBAL",
       sortOrder: 3,
     },
-    update: {},
+    update: { sourceAttributeId: sizeAttr.id, categoryId: null, scope: "GLOBAL", isActive: true },
   });
 
   const brandFacet = await prisma.facetDefinition.upsert({
@@ -332,11 +429,116 @@ async function main() {
     },
   });
 
+  const priceFacet = await prisma.facetDefinition.upsert({
+    where: { organizationId_key: { organizationId: org.id, key: "price" } },
+    create: {
+      organizationId: org.id,
+      key: "price",
+      label: "Price",
+      sourceAttributeId: priceAttr.id,
+      scope: "GLOBAL",
+      sortOrder: 4,
+    },
+    update: { sourceAttributeId: priceAttr.id, scope: "GLOBAL", isActive: true },
+  });
+
+  const ratingFacet = await prisma.facetDefinition.upsert({
+    where: { organizationId_key: { organizationId: org.id, key: "rating" } },
+    create: {
+      organizationId: org.id,
+      key: "rating",
+      label: "Customer Rating",
+      sourceAttributeId: ratingAttr.id,
+      scope: "GLOBAL",
+      sortOrder: 5,
+    },
+    update: { sourceAttributeId: ratingAttr.id, scope: "GLOBAL", isActive: true },
+  });
+
+  const availabilityFacet = await prisma.facetDefinition.upsert({
+    where: { organizationId_key: { organizationId: org.id, key: "availability" } },
+    create: {
+      organizationId: org.id,
+      key: "availability",
+      label: "Availability",
+      sourceAttributeId: availabilityAttr.id,
+      scope: "GLOBAL",
+      sortOrder: 6,
+    },
+    update: { sourceAttributeId: availabilityAttr.id, scope: "GLOBAL", isActive: true },
+  });
+
+  const warrantyFacet = await prisma.facetDefinition.upsert({
+    where: { organizationId_key: { organizationId: org.id, key: "warranty_years" } },
+    create: {
+      organizationId: org.id,
+      key: "warranty_years",
+      label: "Warranty (Years)",
+      sourceAttributeId: warrantyAttr.id,
+      scope: "GLOBAL",
+      sortOrder: 7,
+    },
+    update: { sourceAttributeId: warrantyAttr.id, scope: "GLOBAL", isActive: true },
+  });
+
+  const materialFacet = await prisma.facetDefinition.upsert({
+    where: { organizationId_key: { organizationId: org.id, key: "material" } },
+    create: {
+      organizationId: org.id,
+      key: "material",
+      label: "Material",
+      sourceAttributeId: materialAttr.id,
+      scope: "GLOBAL",
+      sortOrder: 8,
+    },
+    update: { sourceAttributeId: materialAttr.id, scope: "GLOBAL", isActive: true },
+  });
+
+  const fabricFacet = await prisma.facetDefinition.upsert({
+    where: { organizationId_key: { organizationId: org.id, key: "fabric" } },
+    create: {
+      organizationId: org.id,
+      key: "fabric",
+      label: "Fabric",
+      sourceAttributeId: fabricAttr.id,
+      categoryId: null,
+      scope: "GLOBAL",
+      sortOrder: 9,
+    },
+    update: { sourceAttributeId: fabricAttr.id, categoryId: null, scope: "GLOBAL", isActive: true },
+  });
+
+  const fitFacet = await prisma.facetDefinition.upsert({
+    where: { organizationId_key: { organizationId: org.id, key: "fit" } },
+    create: {
+      organizationId: org.id,
+      key: "fit",
+      label: "Fit",
+      sourceAttributeId: fitAttr.id,
+      categoryId: null,
+      scope: "GLOBAL",
+      sortOrder: 10,
+    },
+    update: { sourceAttributeId: fitAttr.id, categoryId: null, scope: "GLOBAL", isActive: true },
+  });
+
   for (const [facet, enumValues] of [
     [colorFacet, ["Blue", "White", "Navy"]],
     [sizeFacet, ["S", "M", "L"]],
+    [availabilityFacet, ["In Stock", "Limited Stock", "Out of Stock"]],
+    [materialFacet, ["Cotton", "Polyester", "Metal", "Plastic", "Wood", "Composite", "Leather", "Glass"]],
+    [fitFacet, ["Regular", "Slim", "Relaxed"]],
   ] as const) {
-    const sourceAttr = facet.key === "color" ? colorAttr : sizeAttr;
+    const sourceAttr =
+      facet.key === "color"
+        ? colorAttr
+        : facet.key === "size"
+          ? sizeAttr
+          : facet.key === "availability"
+            ? availabilityAttr
+            : facet.key === "material"
+              ? materialAttr
+              : fitAttr;
     const values = await prisma.attributeEnumValue.findMany({
       where: { attributeDefinitionId: sourceAttr.id },
     });
@@ -365,33 +567,69 @@ async function main() {
     }
   }
 
-  const existingColorRule = await prisma.facetRule.findFirst({
-    where: { facetDefinitionId: colorFacet.id, categoryId: shirts.id },
+  const directFacetRules = [
+    [colorFacet, colorAttr, null],
+    [sizeFacet, sizeAttr, null],
+    [brandFacet, brandAttr, null],
+    [ratingFacet, ratingAttr, null],
+    [availabilityFacet, availabilityAttr, null],
+    [warrantyFacet, warrantyAttr, null],
+    [materialFacet, materialAttr, null],
+    [fabricFacet, fabricAttr, null],
+    [fitFacet, fitAttr, null],
+  ] as const;
+
+  for (const [facet, attr, categoryId] of directFacetRules) {
+    const existingRule = await prisma.facetRule.findFirst({
+      where: { facetDefinitionId: facet.id, categoryId: categoryId ?? undefined },
+    });
+    if (!existingRule) {
+      await prisma.facetRule.create({
+        data: {
+          organizationId: org.id,
+          categoryId,
+          attributeDefinitionId: attr.id,
+          facetDefinitionId: facet.id,
+          ruleType: "DIRECT",
+        },
+      });
+    }
+  }
+
+  const existingPriceRule = await prisma.facetRule.findFirst({
+    where: { facetDefinitionId: priceFacet.id, ruleType: "RANGE_BUCKET" },
   });
-  if (!existingColorRule) {
+  if (!existingPriceRule) {
     await prisma.facetRule.create({
       data: {
         organizationId: org.id,
-        categoryId: shirts.id,
-        attributeDefinitionId: colorAttr.id,
-        facetDefinitionId: colorFacet.id,
-        ruleType: "DIRECT",
+        facetDefinitionId: priceFacet.id,
+        attributeDefinitionId: priceAttr.id,
+        ruleType: "RANGE_BUCKET",
+        ruleConfig: { buckets: PRICE_FACET_BUCKETS },
       },
     });
   }
 
-  const existingSizeRule = await prisma.facetRule.findFirst({
-    where: { facetDefinitionId: sizeFacet.id, categoryId: shirts.id },
-  });
-  if (!existingSizeRule) {
-    await prisma.facetRule.create({
-      data: {
-        organizationId: org.id,
-        categoryId: shirts.id,
-        attributeDefinitionId: sizeAttr.id,
-        facetDefinitionId: sizeFacet.id,
-        ruleType: "DIRECT",
+  async function upsertProductAttribute(
+    productId: string,
+    attributeDefinitionId: string,
+    value: string | number,
+  ) {
+    await prisma.productAttributeValue.upsert({
+      where: {
+        productId_attributeDefinitionId: {
+          productId,
+          attributeDefinitionId,
+        },
       },
+      create: {
+        productId,
+        attributeDefinitionId,
+        value,
+        source: "LOCAL",
+      },
+      update: { value },
     });
   }
 
@@ -409,42 +647,19 @@ async function main() {
     update: {},
   });
 
-  await prisma.productAttributeValue.upsert({
-    where: {
-      productId_attributeDefinitionId: {
-        productId: parent.id,
-        attributeDefinitionId: brandAttr.id,
-      },
-    },
-    create: {
-      productId: parent.id,
-      attributeDefinitionId: brandAttr.id,
-      value: "Acme",
-      source: "LOCAL",
-    },
-    update: { value: "Acme" },
-  });
-
-  await prisma.productAttributeValue.upsert({
-    where: {
-      productId_attributeDefinitionId: {
-        productId: parent.id,
-        attributeDefinitionId: fabricAttr.id,
-      },
-    },
-    create: {
-      productId: parent.id,
-      attributeDefinitionId: fabricAttr.id,
-      value: "Cotton",
-      source: "LOCAL",
-    },
-    update: { value: "Cotton" },
-  });
+  await upsertProductAttribute(parent.id, brandAttr.id, "Acme");
+  await upsertProductAttribute(parent.id, fabricAttr.id, "Cotton");
+  await upsertProductAttribute(parent.id, priceAttr.id, 49.99);
+  await upsertProductAttribute(parent.id, ratingAttr.id, 4.5);
+  await upsertProductAttribute(parent.id, availabilityAttr.id, "In Stock");
+  await upsertProductAttribute(parent.id, warrantyAttr.id, 2);
+  await upsertProductAttribute(parent.id, materialAttr.id, "Cotton");
+  await upsertProductAttribute(parent.id, fitAttr.id, "Regular");
 
   const variants = [
-    { sku: "SHIRT-001-BL-M", color: "Blue", size: "M" },
-    { sku: "SHIRT-001-BL-L", color: "Blue", size: "L" },
-    { sku: "SHIRT-001-WH-M", color: "White", size: "M" },
+    { sku: "SHIRT-001-BL-M", color: "Blue", size: "M", price: 49.99 },
+    { sku: "SHIRT-001-BL-L", color: "Blue", size: "L", price: 49.99 },
+    { sku: "SHIRT-001-WH-M", color: "White", size: "M", price: 47.99 },
   ];
 
   for (const v of variants) {
@@ -463,37 +678,15 @@ async function main() {
       update: {},
     });
 
-    await prisma.productAttributeValue.upsert({
-      where: {
-        productId_attributeDefinitionId: {
-          productId: variant.id,
-          attributeDefinitionId: colorAttr.id,
-        },
-      },
-      create: {
-        productId: variant.id,
-        attributeDefinitionId: colorAttr.id,
-        value: v.color,
-        source: "LOCAL",
-      },
-      update: { value: v.color },
-    });
-
-    await prisma.productAttributeValue.upsert({
-      where: {
-        productId_attributeDefinitionId: {
-          productId: variant.id,
-          attributeDefinitionId: sizeAttr.id,
-        },
-      },
-      create: {
-        productId: variant.id,
-        attributeDefinitionId: sizeAttr.id,
-        value: v.size,
-        source: "LOCAL",
-      },
-      update: { value: v.size },
-    });
+    await upsertProductAttribute(variant.id, colorAttr.id, v.color);
+    await upsertProductAttribute(variant.id, sizeAttr.id, v.size);
+    await upsertProductAttribute(variant.id, fabricAttr.id, "Cotton");
+    await upsertProductAttribute(variant.id, priceAttr.id, v.price);
+    await upsertProductAttribute(variant.id, ratingAttr.id, 4.3);
+    await upsertProductAttribute(variant.id, availabilityAttr.id, "In Stock");
+    await upsertProductAttribute(variant.id, warrantyAttr.id, 2);
+    await upsertProductAttribute(variant.id, materialAttr.id, "Cotton");
+    await upsertProductAttribute(variant.id, fitAttr.id, "Regular");
   }
 
   const importTemplate = await prisma.importTemplate.upsert({
