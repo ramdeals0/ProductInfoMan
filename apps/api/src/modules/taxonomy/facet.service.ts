@@ -12,6 +12,8 @@ import type {
 import { resolveCategoryFacets } from "@productinfoman/facet-engine";
 import { prisma } from "@productinfoman/db";
 import { appError, writeAudit } from "@productinfoman/shared";
+import { createEvent } from "@productinfoman/contracts";
+import { emitEvent } from "../../lib/events.js";
 import type { Prisma } from "../../../../generated/prisma/client.js";
 
 async function assertUniqueFacetKey(
@@ -161,6 +163,14 @@ export async function createFacetDefinition(
     changes: { key: facet.key, sourceAttributeId: facet.sourceAttributeId },
   });
 
+  await emitEvent(
+    createEvent("taxonomy.facet.updated", organizationId, {
+      facetDefinitionId: facet.id,
+      key: facet.key,
+      categoryId: facet.categoryId,
+    }),
+  );
+
   return toFacetDefinitionDto(facet);
 }
 
@@ -238,6 +248,14 @@ export async function createFacetRule(
       ruleType: rule.ruleType,
     },
   });
+
+  await emitEvent(
+    createEvent("taxonomy.facet.updated", organizationId, {
+      facetDefinitionId: facet.id,
+      key: facet.key,
+      categoryId: facet.categoryId,
+    }),
+  );
 
   return toFacetRuleDto(rule);
 }

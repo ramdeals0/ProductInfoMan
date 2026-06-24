@@ -20,6 +20,7 @@ import { prisma } from "@productinfoman/db";
 import { appError, writeAudit } from "@productinfoman/shared";
 import type { ProductStatus, UserRole } from "../../../../generated/prisma/client.js";
 import { emitEvent } from "../../lib/events.js";
+import { emitAuditRecordEvent } from "../../lib/audit-events.js";
 
 type Actor = { userId?: string; role: UserRole };
 
@@ -185,7 +186,7 @@ async function executeTransition(params: {
     },
   });
 
-  await writeAudit({
+  const auditLogId = await writeAudit({
     organizationId: params.organizationId,
     entityType: "Product",
     entityId: product.id,
@@ -198,6 +199,15 @@ async function executeTransition(params: {
       toState: validation.toState.code,
       status: updatedProduct.status,
     },
+  });
+
+  await emitAuditRecordEvent({
+    organizationId: params.organizationId,
+    auditLogId,
+    entityType: "Product",
+    entityId: product.id,
+    action: "STATE_CHANGE",
+    productId: product.id,
   });
 
   if (params.actionType === "SUBMIT") {
@@ -263,6 +273,15 @@ async function executeTransition(params: {
         },
       });
 
+      await emitEvent(
+        createEvent("workflow.approval.recorded", params.organizationId, {
+          productId: product.id,
+          workflowTaskId: openTask.id,
+          decision: params.actionType === "APPROVE" ? "APPROVED" : "REJECTED",
+          approverUserId: params.actor.userId,
+        }),
+      );
+
       await prisma.workflowTask.update({
         where: { id: openTask.id },
         data: { status: "COMPLETED", completedAt: new Date() },
@@ -281,9 +300,11 @@ async function executeTransition(params: {
     });
   }
 
-  emitEvent(
-    createEvent("product.status_changed", params.organizationId, {
+  await emitEvent(
+    createEvent("workflow.state.changed", params.organizationId, {
       productId: product.id,
+      fromState: currentState.code,
+      toState: validation.toState.code,
       fromStatus: product.status,
       toStatus: updatedProduct.status,
       actionType: params.actionType,

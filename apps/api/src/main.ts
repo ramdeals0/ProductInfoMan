@@ -3,8 +3,9 @@ import cors from "@fastify/cors";
 import Fastify from "fastify";
 import { importRoutes } from "./modules/import/import.routes.js";
 import { startImportWorker } from "./modules/import/import.queue.js";
+import { integrationRoutes } from "./modules/integration/integration.routes.js";
+import { startEventWorker } from "./modules/integration/integration.queue.js";
 import { productRoutes } from "./modules/product-core/product.routes.js";
-import { registerSearchEventHandlers } from "./modules/search/search.events.js";
 import { searchRoutes } from "./modules/search/search.routes.js";
 import { startSearchWorker } from "./modules/search/search.queue.js";
 import { publishRoutes } from "./modules/publish/publish.routes.js";
@@ -21,11 +22,12 @@ await app.register(importRoutes, { prefix: "/api/v1" });
 await app.register(workflowRoutes, { prefix: "/api/v1" });
 await app.register(searchRoutes, { prefix: "/api/v1" });
 await app.register(publishRoutes, { prefix: "/api/v1" });
+await app.register(integrationRoutes, { prefix: "/api/v1" });
 
-registerSearchEventHandlers();
 await startImportWorker();
 await startSearchWorker();
 await startPublishWorker();
+await startEventWorker();
 
 app.get("/health", async () => ({ status: "ok" }));
 

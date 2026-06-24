@@ -14,6 +14,7 @@
     "@productinfoman/contracts": "workspace:*",
     "@productinfoman/db": "workspace:*",
     "@productinfoman/domain": "workspace:*",
+    "@productinfoman/eventing": "workspace:*",
     "@productinfoman/facet-engine": "workspace:*",
     "@productinfoman/import-engine": "workspace:*",
     "@productinfoman/inheritance-engine": "workspace:*",

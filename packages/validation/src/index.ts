@@ -282,6 +282,26 @@ export const ListPublishJobsQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+export const ListOutboxEventsQuerySchema = z.object({
+  eventType: z.string().optional(),
+  status: z.enum(["PENDING", "PUBLISHED", "FAILED"]).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export const ListDeadLetterEventsQuerySchema = z.object({
+  consumerName: z.string().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export const ReplayEventsSchema = z.object({
+  eventType: z.string().optional(),
+  fromDate: z.string().datetime().optional(),
+  toDate: z.string().datetime().optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional(),
+});
+
 export type CreateProductInput = z.infer<typeof CreateProductSchema>;
 export type UpdateProductInput = z.infer<typeof UpdateProductSchema>;
 export type CreateVariantInput = z.infer<typeof CreateVariantSchema>;
@@ -308,3 +328,6 @@ export type CreateChannelInput = z.infer<typeof CreateChannelSchema>;
 export type CreateChannelFieldMappingInput = z.infer<typeof CreateChannelFieldMappingSchema>;
 export type PublishRunInput = z.infer<typeof PublishRunSchema>;
 export type ListPublishJobsQuery = z.infer<typeof ListPublishJobsQuerySchema>;
+export type ListOutboxEventsQuery = z.infer<typeof ListOutboxEventsQuerySchema>;
+export type ListDeadLetterEventsQuery = z.infer<typeof ListDeadLetterEventsQuerySchema>;
+export type ReplayEventsInput = z.infer<typeof ReplayEventsSchema>;

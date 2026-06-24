@@ -38,6 +38,12 @@ model Organization {
   publishJobs         PublishJob[]
   channelValidationRules ChannelValidationRule[]
   publishHistory      PublishHistory[]
+  outboxEvents        OutboxEvent[]
+  integrationEvents   IntegrationEvent[]
+  eventConsumptionLogs EventConsumptionLog[]
+  deadLetterEvents    DeadLetterEvent[]
+  integrationEndpoints IntegrationEndpoint[]
+  integrationRetries  IntegrationRetry[]
 
   @@index([slug])
 }
@@ -1119,6 +1125,166 @@ model PublishHistory {
   @@index([organizationId, channelId, createdAt])
   @@index([publishJobId])
   @@index([productId])
+}
+
+// ─── Integration & Eventing ──────────────────────────────────────────────────
+
+enum OutboxEventStatus {
+  PENDING
+  PUBLISHED
+  FAILED
+}
+
+enum IntegrationEventStatus {
+  DISPATCHED
+  DELIVERED
+  FAILED
+}
+
+enum EventConsumptionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+enum IntegrationEndpointType {
+  WEBHOOK
+  QUEUE
+  SFTP
+  INTERNAL
+}
+
+enum IntegrationRetryStatus {
+  SCHEDULED
+  PROCESSING
+  COMPLETED
+  FAILED
+  EXHAUSTED
+}
+
+model OutboxEvent {
+  id             String            @id @default(cuid())
+  organizationId String
+  eventType      String
+  eventVersion   Int               @default(1)
+  aggregateType  String
+  aggregateId    String
+  payloadJson    Json
+  metadataJson   Json?
+  status         OutboxEventStatus @default(PENDING)
+  occurredAt     DateTime
+  publishedAt    DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization       Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integrationEvent   IntegrationEvent?
+  consumptionLogs    EventConsumptionLog[]
+  deadLetterEvents   DeadLetterEvent[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, eventType])
+  @@index([aggregateType, aggregateId])
+  @@index([occurredAt])
+}
+
+model IntegrationEvent {
+  id             String                 @id @default(cuid())
+  organizationId String
+  outboxEventId  String                 @unique
+  eventType      String
+  eventVersion   Int
+  payloadJson    Json
+  status         IntegrationEventStatus @default(DISPATCHED)
+  dispatchedAt   DateTime               @default(now())
+  deliveredAt    DateTime?
+  createdAt      DateTime               @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  outboxEvent    OutboxEvent  @relation(fields: [outboxEventId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, eventType])
+  @@index([dispatchedAt])
+}
+
+model EventConsumptionLog {
+  id             String                 @id @default(cuid())
+  organizationId String
+  eventId        String
+  consumerName   String
+  idempotencyKey String
+  status         EventConsumptionStatus @default(PENDING)
+  attemptCount   Int                    @default(0)
+  lastError      String?
+  processedAt    DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  outboxEvent    OutboxEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, consumerName, idempotencyKey])
+  @@index([organizationId, consumerName, status])
+  @@index([eventId])
+}
+
+model DeadLetterEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  eventId        String
+  consumerName   String
+  eventType      String
+  payloadJson    Json
+  lastError      String
+  attemptCount   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  outboxEvent    OutboxEvent        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  retries        IntegrationRetry[]
+
+  @@unique([eventId, consumerName])
+  @@index([organizationId, consumerName])
+}
+
+model IntegrationEndpoint {
+  id             String                  @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  endpointType   IntegrationEndpointType @default(INTERNAL)
+  configJson     Json?
+  isActive       Boolean                 @default(true)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, code])
+  @@index([organizationId, isActive])
+}
+
+model IntegrationRetry {
+  id                String                 @id @default(cuid())
+  organizationId    String
+  deadLetterEventId String
+  status            IntegrationRetryStatus @default(SCHEDULED)
+  attemptCount      Int                    @default(0)
+  maxAttempts       Int                    @default(3)
+  scheduledAt       DateTime               @default(now())
+  processedAt       DateTime?
+  lastError         String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deadLetterEvent DeadLetterEvent @relation(fields: [deadLetterEventId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@index([deadLetterEventId])
 }
 
 // ─── Audit ───────────────────────────────────────────────────────────────────

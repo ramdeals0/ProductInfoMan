@@ -788,6 +788,87 @@ async function main() {
   console.log(
     "Seed complete: demo org, taxonomy, facets, import template, workflow, search index mapping, demo-store channel, SHIRT-001 + 3 variants",
   );
+
+  await prisma.integrationEndpoint.upsert({
+    where: { organizationId_code: { organizationId: org.id, code: "internal-reporting" } },
+    create: {
+      organizationId: org.id,
+      code: "internal-reporting",
+      name: "Internal Reporting Hook",
+      endpointType: "INTERNAL",
+      configJson: { consumer: "reporting-sync" },
+      isActive: true,
+    },
+    update: { isActive: true },
+  });
+
+  const parentProduct = await prisma.product.findFirst({
+    where: { organizationId: org.id, sku: "SHIRT-001" },
+  });
+
+  if (parentProduct) {
+    const sampleEvents = [
+      {
+        eventType: "product.created",
+        aggregateType: "Product",
+        aggregateId: parentProduct.id,
+        payloadJson: {
+          productId: parentProduct.id,
+          sku: parentProduct.sku,
+          productType: parentProduct.productType,
+          status: parentProduct.status,
+        },
+      },
+      {
+        eventType: "workflow.state.changed",
+        aggregateType: "Product",
+        aggregateId: parentProduct.id,
+        payloadJson: {
+          productId: parentProduct.id,
+          fromState: "DRAFT",
+          toState: "APPROVED",
+          fromStatus: "DRAFT",
+          toStatus: "APPROVED",
+          actionType: "APPROVE",
+        },
+      },
+      {
+        eventType: "search.index.requested",
+        aggregateType: "Product",
+        aggregateId: parentProduct.id,
+        payloadJson: {
+          productId: parentProduct.id,
+          sourceEvent: "seed.search.index.requested",
+        },
+      },
+    ] as const;
+
+    for (const sample of sampleEvents) {
+      const existing = await prisma.outboxEvent.findFirst({
+        where: {
+          organizationId: org.id,
+          eventType: sample.eventType,
+          aggregateId: sample.aggregateId,
+        },
+      });
+      if (!existing) {
+        await prisma.outboxEvent.create({
+          data: {
+            organizationId: org.id,
+            eventType: sample.eventType,
+            eventVersion: 1,
+            aggregateType: sample.aggregateType,
+            aggregateId: sample.aggregateId,
+            payloadJson: sample.payloadJson,
+            metadataJson: { source: "seed" },
+            status: "PUBLISHED",
+            occurredAt: new Date(),
+            publishedAt: new Date(),
+          },
+        });
+      }
+    }
+  }
 }
 
 main()

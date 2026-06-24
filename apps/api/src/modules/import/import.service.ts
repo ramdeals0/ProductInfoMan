@@ -22,6 +22,9 @@ import {
 } from "@productinfoman/import-engine";
 import { prisma } from "@productinfoman/db";
 import { appError, writeAudit } from "@productinfoman/shared";
+import { createEvent } from "@productinfoman/contracts";
+import { emitEvent } from "../../lib/events.js";
+import { emitAuditRecordEvent } from "../../lib/audit-events.js";
 import { createProduct, setProductAttributes } from "../product-core/product.service.js";
 import { enqueueImportJob } from "./import.queue.js";
 
@@ -457,13 +460,30 @@ export async function processImportJob(importJobId: string, organizationId: stri
       },
     });
 
-    await writeAudit({
+    const auditLogId = await writeAudit({
       organizationId,
       entityType: "ImportJob",
       entityId: job.id,
       action: "IMPORT",
       changes: { committedRows, skippedRows, status: "COMPLETED" },
     });
+
+    await emitAuditRecordEvent({
+      organizationId,
+      auditLogId,
+      entityType: "ImportJob",
+      entityId: job.id,
+      action: "IMPORT",
+    });
+
+    await emitEvent(
+      createEvent("import.job.completed", organizationId, {
+        importJobId: job.id,
+        committedRows,
+        skippedRows,
+        status: "COMPLETED",
+      }),
+    );
   } catch (error) {
     await prisma.importJob.update({
       where: { id: job.id },

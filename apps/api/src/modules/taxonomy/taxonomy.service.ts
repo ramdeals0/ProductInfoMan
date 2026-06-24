@@ -14,6 +14,9 @@ import type {
 } from "@productinfoman/validation";
 import { prisma } from "@productinfoman/db";
 import { appError, writeAudit } from "@productinfoman/shared";
+import { createEvent } from "@productinfoman/contracts";
+import { emitEvent } from "../../lib/events.js";
+import { emitAuditRecordEvent } from "../../lib/audit-events.js";
 
 function slugToCode(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-|-$/g, "");
@@ -140,13 +143,30 @@ export async function createCategory(
 
   await prisma.categoryAttributeSet.create({ data: { categoryId: category.id } });
 
-  await writeAudit({
+  const auditLogId = await writeAudit({
     organizationId,
     entityType: "Category",
     entityId: category.id,
     action: "CREATE",
     changes: { code: category.code, name: category.name, path: category.path },
   });
+
+  await emitAuditRecordEvent({
+    organizationId,
+    auditLogId,
+    entityType: "Category",
+    entityId: category.id,
+    action: "CREATE",
+  });
+
+  await emitEvent(
+    createEvent("taxonomy.category.created", organizationId, {
+      categoryId: category.id,
+      code: category.code,
+      name: category.name,
+      path: category.path,
+    }),
+  );
 
   return toCategoryDto(category);
 }

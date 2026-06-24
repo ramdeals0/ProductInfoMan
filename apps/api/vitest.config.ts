@@ -13,6 +13,7 @@ export default defineConfig({
       IMPORT_SYNC: "true",
       SEARCH_SYNC: "true",
       PUBLISH_SYNC: "true",
+      EVENT_SYNC: "true",
     },
   },
 });

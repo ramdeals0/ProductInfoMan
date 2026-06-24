@@ -13,6 +13,7 @@ import type {
   ListPublishJobsQuery,
   PublishRunInput,
 } from "@productinfoman/validation";
+import { createEvent } from "@productinfoman/contracts";
 import {
   buildExportRows,
   isPublishableStatus,
@@ -25,6 +26,7 @@ import {
 import { prisma } from "@productinfoman/db";
 import { appError, writeAudit } from "@productinfoman/shared";
 import type { Prisma } from "../../../../generated/prisma/client.js";
+import { emitEvent } from "../../lib/events.js";
 import { loadCanonicalProduct, loadPublishableProductIds } from "./publish.projection.js";
 import { enqueuePublishJob } from "./publish.queue.js";
 import { readArtifact, storeExportArtifact } from "./publish.storage.js";
@@ -414,6 +416,14 @@ export async function startDryRun(
     mode: "DRY_RUN",
   });
 
+  await emitEvent(
+    createEvent("publish.job.requested", organizationId, {
+      publishJobId: job.id,
+      channelId: input.channelId,
+      mode: "DRY_RUN",
+    }),
+  );
+
   return toPublishJobDto(job);
 }
 
@@ -443,6 +453,14 @@ export async function startPublishRun(
     channelId: input.channelId,
     mode: "LIVE",
   });
+
+  await emitEvent(
+    createEvent("publish.job.requested", organizationId, {
+      publishJobId: job.id,
+      channelId: input.channelId,
+      mode: "LIVE",
+    }),
+  );
 
   return toPublishJobDto(job);
 }
@@ -623,10 +641,11 @@ export async function processPublishJob(publishJobId: string, organizationId: st
     }
 
     const skippedItems = job.items.length - successfulItems - failedItems;
+    const finalStatus = failedItems > 0 && successfulItems === 0 ? "FAILED" : "COMPLETED";
     await prisma.publishJob.update({
       where: { id: job.id },
       data: {
-        status: failedItems > 0 && successfulItems === 0 ? "FAILED" : "COMPLETED",
+        status: finalStatus,
         successfulItems,
         failedItems,
         totalItems: job.items.length,
@@ -634,6 +653,17 @@ export async function processPublishJob(publishJobId: string, organizationId: st
         completedAt: new Date(),
       },
     });
+
+    await emitEvent(
+      createEvent("publish.job.completed", organizationId, {
+        publishJobId: job.id,
+        channelId: job.channelId,
+        mode: job.mode,
+        successfulItems,
+        failedItems,
+        status: finalStatus,
+      }),
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Publish job failed";
     const current = await prisma.publishJob.findUnique({ where: { id: job.id } });

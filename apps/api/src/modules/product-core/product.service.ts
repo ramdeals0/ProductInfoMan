@@ -16,6 +16,7 @@ import { prisma } from "@productinfoman/db";
 import { appError, writeAudit } from "@productinfoman/shared";
 import type { Prisma, Product } from "../../../../generated/prisma/client.js";
 import { emitEvent } from "../../lib/events.js";
+import { emitAuditRecordEvent } from "../../lib/audit-events.js";
 
 import type { ResolvedAttribute } from "@productinfoman/domain";
 
@@ -219,7 +220,7 @@ export async function createProduct(
     },
   });
 
-  await writeAudit({
+  const auditLogId = await writeAudit({
     organizationId,
     entityType: "Product",
     entityId: created.id,
@@ -228,7 +229,16 @@ export async function createProduct(
     changes: { sku: created.sku, productType: created.productType },
   });
 
-  emitEvent(
+  await emitAuditRecordEvent({
+    organizationId,
+    auditLogId,
+    entityType: "Product",
+    entityId: created.id,
+    action: "CREATE",
+    productId: created.id,
+  });
+
+  await emitEvent(
     createEvent("product.created", organizationId, {
       productId: created.id,
       sku: created.sku,
@@ -314,20 +324,29 @@ export async function updateProduct(
     },
   });
 
-  emitEvent(
+  await emitEvent(
     createEvent("product.updated", organizationId, {
       productId: id,
       changedFields: Object.keys(input),
     }),
   );
 
-  await writeAudit({
+  const auditLogId = await writeAudit({
     organizationId,
     entityType: "Product",
     entityId: id,
     productId: id,
     action: "UPDATE",
     changes: input as Record<string, unknown>,
+  });
+
+  await emitAuditRecordEvent({
+    organizationId,
+    auditLogId,
+    entityType: "Product",
+    entityId: id,
+    action: "UPDATE",
+    productId: id,
   });
 
   return toProductDto(product as ProductWithValues);
@@ -344,7 +363,7 @@ export async function deleteProduct(id: string, organizationId: string): Promise
     data: { deletedAt: new Date() },
   });
 
-  emitEvent(
+  await emitEvent(
     createEvent("product.deleted", organizationId, { productId: id }),
   );
 }
@@ -408,7 +427,7 @@ export async function setProductAttributes(
     });
   }
 
-  emitEvent(
+  await emitEvent(
     createEvent("product.attributes_changed", organizationId, {
       productId: id,
       attributeKeys: Object.keys(input.attributes),
@@ -485,10 +504,30 @@ export async function createVariant(
   });
 
   if (Object.keys(input.attributes).length > 0) {
-    return setProductAttributes(variant.id, organizationId, {
+    const withAttributes = await setProductAttributes(variant.id, organizationId, {
       attributes: input.attributes,
     });
+
+    await emitEvent(
+      createEvent("product.variant.created", organizationId, {
+        productId: variant.id,
+        parentId,
+        sku: variant.sku,
+        status: withAttributes.status,
+      }),
+    );
+
+    return withAttributes;
   }
+
+  await emitEvent(
+    createEvent("product.variant.created", organizationId, {
+      productId: variant.id,
+      parentId,
+      sku: variant.sku,
+      status: variant.status,
+    }),
+  );
 
   return variant;
 }

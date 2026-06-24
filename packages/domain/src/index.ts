@@ -533,3 +533,50 @@ export interface ChannelPreviewEntity {
     errors: Array<{ targetField: string; message: string }>;
   }>;
 }
+
+export type OutboxEventStatus = "PENDING" | "PUBLISHED" | "FAILED";
+
+export interface OutboxEventEntity {
+  id: string;
+  organizationId: string;
+  eventType: string;
+  eventVersion: number;
+  aggregateType: string;
+  aggregateId: string;
+  payloadJson: Record<string, unknown>;
+  metadataJson: Record<string, unknown> | null;
+  status: OutboxEventStatus;
+  occurredAt: string;
+  publishedAt: string | null;
+  createdAt: string;
+}
+
+export interface DeadLetterEventEntity {
+  id: string;
+  organizationId: string;
+  eventId: string;
+  consumerName: string;
+  eventType: string;
+  payloadJson: Record<string, unknown>;
+  lastError: string;
+  attemptCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReplayEventsResultEntity {
+  replayed: number;
+  eventIds: string[];
+}
+
+export interface IntegrationEndpointEntity {
+  id: string;
+  organizationId: string;
+  code: string;
+  name: string;
+  endpointType: "WEBHOOK" | "QUEUE" | "SFTP" | "INTERNAL";
+  configJson: Record<string, unknown> | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

@@ -29,6 +29,22 @@ export type ProductStatusChangedPayload = {
   actionType: string;
 };
 
+export type WorkflowStateChangedPayload = {
+  productId: string;
+  fromState: string;
+  toState: string;
+  fromStatus: string;
+  toStatus: string;
+  actionType: string;
+};
+
+export type WorkflowApprovalRecordedPayload = {
+  productId: string;
+  workflowTaskId: string;
+  decision: "APPROVED" | "REJECTED";
+  approverUserId: string;
+};
+
 export type ProductAttributesChangedPayload = {
   productId: string;
   attributeKeys: string[];

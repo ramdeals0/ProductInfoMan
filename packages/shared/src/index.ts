@@ -25,8 +25,9 @@ export async function writeAudit(params: {
   actorId?: string;
   changes?: Record<string, unknown>;
   correlationId?: string;
-}): Promise<void> {
-  await prisma.auditLog.create({ data: params });
+}): Promise<string> {
+  const log = await prisma.auditLog.create({ data: params });
+  return log.id;
 }
 
 export async function detectProductLoop(
