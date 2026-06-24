@@ -10,6 +10,9 @@
   "scripts": {
     "test": "vitest run"
   },
+  "dependencies": {
+    "@productinfoman/domain": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"

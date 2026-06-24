@@ -44,8 +44,12 @@ export interface ProductEntity {
   status: ProductStatus;
   title: string;
   description: string | null;
+  summary: string | null;
+  sellingPoints: string[];
   brand: string | null;
   primaryCategoryId: string | null;
+  startDate: string | null;
+  discontinueDate: string | null;
   attributes: ResolvedAttribute[];
   createdAt: string;
   updatedAt: string;
@@ -793,3 +797,5 @@ export interface SurvivorshipRuleEntity {
 export interface ProductSourceRecordDetailEntity extends ProductSourceRecordEntity {
   matchCandidates: ProductMatchCandidateEntity[];
 }
+
+export { isStorefrontVisible, type StorefrontAvailabilityInput } from "./storefront.js";

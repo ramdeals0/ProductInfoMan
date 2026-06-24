@@ -1,4 +1,8 @@
 import type { PrismaClient } from "../../generated/prisma/client.js";
+import {
+  buildProductMerchandisingCopy,
+  defaultStorefrontAvailability,
+} from "./product-merchandising-copy.js";
 import { merchandisingValuesForIndex } from "./product-attribute-values.js";
 import { upsertProductAttribute } from "./upsert-product-attribute.js";
 
@@ -90,8 +94,10 @@ export async function seedDemoProducts(
     const size = pick(SIZES, index);
     const fabric = pick(FABRICS, index);
     const style = pick(STYLES, index);
-    const merch = merchandisingValuesForIndex(index);
     const title = `${brand} ${style} ${index}`;
+    const merch = merchandisingValuesForIndex(index);
+    const copy = buildProductMerchandisingCopy(title, "Shirts", index);
+    const dates = defaultStorefrontAvailability(index);
 
     const existing = await prisma.product.findUnique({
       where: { organizationId_sku: { organizationId, sku } },
@@ -104,16 +110,24 @@ export async function seedDemoProducts(
         productType: "SIMPLE",
         sku,
         title,
-        description: `${title} — demo catalog item for storefront and admin testing.`,
+        description: copy.description,
+        summary: copy.summary,
+        sellingPoints: copy.sellingPoints,
         brand,
         primaryCategoryId: shirts.id,
+        startDate: dates.startDate,
+        discontinueDate: dates.discontinueDate,
         status: publish ? "PUBLISHED" : "DRAFT",
       },
       update: {
         title,
-        description: `${title} — demo catalog item for storefront and admin testing.`,
+        description: copy.description,
+        summary: copy.summary,
+        sellingPoints: copy.sellingPoints,
         brand,
         primaryCategoryId: shirts.id,
+        startDate: dates.startDate,
+        discontinueDate: dates.discontinueDate,
         status: publish ? "PUBLISHED" : "DRAFT",
         deletedAt: null,
       },

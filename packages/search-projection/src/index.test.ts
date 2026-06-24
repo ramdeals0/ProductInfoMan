@@ -16,8 +16,12 @@ const baseInput: BuildSearchDocumentInput = {
   title: "Blue Widget",
   brand: "Acme",
   description: "A useful widget",
-  status: "APPROVED",
+  summary: "Blue Widget delivers dependable everyday value for shoppers seeking quality and smart pricing.",
+  sellingPoints: ["Built for dependable everyday use with quality materials and consistent performance."],
+  status: "PUBLISHED",
   publishedAt: null,
+  startDate: new Date("2020-01-01"),
+  discontinueDate: new Date("2030-01-01"),
   primaryCategory: { id: "cat-shirts", path: "/apparel/mens/shirts" },
   secondaryCategories: [],
   attributes: [
@@ -73,7 +77,8 @@ describe("buildSearchDocument", () => {
     expect(doc!.facet_fields).toEqual({ color: "Blue", size: "M" });
     expect(doc!.variant_attributes).toEqual({ color: "Blue", size: "M" });
     expect(doc!.channel_availability.b2b).toBe(true);
-    expect(doc!.channel_availability.web).toBe(false);
+    expect(doc!.channel_availability.web).toBe(true);
+    expect(doc!.storefront_active).toBe(true);
   });
 
   it("uses parent id as group key for variants", () => {
@@ -132,5 +137,14 @@ describe("matchesSearchQuery", () => {
     ).toBe(true);
     expect(matchesSearchQuery(doc, { categoryId: "missing" })).toBe(false);
     expect(matchesSearchQuery(doc, { filters: { color: "Red" } })).toBe(false);
+  });
+
+  it("filters inactive storefront products when storefront=true", () => {
+    const doc = buildSearchDocument({
+      ...baseInput,
+      startDate: new Date("2099-01-01"),
+    })!;
+    expect(matchesSearchQuery(doc, { storefront: true })).toBe(false);
+    expect(matchesSearchQuery(doc, {})).toBe(true);
   });
 });
