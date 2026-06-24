@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { BIGBOX_CATEGORIES } from "./bigbox/config.js";
+import { BIGBOX_CATEGORIES, listBigBoxLeafCategories } from "./bigbox/config.js";
 import { BIGBOX_CATEGORY_ATTRIBUTES } from "./lib/seed-bigbox-attributes-facets.js";
 import { merchandisingValuesForIndex } from "./lib/product-attribute-values.js";
 
 const GLOBAL_MERCH_ATTR_COUNT = 6;
 
 describe("product attribute seeding", () => {
+  it("defines two leaf categories per big-box department", () => {
+    expect(listBigBoxLeafCategories()).toHaveLength(BIGBOX_CATEGORIES.length * 4);
+  });
+
   it("defines two category-specific attributes for every big-box department", () => {
     for (const category of BIGBOX_CATEGORIES) {
       const attrs = BIGBOX_CATEGORY_ATTRIBUTES[category.code];

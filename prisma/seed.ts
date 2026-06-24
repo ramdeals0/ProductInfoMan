@@ -320,69 +320,157 @@ async function main() {
     update: {},
   });
 
-  await prisma.categoryAttributeGroup.upsert({
-    where: {
-      categoryId_attributeGroupId: {
-        categoryId: shirts.id,
-        attributeGroupId: specsGroup.id,
-      },
-    },
+  const casualShirts = await prisma.category.upsert({
+    where: { organizationId_code: { organizationId: org.id, code: "casual_shirts" } },
     create: {
-      categoryId: shirts.id,
-      attributeGroupId: specsGroup.id,
-      sortOrder: 0,
+      organizationId: org.id,
+      parentId: shirts.id,
+      code: "casual_shirts",
+      name: "Casual Shirts",
+      slug: "casual-shirts",
+      path: "/apparel/mens/shirts/casual-shirts",
+      depth: 3,
     },
     update: {},
   });
 
-  await prisma.categoryAttributeGroup.upsert({
-    where: {
-      categoryId_attributeGroupId: {
-        categoryId: shirts.id,
-        attributeGroupId: marketingGroup.id,
-      },
-    },
+  const dressShirts = await prisma.category.upsert({
+    where: { organizationId_code: { organizationId: org.id, code: "dress_shirts" } },
     create: {
-      categoryId: shirts.id,
-      attributeGroupId: marketingGroup.id,
-      sortOrder: 1,
+      organizationId: org.id,
+      parentId: shirts.id,
+      code: "dress_shirts",
+      name: "Dress Shirts",
+      slug: "dress-shirts",
+      path: "/apparel/mens/shirts/dress-shirts",
+      depth: 3,
     },
     update: {},
   });
 
-  const attrSet = await prisma.categoryAttributeSet.upsert({
-    where: { categoryId: shirts.id },
-    create: { categoryId: shirts.id },
+  const oxford = await prisma.category.upsert({
+    where: { organizationId_code: { organizationId: org.id, code: "oxford" } },
+    create: {
+      organizationId: org.id,
+      parentId: casualShirts.id,
+      code: "oxford",
+      name: "Oxford Shirts",
+      slug: "oxford-shirts",
+      path: "/apparel/mens/shirts/casual-shirts/oxford-shirts",
+      depth: 4,
+    },
     update: {},
   });
 
-  for (const [attr, req, inherit] of [
-    [colorAttr, "REQUIRED", false],
-    [sizeAttr, "REQUIRED", false],
-    [fabricAttr, "OPTIONAL", true],
-    [brandAttr, "REQUIRED", true],
-    [priceAttr, "OPTIONAL", true],
-    [ratingAttr, "OPTIONAL", true],
-    [availabilityAttr, "OPTIONAL", true],
-    [warrantyAttr, "OPTIONAL", true],
-    [materialAttr, "OPTIONAL", true],
-    [fitAttr, "OPTIONAL", true],
-  ] as const) {
-    await prisma.categoryAttributeBinding.upsert({
+  const flannel = await prisma.category.upsert({
+    where: { organizationId_code: { organizationId: org.id, code: "flannel" } },
+    create: {
+      organizationId: org.id,
+      parentId: casualShirts.id,
+      code: "flannel",
+      name: "Flannel Shirts",
+      slug: "flannel-shirts",
+      path: "/apparel/mens/shirts/casual-shirts/flannel-shirts",
+      depth: 4,
+    },
+    update: {},
+  });
+
+  const spreadCollar = await prisma.category.upsert({
+    where: { organizationId_code: { organizationId: org.id, code: "spread_collar" } },
+    create: {
+      organizationId: org.id,
+      parentId: dressShirts.id,
+      code: "spread_collar",
+      name: "Spread Collar",
+      slug: "spread-collar-shirts",
+      path: "/apparel/mens/shirts/dress-shirts/spread-collar-shirts",
+      depth: 4,
+    },
+    update: {},
+  });
+
+  const buttonDown = await prisma.category.upsert({
+    where: { organizationId_code: { organizationId: org.id, code: "button_down" } },
+    create: {
+      organizationId: org.id,
+      parentId: dressShirts.id,
+      code: "button_down",
+      name: "Button-Down Collar",
+      slug: "button-down-shirts",
+      path: "/apparel/mens/shirts/dress-shirts/button-down-shirts",
+      depth: 4,
+    },
+    update: {},
+  });
+
+  const shirtLeafCategories = [oxford, flannel, spreadCollar, buttonDown];
+
+  for (const leaf of shirtLeafCategories) {
+    await prisma.categoryAttributeGroup.upsert({
       where: {
-        categoryAttributeSetId_attributeDefinitionId: {
-          categoryAttributeSetId: attrSet.id,
-          attributeDefinitionId: attr.id,
+        categoryId_attributeGroupId: {
+          categoryId: leaf.id,
+          attributeGroupId: specsGroup.id,
         },
       },
       create: {
-        categoryAttributeSetId: attrSet.id,
-        attributeDefinitionId: attr.id,
-        requirement: req,
-        inheritFromParent: inherit,
+        categoryId: leaf.id,
+        attributeGroupId: specsGroup.id,
+        sortOrder: 0,
       },
-      update: { requirement: req, inheritFromParent: inherit },
+      update: {},
     });
+
+    await prisma.categoryAttributeGroup.upsert({
+      where: {
+        categoryId_attributeGroupId: {
+          categoryId: leaf.id,
+          attributeGroupId: marketingGroup.id,
+        },
+      },
+      create: {
+        categoryId: leaf.id,
+        attributeGroupId: marketingGroup.id,
+        sortOrder: 1,
+      },
+      update: {},
+    });
+
+    const attrSet = await prisma.categoryAttributeSet.upsert({
+      where: { categoryId: leaf.id },
+      create: { categoryId: leaf.id },
+      update: {},
+    });
+
+    for (const [attr, req, inherit] of [
+      [colorAttr, "REQUIRED", false],
+      [sizeAttr, "REQUIRED", false],
+      [fabricAttr, "OPTIONAL", true],
+      [brandAttr, "REQUIRED", true],
+      [priceAttr, "OPTIONAL", true],
+      [ratingAttr, "OPTIONAL", true],
+      [availabilityAttr, "OPTIONAL", true],
+      [warrantyAttr, "OPTIONAL", true],
+      [materialAttr, "OPTIONAL", true],
+      [fitAttr, "OPTIONAL", true],
+    ] as const) {
+      await prisma.categoryAttributeBinding.upsert({
+        where: {
+          categoryAttributeSetId_attributeDefinitionId: {
+            categoryAttributeSetId: attrSet.id,
+            attributeDefinitionId: attr.id,
+          },
+        },
+        create: {
+          categoryAttributeSetId: attrSet.id,
+          attributeDefinitionId: attr.id,
+          requirement: req,
+          inheritFromParent: inherit,
+        },
+        update: { requirement: req, inheritFromParent: inherit },
+      });
+    }
   }
 
   const colorFacet = await prisma.facetDefinition.upsert({
@@ -651,7 +739,7 @@ async function main() {
       summary: shirtCopy.summary,
       sellingPoints: shirtCopy.sellingPoints,
       brand: "Acme",
-      primaryCategoryId: shirts.id,
+      primaryCategoryId: oxford.id,
       startDate: shirtDates.startDate,
       discontinueDate: shirtDates.discontinueDate,
       status: "PUBLISHED",
@@ -696,7 +784,7 @@ async function main() {
         summary: variantCopy.summary,
         sellingPoints: variantCopy.sellingPoints,
         brand: parent.brand,
-        primaryCategoryId: shirts.id,
+        primaryCategoryId: oxford.id,
         startDate: variantDates.startDate,
         discontinueDate: variantDates.discontinueDate,
         status: "PUBLISHED",

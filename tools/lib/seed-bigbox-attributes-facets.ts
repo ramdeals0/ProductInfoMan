@@ -1,6 +1,10 @@
 import type { PrismaClient } from "../../generated/prisma/client.js";
 import { PRICE_FACET_BUCKETS } from "../../packages/config/facets.config.js";
-import { BIGBOX_CATEGORIES } from "../bigbox/config.js";
+import {
+  BIGBOX_CATEGORIES,
+  categoryPathSegments,
+  listBigBoxLeafCategories,
+} from "../bigbox/config.js";
 
 export type BigBoxCategoryAttributeSeed = {
   key: string;
@@ -108,12 +112,6 @@ export async function seedBigBoxAttributesAndFacets(
     const categoryId = categoryByCode.get(category.code);
     if (!categoryId) continue;
 
-    const attrSet = await prisma.categoryAttributeSet.upsert({
-      where: { categoryId },
-      create: { categoryId },
-      update: {},
-    });
-
     const categoryAttrs = BIGBOX_CATEGORY_ATTRIBUTES[category.code] ?? [];
     for (const seed of categoryAttrs) {
       const attr = await prisma.attributeDefinition.upsert({
@@ -155,22 +153,6 @@ export async function seedBigBoxAttributesAndFacets(
           update: { label: value, sortOrder: i },
         });
       }
-
-      await prisma.categoryAttributeBinding.upsert({
-        where: {
-          categoryAttributeSetId_attributeDefinitionId: {
-            categoryAttributeSetId: attrSet.id,
-            attributeDefinitionId: attr.id,
-          },
-        },
-        create: {
-          categoryAttributeSetId: attrSet.id,
-          attributeDefinitionId: attr.id,
-          requirement: "OPTIONAL",
-          inheritFromParent: false,
-        },
-        update: { requirement: "OPTIONAL" },
-      });
 
       const facet = await prisma.facetDefinition.upsert({
         where: { organizationId_key: { organizationId, key: seed.key } },
@@ -234,6 +216,44 @@ export async function seedBigBoxAttributesAndFacets(
           },
         });
       }
+    }
+  }
+
+  for (const leaf of listBigBoxLeafCategories()) {
+    const { code: leafCode } = categoryPathSegments(
+      leaf.departmentCode,
+      leaf.subcategoryCode,
+      leaf.leafCode,
+    );
+    const leafCategoryId = categoryByCode.get(leafCode);
+    if (!leafCategoryId) continue;
+
+    const attrSet = await prisma.categoryAttributeSet.upsert({
+      where: { categoryId: leafCategoryId },
+      create: { categoryId: leafCategoryId },
+      update: {},
+    });
+
+    const categoryAttrs = BIGBOX_CATEGORY_ATTRIBUTES[leaf.departmentCode] ?? [];
+    for (const seed of categoryAttrs) {
+      const attrId = attrByKey.get(seed.key);
+      if (!attrId) continue;
+
+      await prisma.categoryAttributeBinding.upsert({
+        where: {
+          categoryAttributeSetId_attributeDefinitionId: {
+            categoryAttributeSetId: attrSet.id,
+            attributeDefinitionId: attrId,
+          },
+        },
+        create: {
+          categoryAttributeSetId: attrSet.id,
+          attributeDefinitionId: attrId,
+          requirement: "OPTIONAL",
+          inheritFromParent: false,
+        },
+        update: { requirement: "OPTIONAL" },
+      });
     }
 
     for (const globalKey of GLOBAL_MERCH_KEYS) {
