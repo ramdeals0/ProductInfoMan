@@ -421,8 +421,9 @@ export async function searchProducts(
   organizationId: string,
   query: SearchQueryInput,
 ): Promise<SearchQueryResultEntity> {
+  const scopedQuery = await scopeCategoryQuery(organizationId, query);
   const facetKeys = await resolveFacetKeys(organizationId, query.categoryId);
-  const result = await (await getSearchStore()).search(organizationId, query, facetKeys);
+  const result = await (await getSearchStore()).search(organizationId, scopedQuery, facetKeys);
   return {
     total: result.total,
     page: result.page,
@@ -436,8 +437,8 @@ export async function getSearchFacets(
   organizationId: string,
   query: SearchQueryInput,
 ): Promise<SearchFacetResultEntity> {
-  const scopedQuery = await withCategoryPathScope(organizationId, query);
-  const facetKeys = await resolveFacetKeys(organizationId, scopedQuery.categoryId);
+  const scopedQuery = await scopeCategoryQuery(organizationId, query);
+  const facetKeys = await resolveFacetKeys(organizationId, query.categoryId);
   const result = await (await getSearchStore()).facets(organizationId, scopedQuery, facetKeys);
   return {
     total: result.total,
@@ -461,6 +462,13 @@ async function withCategoryPathScope(
   return { ...rest, categoryPath: category.path };
 }
 
+async function scopeCategoryQuery(
+  organizationId: string,
+  query: SearchQueryInput,
+): Promise<SearchQueryInput> {
+  return withCategoryPathScope(organizationId, query);
+}
+
 export async function getCategorySearchResults(
   categoryId: string,
   organizationId: string,
@@ -473,6 +481,7 @@ export async function getCategorySearchResults(
 
   return searchProducts(organizationId, {
     ...query,
+    categoryId,
     categoryPath: category.path,
   });
 }
