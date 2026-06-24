@@ -17,6 +17,7 @@
     "@productinfoman/facet-engine": "workspace:*",
     "@productinfoman/import-engine": "workspace:*",
     "@productinfoman/inheritance-engine": "workspace:*",
+    "@productinfoman/search-projection": "workspace:*",
     "@productinfoman/shared": "workspace:*",
     "@productinfoman/validation": "workspace:*",
     "@productinfoman/workflow-engine": "workspace:*",
@@ -25,6 +26,9 @@
     "fastify": "^5.6.0",
     "ioredis": "^5.7.0",
     "zod": "^3.25.76"
+  },
+  "optionalDependencies": {
+    "@opensearch-project/opensearch": "^3.5.1"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",

@@ -11,6 +11,7 @@ export default defineConfig({
     fileParallelism: false,
     env: {
       IMPORT_SYNC: "true",
+      SEARCH_SYNC: "true",
     },
   },
 });

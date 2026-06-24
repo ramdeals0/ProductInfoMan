@@ -8,6 +8,7 @@ import type {
   CreateWorkflowDefinitionInput,
   WorkflowDecisionInput,
 } from "@productinfoman/validation";
+import { createEvent } from "@productinfoman/contracts";
 import {
   checkPublishReadiness,
   resolveAssignmentRole,
@@ -18,6 +19,7 @@ import {
 import { prisma } from "@productinfoman/db";
 import { appError, writeAudit } from "@productinfoman/shared";
 import type { ProductStatus, UserRole } from "../../../../generated/prisma/client.js";
+import { emitEvent } from "../../lib/events.js";
 
 type Actor = { userId?: string; role: UserRole };
 
@@ -278,6 +280,15 @@ async function executeTransition(params: {
       data: { status: "COMPLETED", completedAt: new Date() },
     });
   }
+
+  emitEvent(
+    createEvent("product.status_changed", params.organizationId, {
+      productId: product.id,
+      fromStatus: product.status,
+      toStatus: updatedProduct.status,
+      actionType: params.actionType,
+    }),
+  );
 
   return {
     productId: product.id,

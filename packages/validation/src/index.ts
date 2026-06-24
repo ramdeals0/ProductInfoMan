@@ -240,6 +240,18 @@ export const ListWorkflowTasksQuerySchema = z.object({
   assignedRole: z.enum(["ADMIN", "CATALOG_MANAGER", "EDITOR", "REVIEWER", "VIEWER"]).optional(),
 });
 
+export const SearchQuerySchema = z.object({
+  q: z.string().optional(),
+  categoryId: z.string().cuid().optional(),
+  categoryPath: z.string().optional(),
+  filters: z.record(z.union([z.string(), z.array(z.string())])).optional(),
+  groupByParent: z.coerce.boolean().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  sortBy: z.string().optional(),
+  sortOrder: z.enum(["asc", "desc"]).optional(),
+});
+
 export type CreateProductInput = z.infer<typeof CreateProductSchema>;
 export type UpdateProductInput = z.infer<typeof UpdateProductSchema>;
 export type CreateVariantInput = z.infer<typeof CreateVariantSchema>;
@@ -261,3 +273,4 @@ export type CreateImportTemplateInput = z.infer<typeof CreateImportTemplateSchem
 export type CreateWorkflowDefinitionInput = z.infer<typeof CreateWorkflowDefinitionSchema>;
 export type WorkflowDecisionInput = z.infer<typeof WorkflowDecisionSchema>;
 export type ListWorkflowTasksQuery = z.infer<typeof ListWorkflowTasksQuerySchema>;
+export type SearchQuery = z.infer<typeof SearchQuerySchema>;

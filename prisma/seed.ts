@@ -682,8 +682,33 @@ async function main() {
     }
   }
 
+  const { PRODUCT_SEARCH_INDEX_MAPPING, defaultIndexName } = await import(
+    "../packages/search-projection/src/index.js"
+  );
+
+  await prisma.searchIndexVersion.upsert({
+    where: {
+      organizationId_indexName_version: {
+        organizationId: org.id,
+        indexName: defaultIndexName(org.id),
+        version: 1,
+      },
+    },
+    create: {
+      organizationId: org.id,
+      indexName: defaultIndexName(org.id),
+      version: 1,
+      mappingJson: PRODUCT_SEARCH_INDEX_MAPPING,
+      isActive: true,
+    },
+    update: {
+      mappingJson: PRODUCT_SEARCH_INDEX_MAPPING,
+      isActive: true,
+    },
+  });
+
   console.log(
-    "Seed complete: demo org, taxonomy, facets, import template, workflow, SHIRT-001 + 3 variants",
+    "Seed complete: demo org, taxonomy, facets, import template, workflow, search index mapping, SHIRT-001 + 3 variants",
   );
 }
 

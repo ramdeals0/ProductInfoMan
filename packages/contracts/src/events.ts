@@ -22,6 +22,13 @@ export type ProductUpdatedPayload = {
   changedFields: string[];
 };
 
+export type ProductStatusChangedPayload = {
+  productId: string;
+  fromStatus: string;
+  toStatus: string;
+  actionType: string;
+};
+
 export type ProductAttributesChangedPayload = {
   productId: string;
   attributeKeys: string[];

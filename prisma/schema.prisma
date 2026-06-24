@@ -30,6 +30,10 @@ model Organization {
   workflowDefinitions WorkflowDefinition[]
   workflowTasks       WorkflowTask[]
   workflowHistory     WorkflowHistory[]
+  searchIndexVersions SearchIndexVersion[]
+  searchProjectionJobs SearchProjectionJob[]
+  searchSyncEvents    SearchSyncEvent[]
+  searchReindexRuns   SearchReindexRun[]
 
   @@index([slug])
 }
@@ -89,6 +93,7 @@ model Product {
   sourceRelationships ProductRelationship[] @relation("SourceRelationships")
   targetRelationships ProductRelationship[] @relation("TargetRelationships")
   workflowTasks     WorkflowTask[]
+  searchSyncEvents  SearchSyncEvent[]
 
   @@unique([organizationId, sku])
   @@index([organizationId, status])
@@ -778,6 +783,113 @@ model WorkflowHistory {
   @@index([organizationId, entityType, entityId])
   @@index([productId])
   @@index([performedAt])
+}
+
+// ─── Search Projection ───────────────────────────────────────────────────────
+
+enum SearchProjectionJobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  RETRYING
+}
+
+enum SearchSyncEventType {
+  INDEX
+  UPDATE
+  REMOVE
+  REINDEX
+}
+
+enum SearchSyncEventStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+enum SearchReindexStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model SearchIndexVersion {
+  id             String   @id @default(cuid())
+  organizationId String
+  indexName      String
+  version        Int      @default(1)
+  mappingJson    Json
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  reindexRuns  SearchReindexRun[]
+
+  @@unique([organizationId, indexName, version])
+  @@index([organizationId, isActive])
+}
+
+model SearchProjectionJob {
+  id             String                    @id @default(cuid())
+  organizationId String
+  jobType        String
+  productId      String?
+  status         SearchProjectionJobStatus @default(QUEUED)
+  attempts       Int                       @default(0)
+  maxAttempts    Int                       @default(3)
+  errorMessage   String?
+  payload        Json?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+  completedAt    DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@index([productId])
+}
+
+model SearchSyncEvent {
+  id             String                @id @default(cuid())
+  organizationId String
+  productId      String?
+  eventType      SearchSyncEventType
+  status         SearchSyncEventStatus   @default(PENDING)
+  sourceEvent    String?
+  payload        Json?
+  errorMessage   String?
+  createdAt      DateTime              @default(now())
+  processedAt    DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product        Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@index([productId])
+  @@index([createdAt])
+}
+
+model SearchReindexRun {
+  id             String              @id @default(cuid())
+  organizationId String
+  indexVersionId String?
+  status         SearchReindexStatus @default(QUEUED)
+  totalProducts  Int                 @default(0)
+  indexedCount   Int                 @default(0)
+  failedCount    Int                 @default(0)
+  errorMessage   String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  indexVersion SearchIndexVersion? @relation(fields: [indexVersionId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
 }
 
 // ─── Audit ───────────────────────────────────────────────────────────────────

@@ -333,3 +333,101 @@ export interface WorkflowTransitionResult {
   toState: string;
   status: ProductStatus;
 }
+
+export type SearchProjectionJobStatus =
+  | "QUEUED"
+  | "PROCESSING"
+  | "COMPLETED"
+  | "FAILED"
+  | "RETRYING";
+
+export type SearchSyncEventType = "INDEX" | "UPDATE" | "REMOVE" | "REINDEX";
+export type SearchSyncEventStatus = "PENDING" | "PROCESSED" | "FAILED";
+export type SearchReindexStatus = "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED";
+
+export interface SearchProjectionJobEntity {
+  id: string;
+  organizationId: string;
+  jobType: string;
+  productId: string | null;
+  status: SearchProjectionJobStatus;
+  attempts: number;
+  maxAttempts: number;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+}
+
+export interface SearchReindexRunEntity {
+  id: string;
+  organizationId: string;
+  indexVersionId: string | null;
+  status: SearchReindexStatus;
+  totalProducts: number;
+  indexedCount: number;
+  failedCount: number;
+  errorMessage: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SearchHitEntity {
+  product_id: string;
+  sku: string;
+  title: string;
+  brand: string | null;
+  status: ProductStatus;
+  parent_product_id: string | null;
+  group_key: string;
+  category_ids: string[];
+  facet_fields: Record<string, string | string[]>;
+  score?: number;
+}
+
+export interface SearchQueryResultEntity {
+  total: number;
+  page: number;
+  pageSize: number;
+  items: SearchHitEntity[];
+  groups?: Array<{ group_key: string; items: SearchHitEntity[] }>;
+}
+
+export interface SearchFacetBucketEntity {
+  value: string;
+  count: number;
+}
+
+export interface SearchFacetAggregationEntity {
+  key: string;
+  buckets: SearchFacetBucketEntity[];
+}
+
+export interface SearchFacetResultEntity {
+  total: number;
+  facets: SearchFacetAggregationEntity[];
+}
+
+export interface SearchSyncEventEntity {
+  id: string;
+  eventType: SearchSyncEventType;
+  status: SearchSyncEventStatus;
+  sourceEvent: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  processedAt: string | null;
+}
+
+export interface SearchDebugEntity {
+  productId: string;
+  sku: string;
+  status: ProductStatus;
+  parentId: string | null;
+  productType: ProductType;
+  isIndexable: boolean;
+  indexedDocument: Record<string, unknown> | null;
+  projectedDocument: Record<string, unknown> | null;
+  recentSyncEvents: SearchSyncEventEntity[];
+}
