@@ -3,8 +3,7 @@
 
 [build]
 builder = "NIXPACKS"
-# Set NEXT_PUBLIC_* before the first build so examples and links use production URLs.
-buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @productinfoman/devportal build"
+buildCommand = "pnpm install --frozen-lockfile && NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-https://pim-api.up.railway.app/api/v1} NEXT_PUBLIC_ADMIN_URL=${NEXT_PUBLIC_ADMIN_URL:-https://pim-admin.up.railway.app} NEXT_PUBLIC_STOREFRONT_URL=${NEXT_PUBLIC_STOREFRONT_URL:-https://pim-store.up.railway.app} NEXT_PUBLIC_DEFAULT_ORG_SLUG=${NEXT_PUBLIC_DEFAULT_ORG_SLUG:-demo} pnpm --filter @productinfoman/devportal build"
 watchPatterns = [
   "apps/devportal/**",
   "package.json",
