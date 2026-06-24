@@ -19,6 +19,7 @@
     "@productinfoman/inheritance-engine": "workspace:*",
     "@productinfoman/shared": "workspace:*",
     "@productinfoman/validation": "workspace:*",
+    "@productinfoman/workflow-engine": "workspace:*",
     "bullmq": "^5.58.5",
     "dotenv": "^17.2.3",
     "fastify": "^5.6.0",

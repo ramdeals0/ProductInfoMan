@@ -27,6 +27,9 @@ model Organization {
   importTemplates     ImportTemplate[]
   importJobs          ImportJob[]
   validationRules     ValidationRule[]
+  workflowDefinitions WorkflowDefinition[]
+  workflowTasks       WorkflowTask[]
+  workflowHistory     WorkflowHistory[]
 
   @@index([slug])
 }
@@ -42,6 +45,9 @@ model User {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   importJobs     ImportJob[] @relation("ImportJobCreator")
+  workflowTasksAssigned WorkflowTask[] @relation("WorkflowTaskAssignee")
+  workflowApprovals     WorkflowApproval[] @relation("WorkflowApprover")
+  workflowHistory       WorkflowHistory[] @relation("WorkflowHistoryActor")
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -82,6 +88,7 @@ model Product {
   auditLogs         AuditLog[]              @relation("ProductAudit")
   sourceRelationships ProductRelationship[] @relation("SourceRelationships")
   targetRelationships ProductRelationship[] @relation("TargetRelationships")
+  workflowTasks     WorkflowTask[]
 
   @@unique([organizationId, sku])
   @@index([organizationId, status])
@@ -610,6 +617,167 @@ model ImportRunSummary {
   updatedAt     DateTime  @updatedAt
 
   importJob ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+}
+
+// ─── Workflow & Approval ──────────────────────────────────────────────────────
+
+enum WorkflowEntityType {
+  PRODUCT
+  CATEGORY
+}
+
+enum WorkflowTaskStatus {
+  OPEN
+  COMPLETED
+  CANCELLED
+}
+
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+}
+
+model WorkflowDefinition {
+  id             String             @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  entityType     WorkflowEntityType @default(PRODUCT)
+  isActive       Boolean            @default(true)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organization      Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  states            WorkflowState[]
+  transitions       WorkflowTransition[]
+  assignmentRules   WorkflowAssignmentRule[]
+  tasks             WorkflowTask[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, entityType, isActive])
+}
+
+model WorkflowState {
+  id                   String  @id @default(cuid())
+  workflowDefinitionId String
+  code                 String
+  name                 String
+  productStatus        ProductStatus
+  isInitial            Boolean @default(false)
+  isTerminal           Boolean @default(false)
+  sortOrder            Int     @default(0)
+
+  workflowDefinition WorkflowDefinition   @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
+  transitionsFrom    WorkflowTransition[] @relation("TransitionFrom")
+  transitionsTo      WorkflowTransition[] @relation("TransitionTo")
+  tasks              WorkflowTask[]
+
+  @@unique([workflowDefinitionId, code])
+  @@index([workflowDefinitionId, sortOrder])
+}
+
+model WorkflowTransition {
+  id                    String  @id @default(cuid())
+  workflowDefinitionId  String
+  fromStateId           String
+  toStateId             String
+  actionType            String
+  allowedRoles          Json
+  requiresApproval      Boolean @default(false)
+  requiresJustification Boolean @default(false)
+  isActive              Boolean @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  workflowDefinition WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
+  fromState          WorkflowState      @relation("TransitionFrom", fields: [fromStateId], references: [id], onDelete: Cascade)
+  toState            WorkflowState      @relation("TransitionTo", fields: [toStateId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowDefinitionId, fromStateId, actionType])
+  @@index([workflowDefinitionId, actionType])
+}
+
+model WorkflowAssignmentRule {
+  id                   String   @id @default(cuid())
+  workflowDefinitionId String
+  name                 String
+  assignToRole         UserRole
+  productTypes         Json?
+  categoryCodes        Json?
+  priority             Int      @default(0)
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  workflowDefinition WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
+
+  @@index([workflowDefinitionId, isActive])
+}
+
+model WorkflowTask {
+  id                   String             @id @default(cuid())
+  organizationId       String
+  workflowDefinitionId String
+  workflowStateId      String
+  entityType           WorkflowEntityType @default(PRODUCT)
+  entityId             String
+  productId            String?
+  assignedRole         UserRole?
+  assignedUserId       String?
+  status               WorkflowTaskStatus @default(OPEN)
+  actionType           String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  completedAt          DateTime?
+
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workflowDefinition WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
+  workflowState      WorkflowState      @relation(fields: [workflowStateId], references: [id], onDelete: Restrict)
+  product            Product?           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  assignedUser       User?              @relation("WorkflowTaskAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  approvals          WorkflowApproval[]
+
+  @@index([organizationId, status])
+  @@index([entityType, entityId])
+  @@index([assignedRole, status])
+  @@index([productId])
+}
+
+model WorkflowApproval {
+  id             String           @id @default(cuid())
+  workflowTaskId String
+  approverUserId String
+  decision       ApprovalDecision
+  decisionReason String?
+  comments       String?
+  decidedAt      DateTime         @default(now())
+
+  workflowTask WorkflowTask @relation(fields: [workflowTaskId], references: [id], onDelete: Cascade)
+  approver     User         @relation("WorkflowApprover", fields: [approverUserId], references: [id], onDelete: Restrict)
+
+  @@index([workflowTaskId])
+  @@index([approverUserId])
+}
+
+model WorkflowHistory {
+  id             String             @id @default(cuid())
+  organizationId String
+  entityId       String
+  entityType     WorkflowEntityType @default(PRODUCT)
+  productId      String?
+  fromState      String
+  toState        String
+  actionType     String
+  performedById  String?
+  performedAt    DateTime           @default(now())
+  metadata       Json?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  performedBy    User?        @relation("WorkflowHistoryActor", fields: [performedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, entityType, entityId])
+  @@index([productId])
+  @@index([performedAt])
 }
 
 // ─── Audit ───────────────────────────────────────────────────────────────────

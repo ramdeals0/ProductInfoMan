@@ -229,3 +229,107 @@ export interface ImportRunSummaryEntity {
   createdAt: string;
   updatedAt: string;
 }
+
+export type WorkflowEntityType = "PRODUCT" | "CATEGORY";
+export type WorkflowTaskStatus = "OPEN" | "COMPLETED" | "CANCELLED";
+export type ApprovalDecision = "APPROVED" | "REJECTED";
+export type WorkflowActionType = "SUBMIT" | "APPROVE" | "REJECT" | "PUBLISH" | "RESUBMIT";
+
+export interface WorkflowStateEntity {
+  id: string;
+  code: string;
+  name: string;
+  productStatus: ProductStatus;
+  isInitial: boolean;
+  isTerminal: boolean;
+  sortOrder: number;
+}
+
+export interface WorkflowTransitionEntity {
+  id: string;
+  fromStateCode: string;
+  toStateCode: string;
+  actionType: string;
+  allowedRoles: string[];
+  requiresApproval: boolean;
+  requiresJustification: boolean;
+  isActive: boolean;
+}
+
+export interface WorkflowAssignmentRuleEntity {
+  id: string;
+  name: string;
+  assignToRole: string;
+  productTypes: string[] | null;
+  categoryCodes: string[] | null;
+  priority: number;
+  isActive: boolean;
+}
+
+export interface WorkflowDefinitionEntity {
+  id: string;
+  organizationId: string;
+  code: string;
+  name: string;
+  entityType: WorkflowEntityType;
+  isActive: boolean;
+  states: WorkflowStateEntity[];
+  transitions: WorkflowTransitionEntity[];
+  assignmentRules: WorkflowAssignmentRuleEntity[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkflowApprovalEntity {
+  id: string;
+  approverUserId: string;
+  approverEmail: string;
+  approverName: string;
+  decision: ApprovalDecision;
+  decisionReason: string | null;
+  comments: string | null;
+  decidedAt: string;
+}
+
+export interface WorkflowTaskEntity {
+  id: string;
+  organizationId: string;
+  workflowDefinitionId: string;
+  workflowStateCode: string;
+  entityType: WorkflowEntityType;
+  entityId: string;
+  productId: string | null;
+  productSku: string | null;
+  productTitle: string | null;
+  productStatus: ProductStatus | null;
+  assignedRole: string | null;
+  assignedUserId: string | null;
+  status: WorkflowTaskStatus;
+  actionType: string | null;
+  approvals: WorkflowApprovalEntity[];
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+}
+
+export interface WorkflowHistoryEntity {
+  id: string;
+  organizationId: string;
+  entityId: string;
+  entityType: WorkflowEntityType;
+  productId: string | null;
+  fromState: string;
+  toState: string;
+  actionType: string;
+  performedById: string | null;
+  performedAt: string;
+  metadata: Record<string, unknown> | null;
+}
+
+export interface WorkflowTransitionResult {
+  productId: string;
+  sku: string;
+  fromState: string;
+  toState: string;
+  status: ProductStatus;
+}

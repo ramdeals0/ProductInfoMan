@@ -190,6 +190,56 @@ export const CreateImportTemplateSchema = z.object({
   mappings: z.array(ImportTemplateMappingSchema).min(1),
 });
 
+export const WorkflowStateInputSchema = z.object({
+  code: z.string().min(1).max(64),
+  name: z.string().min(1).max(128),
+  productStatus: ProductStatusSchema,
+  isInitial: z.boolean().optional(),
+  isTerminal: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+});
+
+export const WorkflowTransitionInputSchema = z.object({
+  fromStateCode: z.string().min(1),
+  toStateCode: z.string().min(1),
+  actionType: z.enum(["SUBMIT", "APPROVE", "REJECT", "PUBLISH", "RESUBMIT"]),
+  allowedRoles: z.array(z.enum(["ADMIN", "CATALOG_MANAGER", "EDITOR", "REVIEWER", "VIEWER"])).min(1),
+  requiresApproval: z.boolean().optional(),
+  requiresJustification: z.boolean().optional(),
+});
+
+export const WorkflowAssignmentRuleInputSchema = z.object({
+  name: z.string().min(1).max(128),
+  assignToRole: z.enum(["ADMIN", "CATALOG_MANAGER", "EDITOR", "REVIEWER", "VIEWER"]),
+  productTypes: z.array(ProductTypeSchema).optional(),
+  categoryCodes: z.array(z.string()).optional(),
+  priority: z.number().int().optional(),
+});
+
+export const CreateWorkflowDefinitionSchema = z.object({
+  code: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/),
+  name: z.string().min(1).max(128),
+  entityType: z.enum(["PRODUCT", "CATEGORY"]).optional(),
+  isActive: z.boolean().optional(),
+  states: z.array(WorkflowStateInputSchema).min(2),
+  transitions: z.array(WorkflowTransitionInputSchema).optional(),
+  assignmentRules: z.array(WorkflowAssignmentRuleInputSchema).optional(),
+});
+
+export const WorkflowDecisionSchema = z.object({
+  reason: z.string().max(1000).optional(),
+  comments: z.string().max(2000).optional(),
+});
+
+export const WorkflowRejectSchema = WorkflowDecisionSchema.extend({
+  reason: z.string().min(1).max(1000),
+});
+
+export const ListWorkflowTasksQuerySchema = z.object({
+  status: z.enum(["OPEN", "COMPLETED", "CANCELLED"]).optional(),
+  assignedRole: z.enum(["ADMIN", "CATALOG_MANAGER", "EDITOR", "REVIEWER", "VIEWER"]).optional(),
+});
+
 export type CreateProductInput = z.infer<typeof CreateProductSchema>;
 export type UpdateProductInput = z.infer<typeof UpdateProductSchema>;
 export type CreateVariantInput = z.infer<typeof CreateVariantSchema>;
@@ -208,3 +258,6 @@ export type ListFacetRulesQuery = z.infer<typeof ListFacetRulesQuerySchema>;
 export type UploadImportInput = z.infer<typeof UploadImportSchema>;
 export type ListImportsQuery = z.infer<typeof ListImportsQuerySchema>;
 export type CreateImportTemplateInput = z.infer<typeof CreateImportTemplateSchema>;
+export type CreateWorkflowDefinitionInput = z.infer<typeof CreateWorkflowDefinitionSchema>;
+export type WorkflowDecisionInput = z.infer<typeof WorkflowDecisionSchema>;
+export type ListWorkflowTasksQuery = z.infer<typeof ListWorkflowTasksQuerySchema>;

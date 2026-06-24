@@ -530,8 +530,160 @@ async function main() {
     });
   }
 
+  const workflow = await prisma.workflowDefinition.upsert({
+    where: { organizationId_code: { organizationId: org.id, code: "mvp-product-lifecycle" } },
+    create: {
+      organizationId: org.id,
+      code: "mvp-product-lifecycle",
+      name: "MVP Product Lifecycle",
+      entityType: "PRODUCT",
+      isActive: true,
+    },
+    update: { isActive: true },
+  });
+
+  const workflowStates = [
+    { code: "DRAFT", name: "Draft", productStatus: "DRAFT" as const, isInitial: true, isTerminal: false, sortOrder: 0 },
+    { code: "IN_REVIEW", name: "In Review", productStatus: "IN_REVIEW" as const, isInitial: false, isTerminal: false, sortOrder: 1 },
+    { code: "APPROVED", name: "Approved", productStatus: "APPROVED" as const, isInitial: false, isTerminal: false, sortOrder: 2 },
+    { code: "PUBLISHED", name: "Published", productStatus: "PUBLISHED" as const, isInitial: false, isTerminal: true, sortOrder: 3 },
+    { code: "REJECTED", name: "Rejected", productStatus: "REJECTED" as const, isInitial: false, isTerminal: false, sortOrder: 4 },
+  ];
+
+  const stateIds = new Map<string, string>();
+  for (const state of workflowStates) {
+    const record = await prisma.workflowState.upsert({
+      where: {
+        workflowDefinitionId_code: {
+          workflowDefinitionId: workflow.id,
+          code: state.code,
+        },
+      },
+      create: {
+        workflowDefinitionId: workflow.id,
+        ...state,
+      },
+      update: state,
+    });
+    stateIds.set(state.code, record.id);
+  }
+
+  const transitionDefs = [
+    {
+      from: "DRAFT",
+      to: "IN_REVIEW",
+      actionType: "SUBMIT",
+      allowedRoles: ["EDITOR", "CATALOG_MANAGER", "ADMIN"],
+      requiresApproval: false,
+      requiresJustification: false,
+    },
+    {
+      from: "REJECTED",
+      to: "IN_REVIEW",
+      actionType: "SUBMIT",
+      allowedRoles: ["EDITOR", "CATALOG_MANAGER", "ADMIN"],
+      requiresApproval: false,
+      requiresJustification: false,
+    },
+    {
+      from: "IN_REVIEW",
+      to: "APPROVED",
+      actionType: "APPROVE",
+      allowedRoles: ["REVIEWER", "ADMIN"],
+      requiresApproval: true,
+      requiresJustification: false,
+    },
+    {
+      from: "IN_REVIEW",
+      to: "REJECTED",
+      actionType: "REJECT",
+      allowedRoles: ["REVIEWER", "ADMIN"],
+      requiresApproval: true,
+      requiresJustification: true,
+    },
+    {
+      from: "APPROVED",
+      to: "PUBLISHED",
+      actionType: "PUBLISH",
+      allowedRoles: ["CATALOG_MANAGER", "ADMIN"],
+      requiresApproval: false,
+      requiresJustification: false,
+    },
+  ] as const;
+
+  for (const transition of transitionDefs) {
+    const fromStateId = stateIds.get(transition.from)!;
+    const toStateId = stateIds.get(transition.to)!;
+    const existing = await prisma.workflowTransition.findFirst({
+      where: {
+        workflowDefinitionId: workflow.id,
+        fromStateId,
+        actionType: transition.actionType,
+      },
+    });
+    if (!existing) {
+      await prisma.workflowTransition.create({
+        data: {
+          workflowDefinitionId: workflow.id,
+          fromStateId,
+          toStateId,
+          actionType: transition.actionType,
+          allowedRoles: transition.allowedRoles,
+          requiresApproval: transition.requiresApproval,
+          requiresJustification: transition.requiresJustification,
+        },
+      });
+    } else {
+      await prisma.workflowTransition.update({
+        where: { id: existing.id },
+        data: {
+          toStateId,
+          allowedRoles: transition.allowedRoles,
+          requiresApproval: transition.requiresApproval,
+          requiresJustification: transition.requiresJustification,
+          isActive: true,
+        },
+      });
+    }
+  }
+
+  const assignmentRules = [
+    {
+      name: "Review all parent products",
+      assignToRole: "REVIEWER" as const,
+      productTypes: ["PARENT", "SIMPLE"],
+      categoryCodes: null,
+      priority: 0,
+    },
+    {
+      name: "Review shirts category",
+      assignToRole: "REVIEWER" as const,
+      productTypes: null,
+      categoryCodes: ["shirts"],
+      priority: 10,
+    },
+  ];
+
+  for (const rule of assignmentRules) {
+    const existing = await prisma.workflowAssignmentRule.findFirst({
+      where: { workflowDefinitionId: workflow.id, name: rule.name },
+    });
+    if (!existing) {
+      await prisma.workflowAssignmentRule.create({
+        data: {
+          workflowDefinitionId: workflow.id,
+          name: rule.name,
+          assignToRole: rule.assignToRole,
+          productTypes: rule.productTypes,
+          categoryCodes: rule.categoryCodes,
+          priority: rule.priority,
+        },
+      });
+    }
+  }
+
   console.log(
-    "Seed complete: demo org, taxonomy, facets, import template, SHIRT-001 + 3 variants",
+    "Seed complete: demo org, taxonomy, facets, import template, workflow, SHIRT-001 + 3 variants",
   );
 }
 
