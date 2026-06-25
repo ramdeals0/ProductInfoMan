@@ -9,6 +9,7 @@ watchPatterns = [
   "packages/api-client/**",
   "packages/config/**",
   "packages/domain/**",
+  "packages/import-engine/**",
   "packages/shared/**",
   "packages/validation/**",
   "package.json",
