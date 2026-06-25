@@ -1,6 +1,27 @@
+import { parseImportSellingPoints, PRODUCT_IMPORT_CORE_FIELD_KEYS } from "./product-import-fields.js";
+
 export type ProductType = "SIMPLE" | "PARENT" | "VARIANT";
 export type DuplicatePolicy = "REJECT" | "UPDATE" | "SKIP";
 export type BlankCellPolicy = "IGNORE" | "CLEAR";
+
+export {
+  buildDefaultTemplateMappings,
+  buildImportExampleCsv,
+  buildImportExampleFile,
+  buildImportExampleJson,
+  buildImportExampleXml,
+  IMPORT_EXAMPLE_FILE_TYPES,
+  importExampleProducts,
+  parseImportDate,
+  parseImportSellingPoints,
+  PRODUCT_IMPORT_ATTRIBUTE_FIELD_KEYS,
+  PRODUCT_IMPORT_ATTRIBUTE_FIELDS,
+  PRODUCT_IMPORT_CORE_FIELD_KEYS,
+  PRODUCT_IMPORT_CORE_FIELDS,
+  PRODUCT_IMPORT_SAMPLE_FIELD_KEYS,
+  type ImportExampleProduct,
+  type ProductImportCoreFieldKey,
+} from "./product-import-fields.js";
 
 export {
   collectImportRows,
@@ -36,6 +57,10 @@ export interface NormalizedImportRow {
   brand?: string;
   parentSku?: string;
   categoryCode?: string;
+  summary?: string;
+  sellingPoints?: string[];
+  startDate?: string;
+  discontinueDate?: string;
   attributes: Record<string, string>;
   raw: Record<string, string>;
 }
@@ -142,17 +167,17 @@ export function normalizeRow(
     return null;
   }
 
+  const coreFieldKeys = new Set<string>(PRODUCT_IMPORT_CORE_FIELD_KEYS);
+
   const attributes: Record<string, string> = {};
   for (const [key, value] of Object.entries(mapped)) {
-    if (
-      !["sku", "product_type", "title", "description", "brand", "parent_sku", "category_code"].includes(
-        key,
-      ) &&
-      value !== ""
-    ) {
+    if (!coreFieldKeys.has(key) && value !== "") {
       attributes[key] = value;
     }
   }
+
+  const sellingPointsRaw = mapped.selling_points?.trim();
+  const sellingPoints = sellingPointsRaw ? parseImportSellingPoints(sellingPointsRaw) : undefined;
 
   return {
     rowNumber,
@@ -163,6 +188,10 @@ export function normalizeRow(
     brand: mapped.brand?.trim() || undefined,
     parentSku: mapped.parent_sku?.trim() || undefined,
     categoryCode: mapped.category_code?.trim() || undefined,
+    summary: mapped.summary?.trim() || undefined,
+    sellingPoints,
+    startDate: mapped.start_date?.trim() || undefined,
+    discontinueDate: mapped.discontinue_date?.trim() || undefined,
     attributes,
     raw,
   };
@@ -295,10 +324,22 @@ function getFieldValue(row: NormalizedImportRow, field: string): string | undefi
       return row.productType;
     case "title":
       return row.title;
+    case "description":
+      return row.description;
+    case "brand":
+      return row.brand;
     case "parent_sku":
       return row.parentSku;
     case "category_code":
       return row.categoryCode;
+    case "summary":
+      return row.summary;
+    case "selling_points":
+      return row.sellingPoints?.join("|");
+    case "start_date":
+      return row.startDate;
+    case "discontinue_date":
+      return row.discontinueDate;
     default:
       return row.attributes[field] ?? row.raw[field];
   }

@@ -9,6 +9,7 @@ import {
   buildProductMerchandisingCopy,
   defaultStorefrontAvailability,
 } from "../tools/lib/product-merchandising-copy.js";
+import { buildDefaultTemplateMappings } from "../packages/import-engine/src/product-import-fields.js";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -876,17 +877,9 @@ async function main() {
     update: { isDefault: true },
   });
 
-  const templateMappings = [
-    ["sku", "sku", true],
-    ["product_type", "product_type", true],
-    ["title", "title", true],
-    ["description", "description", false],
-    ["brand", "brand", false],
-    ["parent_sku", "parent_sku", false],
-    ["category_code", "category_code", false],
-    ["color", "color", false],
-    ["size", "size", false],
-  ] as const;
+  const templateMappings = buildDefaultTemplateMappings().map(
+    (mapping) => [mapping.sourceColumn, mapping.targetField, mapping.isRequired ?? false] as const,
+  );
 
   for (const [index, [sourceColumn, targetField, isRequired]] of templateMappings.entries()) {
     await prisma.importTemplateMapping.upsert({

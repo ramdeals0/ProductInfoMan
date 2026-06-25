@@ -3,21 +3,33 @@
   <product>
     <sku>XML-001</sku>
     <product_type>SIMPLE</product_type>
-    <title>XML Import Shirt</title>
+    <title>Import Oxford Shirt</title>
+    <description>A classic oxford shirt for everyday wear.</description>
+    <brand>Demo Brand</brand>
     <category_code>oxford</category_code>
+    <summary>Classic oxford shirt with a comfortable everyday fit.</summary>
+    <selling_points>Quality fabric|Easy care|Classic fit</selling_points>
+    <start_date>2025-01-01</start_date>
+    <discontinue_date>2027-12-31</discontinue_date>
     <attributes>
-      <color>Navy</color>
-      <size>S</size>
+    <color>Blue</color>
+    <size>M</size>
     </attributes>
   </product>
   <product>
     <sku>XML-002</sku>
     <product_type>SIMPLE</product_type>
-    <title>XML Import Polo</title>
+    <title>Import Cotton Tee</title>
+    <description>Soft cotton tee for casual wear.</description>
+    <brand>Demo Brand</brand>
     <category_code>oxford</category_code>
+    <summary>Soft cotton tee with a relaxed fit for daily wear.</summary>
+    <selling_points>Soft cotton|Breathable|Everyday essential</selling_points>
+    <start_date>2025-02-01</start_date>
+    <discontinue_date>2028-06-30</discontinue_date>
     <attributes>
-      <color>Gray</color>
-      <size>M</size>
+    <color>White</color>
+    <size>L</size>
     </attributes>
   </product>
 </products>

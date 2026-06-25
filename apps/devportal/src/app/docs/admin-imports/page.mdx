@@ -36,10 +36,11 @@ Bulk ingest products from **CSV**, **JSON**, or **XML** with validation, error r
 ## CSV example
 
 ```csv
-sku,product_type,title,parent_sku,category_code,color
-FF-DRILL-01,SIMPLE,20V Cordless Drill,,tools,Black
-FF-SAW-01,SIMPLE,7.25in Circular Saw,,tools,Red
+sku,product_type,title,description,brand,category_code,summary,selling_points,start_date,discontinue_date,color,size
+CSV-001,SIMPLE,Import Oxford Shirt,A classic oxford shirt for everyday wear.,Demo Brand,oxford,Classic oxford shirt with a comfortable everyday fit.,Quality fabric|Easy care|Classic fit,2025-01-01,2027-12-31,Blue,M
 ```
+
+Use pipe-separated values for `selling_points` in CSV. Downloadable examples in the admin import UI are generated from the same field catalog in `@productinfoman/import-engine`.
 
 ## JSON import
 
@@ -50,8 +51,14 @@ Expected shape: a JSON array at the root, or an object with a `products` / `item
   {
     "sku": "JSON-001",
     "product_type": "SIMPLE",
-    "title": "JSON Import Shirt",
+    "title": "Import Oxford Shirt",
+    "description": "A classic oxford shirt for everyday wear.",
+    "brand": "Demo Brand",
     "category_code": "oxford",
+    "summary": "Classic oxford shirt with a comfortable everyday fit.",
+    "selling_points": ["Quality fabric", "Easy care", "Classic fit"],
+    "start_date": "2025-01-01",
+    "discontinue_date": "2027-12-31",
     "attributes": {
       "color": "Blue",
       "size": "M"
@@ -83,11 +90,17 @@ Expected shape: a root element (default: first root tag) containing repeated `<p
   <product>
     <sku>XML-001</sku>
     <product_type>SIMPLE</product_type>
-    <title>XML Import Shirt</title>
+    <title>Import Oxford Shirt</title>
+    <description>A classic oxford shirt for everyday wear.</description>
+    <brand>Demo Brand</brand>
     <category_code>oxford</category_code>
+    <summary>Classic oxford shirt with a comfortable everyday fit.</summary>
+    <selling_points>Quality fabric|Easy care|Classic fit</selling_points>
+    <start_date>2025-01-01</start_date>
+    <discontinue_date>2027-12-31</discontinue_date>
     <attributes>
-      <color>Navy</color>
-      <size>S</size>
+      <color>Blue</color>
+      <size>M</size>
     </attributes>
   </product>
 </products>

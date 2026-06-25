@@ -2,8 +2,18 @@
   {
     "sku": "JSON-001",
     "product_type": "SIMPLE",
-    "title": "JSON Import Shirt",
+    "title": "Import Oxford Shirt",
+    "description": "A classic oxford shirt for everyday wear.",
+    "brand": "Demo Brand",
     "category_code": "oxford",
+    "summary": "Classic oxford shirt with a comfortable everyday fit.",
+    "start_date": "2025-01-01",
+    "discontinue_date": "2027-12-31",
+    "selling_points": [
+      "Quality fabric",
+      "Easy care",
+      "Classic fit"
+    ],
     "attributes": {
       "color": "Blue",
       "size": "M"
@@ -12,8 +22,18 @@
   {
     "sku": "JSON-002",
     "product_type": "SIMPLE",
-    "title": "JSON Import Tee",
+    "title": "Import Cotton Tee",
+    "description": "Soft cotton tee for casual wear.",
+    "brand": "Demo Brand",
     "category_code": "oxford",
+    "summary": "Soft cotton tee with a relaxed fit for daily wear.",
+    "start_date": "2025-02-01",
+    "discontinue_date": "2028-06-30",
+    "selling_points": [
+      "Soft cotton",
+      "Breathable",
+      "Everyday essential"
+    ],
     "attributes": {
       "color": "White",
       "size": "L"
