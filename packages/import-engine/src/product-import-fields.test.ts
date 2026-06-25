@@ -44,12 +44,31 @@ describe("product-import-fields", () => {
     expect(products).toContain('"parent_sku": "JSON-003"');
   });
 
-  it("builds XML examples with parent, variant, and nested attributes", async () => {
+  it("includes extended attributes and facet reference columns in CSV samples", () => {
+    const csv = buildImportExampleCsv();
+    const header = csv.split("\n")[0] ?? "";
+    for (const field of ["fabric", "fit", "price", "material", "facet_color", "facet_price"]) {
+      expect(header).toContain(field);
+    }
+    expect(csv).toContain("Cotton");
+    expect(csv).toContain("25_to_50");
+  });
+
+  it("includes attributes and facets objects in JSON samples", () => {
+    const json = buildImportExampleJson("JSON");
+    expect(json).toContain('"fabric": "Cotton"');
+    expect(json).toContain('"facets": {');
+    expect(json).toContain('"price": "25_to_50"');
+  });
+
+  it("builds XML examples with parent, variant, nested attributes, and facets", async () => {
     const xml = buildImportExampleXml("XML");
     expect(xml).toContain("<product_type>PARENT</product_type>");
     expect(xml).toContain("<product_type>VARIANT</product_type>");
     expect(xml).toContain("<parent_sku>XML-003</parent_sku>");
     expect(xml).toMatch(/<attributes>\n {6}<color>Blue<\/color>/);
+    expect(xml).toContain("<facets>");
+    expect(xml).toContain("<fabric>Cotton</fabric>");
 
     const { collectImportRows, fieldsToStringRecord, parseXml } = await import("./parser.js");
     const rows = await collectImportRows(parseXml(xml));
@@ -60,6 +79,8 @@ describe("product-import-fields", () => {
       parent_sku: "XML-003",
       "attributes.color": "Blue",
       "attributes.size": "M",
+      "attributes.fabric": "Cotton",
+      "facets.price": "25_to_50",
     });
   });
 

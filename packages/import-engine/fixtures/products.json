@@ -16,7 +16,20 @@
     ],
     "attributes": {
       "color": "Blue",
-      "size": "M"
+      "size": "M",
+      "fabric": "Cotton",
+      "fit": "Regular",
+      "price": "49.99",
+      "material": "Cotton"
+    },
+    "facets": {
+      "brand": "Demo Brand",
+      "color": "Blue",
+      "size": "M",
+      "fabric": "Cotton",
+      "fit": "Regular",
+      "material": "Cotton",
+      "price": "25_to_50"
     }
   },
   {
@@ -36,7 +49,20 @@
     ],
     "attributes": {
       "color": "White",
-      "size": "L"
+      "size": "L",
+      "fabric": "Cotton",
+      "fit": "Relaxed",
+      "price": "24.99",
+      "material": "Cotton"
+    },
+    "facets": {
+      "brand": "Demo Brand",
+      "color": "White",
+      "size": "L",
+      "fabric": "Cotton",
+      "fit": "Relaxed",
+      "material": "Cotton",
+      "price": "under_25"
     }
   },
   {
@@ -53,7 +79,10 @@
       "Multiple fits",
       "Coordinated variants",
       "Easy merchandising"
-    ]
+    ],
+    "facets": {
+      "brand": "Demo Brand"
+    }
   },
   {
     "sku": "JSON-004",
@@ -72,7 +101,20 @@
     ],
     "attributes": {
       "color": "Blue",
-      "size": "M"
+      "size": "M",
+      "fabric": "Cotton",
+      "fit": "Regular",
+      "price": "49.99",
+      "material": "Cotton"
+    },
+    "facets": {
+      "brand": "Demo Brand",
+      "color": "Blue",
+      "size": "M",
+      "fabric": "Cotton",
+      "fit": "Regular",
+      "material": "Cotton",
+      "price": "25_to_50"
     }
   },
   {
@@ -92,7 +134,20 @@
     ],
     "attributes": {
       "color": "White",
-      "size": "L"
+      "size": "L",
+      "fabric": "Cotton",
+      "fit": "Regular",
+      "price": "49.99",
+      "material": "Cotton"
+    },
+    "facets": {
+      "brand": "Demo Brand",
+      "color": "White",
+      "size": "L",
+      "fabric": "Cotton",
+      "fit": "Regular",
+      "material": "Cotton",
+      "price": "25_to_50"
     }
   }
 ]

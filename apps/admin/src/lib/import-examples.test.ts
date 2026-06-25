@@ -26,6 +26,12 @@ describe("import-examples", () => {
       "discontinue_date",
       "color",
       "size",
+      "fabric",
+      "fit",
+      "price",
+      "material",
+      "facet_color",
+      "facet_price",
     ]) {
       expect(PRODUCT_IMPORT_SAMPLE_FIELD_KEYS).toContain(field);
     }

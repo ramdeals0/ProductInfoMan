@@ -257,9 +257,11 @@ Imports load many products from a CSV file. **Operations** and **Administrators*
 
 The seeded template `mvp-product-csv` expects columns such as:
 
-`sku`, `product_type`, `title`, `description`, `brand`, `parent_sku`, `category_code`, `summary`, `selling_points`, `start_date`, `discontinue_date`, `color`, `size`
+`sku`, `product_type`, `title`, `description`, `brand`, `parent_sku`, `category_code`, `summary`, `selling_points`, `start_date`, `discontinue_date`, `color`, `size`, `fabric`, `fit`, `price`, `material`
 
-`selling_points` accepts pipe-separated values in CSV (e.g. `Point one|Point two`) or a JSON array in JSON/XML imports. Dates use `YYYY-MM-DD`.
+CSV samples also include `facet_*` reference columns (for example `facet_color`, `facet_price`) that show browse facet values derived from attributes after indexing. Map attribute columns in your import template; facet columns are illustrative unless you add explicit mappings.
+
+`selling_points` accepts pipe-separated values in CSV (e.g. `Point one|Point two`) or a JSON array in JSON/XML imports. JSON and XML samples include nested `attributes` and `facets` objects. Dates use `YYYY-MM-DD`.
 
 See **Imports → job detail** for validation errors with row numbers and field names.
 

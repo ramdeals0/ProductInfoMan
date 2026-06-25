@@ -14,7 +14,20 @@
     <attributes>
       <color>Blue</color>
       <size>M</size>
+      <fabric>Cotton</fabric>
+      <fit>Regular</fit>
+      <price>49.99</price>
+      <material>Cotton</material>
     </attributes>
+    <facets>
+      <brand>Demo Brand</brand>
+      <color>Blue</color>
+      <size>M</size>
+      <fabric>Cotton</fabric>
+      <fit>Regular</fit>
+      <material>Cotton</material>
+      <price>25_to_50</price>
+    </facets>
   </product>
   <product>
     <sku>XML-002</sku>
@@ -30,7 +43,20 @@
     <attributes>
       <color>White</color>
       <size>L</size>
+      <fabric>Cotton</fabric>
+      <fit>Relaxed</fit>
+      <price>24.99</price>
+      <material>Cotton</material>
     </attributes>
+    <facets>
+      <brand>Demo Brand</brand>
+      <color>White</color>
+      <size>L</size>
+      <fabric>Cotton</fabric>
+      <fit>Relaxed</fit>
+      <material>Cotton</material>
+      <price>under_25</price>
+    </facets>
   </product>
   <product>
     <sku>XML-003</sku>
@@ -43,6 +69,9 @@
     <selling_points>Multiple fits|Coordinated variants|Easy merchandising</selling_points>
     <start_date>2025-01-01</start_date>
     <discontinue_date>2027-12-31</discontinue_date>
+    <facets>
+      <brand>Demo Brand</brand>
+    </facets>
   </product>
   <product>
     <sku>XML-004</sku>
@@ -59,7 +88,20 @@
     <attributes>
       <color>Blue</color>
       <size>M</size>
+      <fabric>Cotton</fabric>
+      <fit>Regular</fit>
+      <price>49.99</price>
+      <material>Cotton</material>
     </attributes>
+    <facets>
+      <brand>Demo Brand</brand>
+      <color>Blue</color>
+      <size>M</size>
+      <fabric>Cotton</fabric>
+      <fit>Regular</fit>
+      <material>Cotton</material>
+      <price>25_to_50</price>
+    </facets>
   </product>
   <product>
     <sku>XML-005</sku>
@@ -76,6 +118,19 @@
     <attributes>
       <color>White</color>
       <size>L</size>
+      <fabric>Cotton</fabric>
+      <fit>Regular</fit>
+      <price>49.99</price>
+      <material>Cotton</material>
     </attributes>
+    <facets>
+      <brand>Demo Brand</brand>
+      <color>White</color>
+      <size>L</size>
+      <fabric>Cotton</fabric>
+      <fit>Regular</fit>
+      <material>Cotton</material>
+      <price>25_to_50</price>
+    </facets>
   </product>
 </products>
