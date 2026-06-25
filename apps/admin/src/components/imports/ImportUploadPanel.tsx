@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { ImportFileType } from "@productinfoman/domain";
+import { downloadImportExample, IMPORT_EXAMPLE_TYPES } from "@/lib/import-examples";
 import { useSession } from "@/lib/session";
 
 const FILE_TYPE_OPTIONS: Array<{ value: ImportFileType; label: string }> = [
@@ -123,6 +124,20 @@ export function ImportUploadPanel() {
             <option value="UPSERT">Add or update</option>
           </select>
         </label>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-slate-500">Download example:</span>
+        {IMPORT_EXAMPLE_TYPES.map((type) => (
+          <button
+            key={type}
+            className="btn-secondary text-xs"
+            type="button"
+            onClick={() => downloadImportExample(type)}
+          >
+            {type}
+          </button>
+        ))}
       </div>
 
       <p className="mt-3 text-sm text-slate-500">
