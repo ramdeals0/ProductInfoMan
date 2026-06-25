@@ -352,7 +352,7 @@ On category and search pages, the sidebar shows facets (brand, price range, cate
 
 ### Demo catalog
 
-The default demo catalog includes **500** `DEMO-*` simple products plus the `SHIRT-001` parent and variants. To refresh after deploy:
+The default demo catalog includes **500** `DEMO-*` simple products plus **5** parent products (`SHIRT-001`, `POLO-001`, `FLANNEL-001`, `DRESS-001`, `BTN-001`) with color/size variants. To refresh after deploy:
 
 ```bash
 pnpm reseed:demo
