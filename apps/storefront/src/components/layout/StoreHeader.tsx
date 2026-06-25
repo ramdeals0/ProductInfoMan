@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { CategoryDropdown } from "@/components/layout/CategoryDropdown";
 import { useCartStore } from "@/lib/cart";
 
 export function StoreHeader() {
@@ -23,12 +24,13 @@ export function StoreHeader() {
         <Link href="/" className="text-xl font-bold text-brand-700">
           Demo Shop
         </Link>
+        <CategoryDropdown />
         <nav className="hidden items-center gap-4 text-sm font-medium text-slate-600 md:flex">
           <Link href="/search" className={pathname === "/search" ? "text-brand-600" : "hover:text-brand-600"}>
             Search
           </Link>
         </nav>
-        <form onSubmit={onSearch} className="ml-auto flex flex-1 items-center gap-2 md:max-w-md">
+        <form onSubmit={onSearch} className="flex flex-1 items-center gap-2 md:ml-auto md:max-w-md">
           <input
             className="input"
             placeholder="Search products..."

@@ -13,6 +13,24 @@ export function flattenCategories(nodes: CategoryTreeNode[]): CategoryTreeNode[]
   return result;
 }
 
+export interface CategorySelectOption {
+  code: string;
+  label: string;
+}
+
+export function categorySelectOptions(nodes: CategoryTreeNode[]): CategorySelectOption[] {
+  const options: CategorySelectOption[] = [];
+  const walk = (items: CategoryTreeNode[], depth: number) => {
+    for (const item of items) {
+      const prefix = depth > 0 ? `${"— ".repeat(depth)}` : "";
+      options.push({ code: item.code, label: `${prefix}${item.name}` });
+      if (item.children?.length) walk(item.children, depth + 1);
+    }
+  };
+  walk(nodes, 0);
+  return options;
+}
+
 export function findCategoryNode(
   nodes: CategoryTreeNode[],
   predicate: (node: CategoryTreeNode) => boolean,
