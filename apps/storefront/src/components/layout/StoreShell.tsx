@@ -1,14 +1,12 @@
 import Link from "next/link";
-import { PromoBar } from "@/components/layout/PromoBar";
 import { StoreFooter } from "@/components/layout/StoreFooter";
 import { StoreHeader } from "@/components/layout/StoreHeader";
 
 export function StoreLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-surface">
-      <PromoBar />
       <StoreHeader />
-      <main className="container-store flex-1 py-8 md:py-10">{children}</main>
+      <main className="container-store flex-1 py-10 md:py-14">{children}</main>
       <StoreFooter />
     </div>
   );
