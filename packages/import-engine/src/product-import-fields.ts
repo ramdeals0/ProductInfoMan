@@ -241,6 +241,21 @@ export function buildDefaultTemplateMappings(): ProductImportTemplateMapping[] {
   ];
 }
 
+/** Ensure canonical import mappings exist even when a stored template predates new fields. */
+export function mergeTemplateMappings(
+  mappings: ProductImportTemplateMapping[],
+  defaults: ProductImportTemplateMapping[] = buildDefaultTemplateMappings(),
+): ProductImportTemplateMapping[] {
+  const merged = new Map<string, ProductImportTemplateMapping>();
+  for (const mapping of defaults) {
+    merged.set(mapping.sourceColumn, mapping);
+  }
+  for (const mapping of mappings) {
+    merged.set(mapping.sourceColumn, mapping);
+  }
+  return [...merged.values()];
+}
+
 export function parseImportSellingPoints(value: string): string[] {
   const trimmed = value.trim();
   if (!trimmed) return [];

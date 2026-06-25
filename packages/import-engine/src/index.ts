@@ -12,6 +12,7 @@ export {
   buildImportExampleXml,
   IMPORT_EXAMPLE_FILE_TYPES,
   importExampleProducts,
+  mergeTemplateMappings,
   parseImportDate,
   parseImportSellingPoints,
   PRODUCT_IMPORT_ATTRIBUTE_FIELD_KEYS,
@@ -155,6 +156,14 @@ export function normalizeRow(
       continue;
     }
     mapped[mapping.targetField] = rawValue;
+  }
+
+  for (const key of PRODUCT_IMPORT_CORE_FIELD_KEYS) {
+    if (mapped[key]?.trim()) continue;
+    const rawValue = raw[key]?.trim();
+    if (rawValue) {
+      mapped[key] = rawValue;
+    }
   }
 
   const sku = mapped.sku?.trim();
