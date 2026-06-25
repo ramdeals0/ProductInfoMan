@@ -35,7 +35,7 @@ function SearchResults() {
         description={`${resultsQuery.data?.total ?? 0} results`}
       />
 
-      <div className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <div className="grid gap-8 lg:grid-cols-[260px_minmax(0,1fr)]">
         <FacetSidebar facets={facetsQuery.data?.facets ?? []} />
         <div>
           {resultsQuery.isLoading ? <LoadingGrid /> : null}

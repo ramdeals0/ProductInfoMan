@@ -24,7 +24,7 @@ export function Pagination({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="mt-8 flex items-center justify-center gap-2">
+    <div className="mt-10 flex items-center justify-center gap-3">
       <button
         type="button"
         className="btn-secondary"
@@ -33,7 +33,7 @@ export function Pagination({
       >
         Previous
       </button>
-      <span className="text-sm text-slate-600">
+      <span className="min-w-[7rem] text-center text-sm text-brand-600">
         Page {page} of {totalPages}
       </span>
       <button

@@ -1,14 +1,15 @@
 import Link from "next/link";
+import { PromoBar } from "@/components/layout/PromoBar";
+import { StoreFooter } from "@/components/layout/StoreFooter";
 import { StoreHeader } from "@/components/layout/StoreHeader";
 
 export function StoreLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="flex min-h-screen flex-col bg-surface">
+      <PromoBar />
       <StoreHeader />
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">{children}</main>
-      <footer className="border-t border-slate-200 bg-white py-8 text-center text-sm text-slate-500">
-        Powered by ProductInfoMan PIM · Catalog data from search projection
-      </footer>
+      <main className="container-store flex-1 py-8 md:py-10">{children}</main>
+      <StoreFooter />
     </div>
   );
 }
@@ -22,8 +23,8 @@ export function PageTitle({
 }) {
   return (
     <div className="mb-8">
-      <h1 className="text-3xl font-bold tracking-tight text-slate-900">{title}</h1>
-      {description ? <p className="mt-2 text-slate-600">{description}</p> : null}
+      <h1 className="section-heading">{title}</h1>
+      {description ? <p className="section-subheading">{description}</p> : null}
     </div>
   );
 }
@@ -34,19 +35,21 @@ export function Breadcrumbs({
   items: Array<{ label: string; href?: string }>;
 }) {
   return (
-    <nav className="mb-4 text-sm text-slate-500">
-      {items.map((item, index) => (
-        <span key={`${item.label}-${index}`}>
-          {index > 0 ? <span className="mx-2">/</span> : null}
-          {item.href ? (
-            <Link href={item.href} className="hover:text-brand-600">
-              {item.label}
-            </Link>
-          ) : (
-            <span className="text-slate-800">{item.label}</span>
-          )}
-        </span>
-      ))}
+    <nav aria-label="Breadcrumb" className="mb-5 text-sm text-brand-500">
+      <ol className="flex flex-wrap items-center gap-1.5">
+        {items.map((item, index) => (
+          <li key={`${item.label}-${index}`} className="flex items-center gap-1.5">
+            {index > 0 ? <span className="text-brand-300">/</span> : null}
+            {item.href ? (
+              <Link href={item.href} className="transition hover:text-accent-600">
+                {item.label}
+              </Link>
+            ) : (
+              <span className="font-medium text-brand-800">{item.label}</span>
+            )}
+          </li>
+        ))}
+      </ol>
     </nav>
   );
 }
