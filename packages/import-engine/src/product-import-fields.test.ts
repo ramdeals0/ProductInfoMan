@@ -37,6 +37,13 @@ describe("product-import-fields", () => {
     expect(parseImportDate("2025-01-01")?.toISOString()).toBe("2025-01-01T00:00:00.000Z");
   });
 
+  it("includes parent and variant rows in generated examples", () => {
+    const products = buildImportExampleJson("JSON");
+    expect(products).toContain('"product_type": "PARENT"');
+    expect(products).toContain('"product_type": "VARIANT"');
+    expect(products).toContain('"parent_sku": "JSON-003"');
+  });
+
   it("keeps fixture files aligned with generated examples", () => {
     expect(buildImportExampleFile("CSV").content).toBe(buildImportExampleCsv("CSV"));
     expect(buildImportExampleFile("JSON").content).toBe(buildImportExampleJson("JSON"));

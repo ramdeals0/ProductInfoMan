@@ -1,3 +1,6 @@
 sku,product_type,title,description,brand,parent_sku,category_code,summary,selling_points,start_date,discontinue_date,color,size
 CSV-001,SIMPLE,Import Oxford Shirt,A classic oxford shirt for everyday wear.,Demo Brand,,oxford,Classic oxford shirt with a comfortable everyday fit.,Quality fabric|Easy care|Classic fit,2025-01-01,2027-12-31,Blue,M
 CSV-002,SIMPLE,Import Cotton Tee,Soft cotton tee for casual wear.,Demo Brand,,oxford,Soft cotton tee with a relaxed fit for daily wear.,Soft cotton|Breathable|Everyday essential,2025-02-01,2028-06-30,White,L
+CSV-003,PARENT,Import Oxford Shirt Family,Parent product grouping oxford shirt variants by size and color.,Demo Brand,,oxford,Oxford shirt available in multiple sizes and colors.,Multiple fits|Coordinated variants|Easy merchandising,2025-01-01,2027-12-31,,
+CSV-004,VARIANT,Import Oxford Shirt — Blue / M,"Oxford shirt variant in blue, size medium.",Demo Brand,CSV-003,oxford,Blue oxford shirt in size medium.,Quality fabric|Easy care,2025-01-01,2027-12-31,Blue,M
+CSV-005,VARIANT,Import Oxford Shirt — White / L,"Oxford shirt variant in white, size large.",Demo Brand,CSV-003,oxford,White oxford shirt in size large.,Quality fabric|Easy care,2025-01-01,2027-12-31,White,L
