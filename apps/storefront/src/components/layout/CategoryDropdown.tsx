@@ -27,7 +27,7 @@ export function CategoryDropdown() {
     <select
       id="category-select"
       aria-label="Browse categories"
-      className="input w-auto min-w-[10rem] max-w-[14rem] shrink-0"
+      className="input w-full min-w-[10rem] max-w-[12rem] cursor-pointer bg-transparent py-2 text-sm font-medium text-brand-700 lg:w-auto"
       value={selectedCode}
       disabled={treeQuery.isLoading || options.length === 0}
       onChange={(event) => {

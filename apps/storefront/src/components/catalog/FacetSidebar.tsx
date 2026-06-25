@@ -42,13 +42,15 @@ export function FacetSidebar({ facets }: { facets: SearchFacetAggregationEntity[
   if (visibleFacets.length === 0) return null;
 
   return (
-    <aside className="card p-4">
-      <h2 className="font-semibold text-slate-900">Filters</h2>
-      <div className="mt-4 space-y-6">
+    <aside className="card h-fit p-5 md:sticky md:top-28">
+      <h2 className="font-display text-lg text-brand-900">Filter by</h2>
+      <div className="mt-5 space-y-6">
         {visibleFacets.map((facet) => (
           <div key={facet.key}>
-            <h3 className="text-sm font-medium capitalize text-slate-700">{facet.key}</h3>
-            <ul className="mt-2 space-y-1">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-brand-500">
+              {facet.key.replace(/_/g, " ")}
+            </h3>
+            <ul className="mt-2.5 space-y-1">
               {facet.buckets.map((bucket) => {
                 const active = searchParams.getAll(`facet[${facet.key}]`).includes(bucket.value);
                 return (
@@ -57,12 +59,16 @@ export function FacetSidebar({ facets }: { facets: SearchFacetAggregationEntity[
                       type="button"
                       onClick={() => toggleFacet(facet.key, bucket.value)}
                       className={clsx(
-                        "flex w-full items-center justify-between rounded px-2 py-1 text-left text-sm",
-                        active ? "bg-brand-50 text-brand-700" : "hover:bg-slate-50",
+                        "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition",
+                        active
+                          ? "bg-brand-800 font-medium text-white"
+                          : "text-brand-700 hover:bg-brand-50",
                       )}
                     >
                       <span>{bucket.value}</span>
-                      <span className="text-slate-400">{bucket.count}</span>
+                      <span className={active ? "text-brand-200" : "text-brand-400"}>
+                        {bucket.count}
+                      </span>
                     </button>
                   </li>
                 );

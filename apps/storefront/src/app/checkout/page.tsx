@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { CheckIcon } from "@/components/icons/Icons";
+import { TrustBadges } from "@/components/catalog/TrustBadges";
 import { Breadcrumbs, PageTitle, StoreLayout } from "@/components/layout/StoreShell";
 import { ErrorMessage } from "@/components/ui/States";
 import { formatPrice } from "@/lib/catalog";
@@ -61,6 +63,9 @@ export default function CheckoutPage() {
     return null;
   }
 
+  const shipping = subtotal >= 75 ? 0 : 6.95;
+  const total = subtotal + shipping;
+
   return (
     <StoreLayout>
       <Breadcrumbs
@@ -70,38 +75,62 @@ export default function CheckoutPage() {
           { label: "Checkout" },
         ]}
       />
-      <PageTitle title="Checkout" description="Review your order before payment" />
+      <PageTitle title="Checkout" description="Review your order and complete your purchase" />
 
       {error ? <ErrorMessage message={error} /> : null}
 
-      <div className="card mt-6 max-w-lg p-6">
-        <ul className="divide-y divide-slate-200">
-          {items.map((item) => (
-            <li key={item.productId} className="flex justify-between py-3 text-sm">
-              <span>
-                {item.name} × {item.quantity}
-              </span>
-              <span>{formatPrice(item.price * item.quantity)}</span>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-4 flex justify-between border-t border-slate-200 pt-4 font-semibold">
-          <span>Total</span>
-          <span>{formatPrice(subtotal)}</span>
+      <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="card p-6">
+          <h2 className="font-display text-xl text-brand-900">Your items</h2>
+          <ul className="mt-5 divide-y divide-brand-100">
+            {items.map((item) => (
+              <li key={item.productId} className="flex justify-between gap-4 py-4 text-sm">
+                <div>
+                  <p className="font-medium text-brand-900">{item.name}</p>
+                  <p className="mt-1 text-brand-500">Qty {item.quantity}</p>
+                </div>
+                <span className="font-medium text-brand-900">
+                  {formatPrice(item.price * item.quantity)}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
 
-        <button
-          type="button"
-          onClick={startCheckout}
-          disabled={loading}
-          className="btn-primary mt-6 w-full"
-        >
-          {loading ? "Processing…" : "Place order"}
-        </button>
+        <aside className="card h-fit p-6 md:sticky md:top-28">
+          <h2 className="font-display text-xl text-brand-900">Payment summary</h2>
+          <div className="mt-5 space-y-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-brand-500">Subtotal</span>
+              <span>{formatPrice(subtotal)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-brand-500">Shipping</span>
+              <span>{shipping === 0 ? "Free" : formatPrice(shipping)}</span>
+            </div>
+          </div>
+          <div className="mt-4 flex justify-between border-t border-brand-100 pt-4 text-lg font-semibold">
+            <span>Total</span>
+            <span>{formatPrice(total)}</span>
+          </div>
 
-        <p className="mt-3 text-center text-xs text-slate-500">
-          Uses Stripe Checkout when configured; otherwise completes a mock order.
-        </p>
+          <button
+            type="button"
+            onClick={startCheckout}
+            disabled={loading}
+            className="btn-primary mt-6 w-full"
+          >
+            {loading ? "Processing…" : "Place order"}
+          </button>
+
+          <p className="mt-3 text-center text-xs text-brand-500">
+            Secure checkout via Stripe when configured, or demo mode otherwise.
+          </p>
+
+          <div className="mt-6">
+            <TrustBadges compact />
+          </div>
+        </aside>
       </div>
     </StoreLayout>
   );
