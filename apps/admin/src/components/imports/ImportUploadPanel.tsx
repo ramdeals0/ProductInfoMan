@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { ImportFileType } from "@productinfoman/domain";
+import { useToast } from "@/components/ui/Toast";
 import { downloadImportExample, IMPORT_EXAMPLE_TYPES } from "@/lib/import-examples";
 import { useSession } from "@/lib/session";
 
@@ -24,6 +25,7 @@ export function ImportUploadPanel() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { api } = useSession();
+  const { pushToast } = useToast();
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [fileType, setFileType] = useState<ImportFileType>("CSV");
@@ -51,13 +53,17 @@ export function ImportUploadPanel() {
     },
     onSuccess: (job) => {
       queryClient.invalidateQueries({ queryKey: ["imports"] });
+      queryClient.invalidateQueries({ queryKey: ["reports-summary"] });
+      pushToast(`Uploaded ${job.fileName}`, "success");
       setOpen(false);
       setFile(null);
       setError(null);
       router.push(`/admin/imports/${job.id}`);
     },
     onError: (mutationError) => {
-      setError((mutationError as Error).message);
+      const message = (mutationError as Error).message;
+      setError(message);
+      pushToast(message, "error");
     },
   });
 
@@ -133,7 +139,10 @@ export function ImportUploadPanel() {
             key={type}
             className="btn-secondary text-xs"
             type="button"
-            onClick={() => downloadImportExample(type)}
+            onClick={() => {
+              downloadImportExample(type);
+              pushToast(`Downloaded ${type} example file`, "info");
+            }}
           >
             {type}
           </button>
