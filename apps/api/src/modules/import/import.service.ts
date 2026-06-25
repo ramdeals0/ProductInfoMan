@@ -7,6 +7,7 @@ import type {
   ImportJobRowEntity,
   ImportRunSummaryEntity,
   ImportTemplateEntity,
+  ImportEntityType,
 } from "@productinfoman/domain";
 import type {
   CreateImportTemplateInput,
@@ -46,6 +47,15 @@ import {
 import { processImportRowThroughMdm } from "../mdm/mdm.service.js";
 import { normalizeSourcePayload } from "@productinfoman/mdm-engine";
 import { enqueueImportJob } from "./import.queue.js";
+import {
+  isTaxonomyImportEntity,
+  mergeTaxonomyMappingsForEntity,
+  processTaxonomyImportJob,
+  resolveUploadEntityType,
+  taxonomyDefaultsForEntity,
+  taxonomyParseOptions,
+  validateTaxonomyImportJob,
+} from "./import-taxonomy.service.js";
 import { assertHeavyJobCapacity } from "../../lib/queue-backpressure.js";
 import { loadApiEnv } from "@productinfoman/config";
 
@@ -75,6 +85,7 @@ function toImportJobDto(job: {
   id: string;
   organizationId: string;
   importTemplateId: string | null;
+  entityType: ImportEntityType;
   fileName: string;
   filePath: string;
   fileType: ImportFileType;
@@ -96,6 +107,7 @@ function toImportJobDto(job: {
     id: job.id,
     organizationId: job.organizationId,
     importTemplateId: job.importTemplateId,
+    entityType: job.entityType === "VARIANT" ? "PRODUCT" : job.entityType,
     fileName: job.fileName,
     filePath: job.filePath,
     fileType: job.fileType,
@@ -115,7 +127,11 @@ function toImportJobDto(job: {
   };
 }
 
-async function parseImportContent(content: string, fileType: ImportFileType): Promise<ParsedImport> {
+async function parseImportContent(
+  content: string,
+  fileType: ImportFileType,
+  entityType: ImportEntityType = "PRODUCT",
+): Promise<ParsedImport> {
   if (fileType === "CSV") {
     const parsed = parseCsv(content);
     return {
@@ -128,7 +144,13 @@ async function parseImportContent(content: string, fileType: ImportFileType): Pr
     };
   }
 
-  const generator = fileType === "JSON" ? parseJson(content) : parseXml(content);
+  const taxonomyOptions = isTaxonomyImportEntity(entityType)
+    ? taxonomyParseOptions(entityType, fileType)
+    : {};
+  const generator =
+    fileType === "JSON"
+      ? parseJson(content, { rootArrayKeys: taxonomyOptions.jsonRootKeys })
+      : parseXml(content, { productElement: taxonomyOptions.xmlRecordElement });
   const importRows = await collectImportRows(generator);
   const headers = new Set<string>();
   const rows = importRows.map((row) => {
@@ -151,44 +173,59 @@ async function parseImportContent(content: string, fileType: ImportFileType): Pr
 
 async function loadTemplateMappings(
   organizationId: string,
+  entityType: ImportEntityType,
   importTemplateId?: string | null,
 ): Promise<TemplateMapping[]> {
+  const resolvedEntityType = entityType === "VARIANT" ? "PRODUCT" : entityType;
+
   if (importTemplateId) {
     const template = await prisma.importTemplate.findFirst({
       where: { id: importTemplateId, organizationId },
       include: { mappings: { orderBy: { sortOrder: "asc" } } },
     });
     if (!template) throw appError("Import template not found", 404);
-    return mergeTemplateMappings(
-      template.mappings.map((mapping) => ({
-        sourceColumn: mapping.sourceColumn,
-        targetField: mapping.targetField,
-        isRequired: mapping.isRequired,
-      })),
-    );
+    const stored = template.mappings.map((mapping) => ({
+      sourceColumn: mapping.sourceColumn,
+      targetField: mapping.targetField,
+      isRequired: mapping.isRequired,
+    }));
+    if (isTaxonomyImportEntity(resolvedEntityType)) {
+      return mergeTaxonomyMappingsForEntity(resolvedEntityType, stored);
+    }
+    return mergeTemplateMappings(stored);
   }
 
   const defaultTemplate = await prisma.importTemplate.findFirst({
-    where: { organizationId, isDefault: true },
+    where: { organizationId, isDefault: true, entityType: resolvedEntityType },
     include: { mappings: { orderBy: { sortOrder: "asc" } } },
   });
   if (defaultTemplate) {
-    return mergeTemplateMappings(
-      defaultTemplate.mappings.map((mapping) => ({
-        sourceColumn: mapping.sourceColumn,
-        targetField: mapping.targetField,
-        isRequired: mapping.isRequired,
-      })),
-    );
+    const stored = defaultTemplate.mappings.map((mapping) => ({
+      sourceColumn: mapping.sourceColumn,
+      targetField: mapping.targetField,
+      isRequired: mapping.isRequired,
+    }));
+    if (isTaxonomyImportEntity(resolvedEntityType)) {
+      return mergeTaxonomyMappingsForEntity(resolvedEntityType, stored);
+    }
+    return mergeTemplateMappings(stored);
+  }
+
+  if (isTaxonomyImportEntity(resolvedEntityType)) {
+    return taxonomyDefaultsForEntity(resolvedEntityType);
   }
 
   return buildDefaultTemplateMappings();
 }
 
-async function buildValidationContext(organizationId: string, job: {
-  duplicatePolicy: "REJECT" | "UPDATE" | "SKIP";
-  importType: "CREATE" | "UPDATE" | "UPSERT";
-}) {
+async function buildValidationContext(
+  organizationId: string,
+  job: {
+    duplicatePolicy: "REJECT" | "UPDATE" | "SKIP";
+    importType: "CREATE" | "UPDATE" | "UPSERT";
+    entityType: ImportEntityType;
+  },
+) {
   const [products, categories, attributes, rules] = await Promise.all([
     prisma.product.findMany({
       where: { organizationId, deletedAt: null },
@@ -203,7 +240,11 @@ async function buildValidationContext(organizationId: string, job: {
       select: { key: true },
     }),
     prisma.validationRule.findMany({
-      where: { organizationId, isActive: true, entityType: "PRODUCT" },
+      where: {
+        organizationId,
+        isActive: true,
+        entityType: job.entityType === "VARIANT" ? "PRODUCT" : job.entityType,
+      },
     }),
   ]);
 
@@ -242,7 +283,7 @@ async function persistImportRowsInBatches(
     importJobId: string;
     rowNumber: number;
     rawData: unknown;
-    normalizedData?: NormalizedImportRow;
+    normalizedData?: unknown;
     status: "VALID" | "INVALID";
   }>,
 ): Promise<void> {
@@ -258,11 +299,13 @@ export async function uploadImport(
   input: UploadImportInput & { fileName: string; fileBuffer: Buffer },
 ): Promise<ImportJobEntity> {
   const fileType = inferImportFileType(input.fileName, input.fileType ?? null);
+  const entityType = await resolveUploadEntityType(organizationId, input);
 
   const job = await prisma.importJob.create({
     data: {
       organizationId,
       importTemplateId: input.importTemplateId,
+      entityType,
       fileName: input.fileName,
       filePath: "",
       fileType,
@@ -313,15 +356,16 @@ export async function validateImport(
     data: { status: "VALIDATING", errorMessage: null },
   });
 
-  const [fileContent, mappings, context] = await Promise.all([
+  const entityType = job.entityType === "VARIANT" ? "PRODUCT" : job.entityType;
+
+  const [fileContent, mappings] = await Promise.all([
     readFile(job.filePath, "utf8"),
-    loadTemplateMappings(organizationId, job.importTemplateId),
-    buildValidationContext(organizationId, job),
+    loadTemplateMappings(organizationId, entityType, job.importTemplateId),
   ]);
 
   let parsed: ParsedImport;
   try {
-    parsed = await parseImportContent(fileContent, job.fileType);
+    parsed = await parseImportContent(fileContent, job.fileType, entityType);
   } catch (error) {
     const message =
       error instanceof ImportParseError
@@ -343,6 +387,95 @@ export async function validateImport(
 
     throw appError(message, 400);
   }
+
+  if (isTaxonomyImportEntity(entityType)) {
+    const taxonomyResult = await validateTaxonomyImportJob(
+      {
+        id: job.id,
+        organizationId,
+        importType: job.importType,
+        duplicatePolicy: job.duplicatePolicy,
+        blankCellPolicy: job.blankCellPolicy,
+        entityType,
+      },
+      parsed,
+      mappings,
+    );
+
+    await prisma.importJobRow.deleteMany({ where: { importJobId: job.id } });
+    await prisma.importJobError.deleteMany({ where: { importJobId: job.id } });
+
+    if (taxonomyResult.rowRecords.length > 0) {
+      await persistImportRowsInBatches(taxonomyResult.rowRecords);
+    }
+
+    if (taxonomyResult.allErrors.length > 0) {
+      await prisma.importJobError.createMany({
+        data: taxonomyResult.allErrors.map((error) => ({
+          importJobId: job.id,
+          rowNumber: error.rowNumber,
+          fieldName: error.fieldName,
+          errorCode: error.errorCode,
+          errorMessage: error.errorMessage,
+          rawValue: error.rawValue,
+        })),
+      });
+    }
+
+    const status =
+      taxonomyResult.invalidRows > 0 && taxonomyResult.validRows === 0
+        ? "VALIDATION_FAILED"
+        : "VALIDATED";
+
+    await prisma.importRunSummary.upsert({
+      where: { importJobId: job.id },
+      create: {
+        importJobId: job.id,
+        totalRows: parsed.rows.length,
+        validRows: taxonomyResult.validRows,
+        invalidRows: taxonomyResult.invalidRows,
+        duplicateRows: taxonomyResult.allErrors.filter((error) => error.errorCode === "DUPLICATE_KEY")
+          .length,
+        summaryJson: {
+          headers: parsed.headers,
+          fileType: job.fileType,
+          entityType,
+          errorCodes: [...new Set(taxonomyResult.allErrors.map((error) => error.errorCode))],
+        },
+      },
+      update: {
+        totalRows: parsed.rows.length,
+        validRows: taxonomyResult.validRows,
+        invalidRows: taxonomyResult.invalidRows,
+        duplicateRows: taxonomyResult.allErrors.filter((error) => error.errorCode === "DUPLICATE_KEY")
+          .length,
+        summaryJson: {
+          headers: parsed.headers,
+          fileType: job.fileType,
+          entityType,
+          errorCodes: [...new Set(taxonomyResult.allErrors.map((error) => error.errorCode))],
+        },
+      },
+    });
+
+    const updated = await prisma.importJob.update({
+      where: { id: job.id },
+      data: {
+        status,
+        totalRows: parsed.rows.length,
+        validRows: taxonomyResult.validRows,
+        invalidRows: taxonomyResult.invalidRows,
+      },
+    });
+
+    return toImportJobDto(updated);
+  }
+
+  const context = await buildValidationContext(organizationId, {
+    duplicatePolicy: job.duplicatePolicy,
+    importType: job.importType,
+    entityType,
+  });
 
   const normalizationErrors: RowValidationError[] = [];
   const normalizedRows: NormalizedImportRow[] = [];
@@ -481,6 +614,93 @@ export async function processImportJob(importJobId: string, organizationId: stri
     where: { id: job.id },
     data: { status: "PROCESSING" },
   });
+
+  const entityType = job.entityType === "VARIANT" ? "PRODUCT" : job.entityType;
+
+  if (isTaxonomyImportEntity(entityType)) {
+    try {
+      const { committedRows, skippedRows } = await processTaxonomyImportJob({
+        id: job.id,
+        organizationId,
+        importType: job.importType,
+        duplicatePolicy: job.duplicatePolicy,
+        blankCellPolicy: job.blankCellPolicy,
+        entityType,
+      });
+
+      await prisma.importRunSummary.update({
+        where: { importJobId: job.id },
+        data: {
+          committedRows,
+          skippedRows,
+          completedAt: new Date(),
+        },
+      });
+
+      await prisma.importJob.update({
+        where: { id: job.id },
+        data: {
+          status: "COMPLETED",
+          committedRows,
+        },
+      });
+
+      const auditLogId = await writeAudit({
+        organizationId,
+        entityType: "ImportJob",
+        entityId: job.id,
+        action: "IMPORT",
+        source: "import",
+        after: { committedRows, skippedRows, status: "COMPLETED", entityType },
+      });
+
+      await emitAuditRecordEvent({
+        organizationId,
+        auditLogId,
+        entityType: "ImportJob",
+        entityId: job.id,
+        action: "IMPORT",
+      });
+
+      await emitEvent(
+        createEvent("import.job.completed", organizationId, {
+          importJobId: job.id,
+          committedRows,
+          skippedRows,
+          status: "COMPLETED",
+        }),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Import processing failed";
+      await prisma.importJob.update({
+        where: { id: job.id },
+        data: {
+          status: "FAILED",
+          errorMessage: message,
+        },
+      });
+
+      await writeAudit({
+        organizationId,
+        entityType: "ImportJob",
+        entityId: job.id,
+        action: "IMPORT",
+        source: "import",
+        after: { status: "FAILED", errorMessage: message },
+      });
+
+      await emitEvent(
+        createEvent("import.job.failed", organizationId, {
+          importJobId: job.id,
+          status: "FAILED",
+          errorMessage: message,
+        }),
+      );
+
+      throw error;
+    }
+    return;
+  }
 
   const rows = await prisma.importJobRow.findMany({
     where: { importJobId: job.id, status: "VALID" },

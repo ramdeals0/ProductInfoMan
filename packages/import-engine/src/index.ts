@@ -25,6 +25,35 @@ export {
 } from "./product-import-fields.js";
 
 export {
+  buildDefaultAttributeTemplateMappings,
+  buildDefaultCategoryTemplateMappings,
+  buildDefaultFacetTemplateMappings,
+  buildDefaultTemplateMappingsForEntity,
+  buildAttributeImportExampleCsv,
+  buildCategoryImportExampleCsv,
+  buildFacetImportExampleCsv,
+  buildTaxonomyImportExample,
+  mergeTaxonomyTemplateMappings,
+  normalizeAttributeRow,
+  normalizeCategoryRow,
+  normalizeFacetRow,
+  sortCategoryRowsForCommit,
+  TAXONOMY_IMPORT_RECORD_CONFIG,
+  validateAttributeImportRows,
+  validateCategoryImportRows,
+  validateFacetImportRows,
+  type AttributeValidationContext,
+  type CategoryValidationContext,
+  type FacetValidationContext,
+  type NormalizedAttributeImportRow,
+  type NormalizedCategoryImportRow,
+  type NormalizedFacetImportRow,
+  type TaxonomyImportEntityType,
+  type TaxonomyImportTemplateMapping,
+  type TaxonomyRowValidationError,
+} from "./taxonomy-import-fields.js";
+
+export {
   collectImportRows,
   fieldsToStringRecord,
   flattenObject,

@@ -10,6 +10,7 @@ export type ImportRow = {
 
 export type JsonParseOptions = {
   rootArrayKey?: string;
+  rootArrayKeys?: string[];
 };
 
 export type XmlParseOptions = {
@@ -110,9 +111,16 @@ function extractJsonProducts(parsed: unknown, options: JsonParseOptions = {}): u
   const record = parsed as Record<string, unknown>;
   const candidateKeys = [
     options.rootArrayKey,
+    ...(options.rootArrayKeys ?? []),
     "products",
     "items",
     "product",
+    "categories",
+    "category",
+    "attributes",
+    "attribute",
+    "facets",
+    "facet",
     "data",
   ].filter((key): key is string => Boolean(key));
 
@@ -205,7 +213,19 @@ export async function* parseXml(
     ignoreAttributes: true,
     trimValues: true,
     parseTagValue: true,
-    isArray: (_tagName, jPath) => jPath.endsWith(".product") || jPath === "products.product",
+    isArray: (_tagName, jPath) => {
+      const path = String(jPath);
+      return (
+        path.endsWith(".product") ||
+        path === "products.product" ||
+        path.endsWith(".category") ||
+        path === "categories.category" ||
+        path.endsWith(".attribute") ||
+        path === "attributes.attribute" ||
+        path.endsWith(".facet") ||
+        path === "facets.facet"
+      );
+    },
   });
 
   let parsed: Record<string, unknown>;

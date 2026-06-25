@@ -3,9 +3,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import type { ImportFileType } from "@productinfoman/domain";
+import type { ImportEntityType, ImportFileType } from "@productinfoman/domain";
 import { useToast } from "@/components/ui/Toast";
-import { downloadImportExample, IMPORT_EXAMPLE_TYPES } from "@/lib/import-examples";
+import {
+  downloadImportExample,
+  IMPORT_ENTITY_TYPE_OPTIONS,
+  IMPORT_EXAMPLE_TYPES,
+} from "@/lib/import-examples";
 import { useSession } from "@/lib/session";
 
 const FILE_TYPE_OPTIONS: Array<{ value: ImportFileType; label: string }> = [
@@ -28,11 +32,21 @@ export function ImportUploadPanel() {
   const { pushToast } = useToast();
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [entityType, setEntityType] = useState<ImportEntityType>("PRODUCT");
   const [fileType, setFileType] = useState<ImportFileType>("CSV");
   const [importType, setImportType] = useState<"CREATE" | "UPDATE" | "UPSERT">("CREATE");
   const [error, setError] = useState<string | null>(null);
 
   const helpText = useMemo(() => {
+    if (entityType === "CATEGORY") {
+      return "Upload categories with code, name, slug, and optional parent_code for hierarchy.";
+    }
+    if (entityType === "ATTRIBUTE") {
+      return "Upload attribute definitions with attribute_group_code, key, label, and optional flags.";
+    }
+    if (entityType === "FACET") {
+      return "Upload facet definitions that reference existing attributes via source_attribute_key.";
+    }
     if (fileType === "JSON") {
       return "Upload a JSON array of product objects. Nested fields are flattened with dot notation (e.g. attributes.color).";
     }
@@ -40,7 +54,7 @@ export function ImportUploadPanel() {
       return "Upload XML with a root element containing repeated <product> nodes. Nested elements map to dotted field paths.";
     }
     return "Upload a comma-separated file with a header row. Column names are mapped through your import template.";
-  }, [fileType]);
+  }, [entityType, fileType]);
 
   const uploadMutation = useMutation({
     mutationFn: async () => {
@@ -48,6 +62,7 @@ export function ImportUploadPanel() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("file_type", fileType);
+      formData.append("entityType", entityType);
       formData.append("importType", importType);
       return api.uploadImport(formData);
     },
@@ -89,7 +104,22 @@ export function ImportUploadPanel() {
         </button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
+        <label className="block text-sm">
+          <span className="mb-1 block text-slate-600">Entity type</span>
+          <select
+            className="w-full rounded border border-slate-300 px-3 py-2"
+            value={entityType}
+            onChange={(event) => setEntityType(event.target.value as ImportEntityType)}
+          >
+            {IMPORT_ENTITY_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <label className="block text-sm">
           <span className="mb-1 block text-slate-600">File</span>
           <input
@@ -140,19 +170,14 @@ export function ImportUploadPanel() {
             className="btn-secondary text-xs"
             type="button"
             onClick={() => {
-              downloadImportExample(type);
-              pushToast(`Downloaded ${type} example file`, "info");
+              downloadImportExample(entityType, type);
+              pushToast(`Downloaded ${entityType} ${type} example`, "info");
             }}
           >
             {type}
           </button>
         ))}
       </div>
-
-      <p className="mt-3 text-sm text-slate-500">
-        JSON expects a root array of product objects. XML expects repeated &lt;product&gt; elements under a root
-        node. Nested fields flatten to dotted paths for template mapping.
-      </p>
 
       {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
 

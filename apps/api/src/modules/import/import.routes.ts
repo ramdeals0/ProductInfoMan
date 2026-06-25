@@ -37,6 +37,7 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
 
       const input = UploadImportSchema.parse({
         importTemplateId: fields.importTemplateId?.value,
+        entityType: fields.entityType?.value,
         importType: fields.importType?.value,
         duplicatePolicy: fields.duplicatePolicy?.value,
         blankCellPolicy: fields.blankCellPolicy?.value,
