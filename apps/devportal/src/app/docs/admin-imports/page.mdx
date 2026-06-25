@@ -36,11 +36,11 @@ Bulk ingest products from **CSV**, **JSON**, or **XML** with validation, error r
 ## CSV example
 
 ```csv
-sku,product_type,title,description,brand,category_code,summary,selling_points,start_date,discontinue_date,color,size
-CSV-001,SIMPLE,Import Oxford Shirt,A classic oxford shirt for everyday wear.,Demo Brand,oxford,Classic oxford shirt with a comfortable everyday fit.,Quality fabric|Easy care|Classic fit,2025-01-01,2027-12-31,Blue,M
+sku,product_type,title,description,brand,category_code,summary,selling_points,start_date,discontinue_date,color,size,fabric,fit,price,material,facet_brand,facet_color,facet_size,facet_fabric,facet_fit,facet_price,facet_material
+CSV-001,SIMPLE,Import Oxford Shirt,A classic oxford shirt for everyday wear.,Demo Brand,oxford,Classic oxford shirt with a comfortable everyday fit.,Quality fabric|Easy care|Classic fit,2025-01-01,2027-12-31,Blue,M,Cotton,Regular,49.99,Cotton,Demo Brand,Blue,M,Cotton,Regular,25_to_50,Cotton
 ```
 
-Use pipe-separated values for `selling_points` in CSV. Downloadable examples in the admin import UI are generated from the same field catalog in `@productinfoman/import-engine`.
+Use pipe-separated values for `selling_points` in CSV. Attribute columns (`color`, `fabric`, `fit`, `price`, etc.) are imported via your template. `facet_*` columns in downloadable samples show browse facet values derived after indexing and are not mapped by the default template unless you add them explicitly.
 
 ## JSON import
 
@@ -61,7 +61,20 @@ Expected shape: a JSON array at the root, or an object with a `products` / `item
     "discontinue_date": "2027-12-31",
     "attributes": {
       "color": "Blue",
-      "size": "M"
+      "size": "M",
+      "fabric": "Cotton",
+      "fit": "Regular",
+      "price": "49.99",
+      "material": "Cotton"
+    },
+    "facets": {
+      "brand": "Demo Brand",
+      "color": "Blue",
+      "size": "M",
+      "fabric": "Cotton",
+      "fit": "Regular",
+      "price": "25_to_50",
+      "material": "Cotton"
     }
   }
 ]
@@ -103,7 +116,20 @@ Downloadable examples include **SIMPLE**, **PARENT**, and **VARIANT** rows. Vari
     <attributes>
       <color>Blue</color>
       <size>M</size>
+      <fabric>Cotton</fabric>
+      <fit>Regular</fit>
+      <price>49.99</price>
+      <material>Cotton</material>
     </attributes>
+    <facets>
+      <brand>Demo Brand</brand>
+      <color>Blue</color>
+      <size>M</size>
+      <fabric>Cotton</fabric>
+      <fit>Regular</fit>
+      <price>25_to_50</price>
+      <material>Cotton</material>
+    </facets>
   </product>
   <product>
     <sku>XML-003</sku>
@@ -132,12 +158,25 @@ Downloadable examples include **SIMPLE**, **PARENT**, and **VARIANT** rows. Vari
     <attributes>
       <color>Blue</color>
       <size>M</size>
+      <fabric>Cotton</fabric>
+      <fit>Regular</fit>
+      <price>49.99</price>
+      <material>Cotton</material>
     </attributes>
+    <facets>
+      <brand>Demo Brand</brand>
+      <color>Blue</color>
+      <size>M</size>
+      <fabric>Cotton</fabric>
+      <fit>Regular</fit>
+      <price>25_to_50</price>
+      <material>Cotton</material>
+    </facets>
   </product>
 </products>
 ```
 
-Use pipe-separated values for `selling_points` in XML (same as CSV). Nested `<attributes>` elements map to dotted template paths such as `attributes.color`.
+Use pipe-separated values for `selling_points` in XML (same as CSV). Nested `<attributes>` elements map to dotted template paths such as `attributes.color`. The optional `<facets>` block in downloadable samples shows computed browse facet values (for example price buckets like `25_to_50`).
 
 <CodeBlock language="bash" title="Upload XML">
 {`curl -X POST "https://api.yourpim.com/api/v1/imports/upload?file_type=xml" \\

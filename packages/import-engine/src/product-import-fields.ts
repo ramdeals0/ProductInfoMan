@@ -25,19 +25,44 @@ export const PRODUCT_IMPORT_CORE_FIELDS = [
 export const PRODUCT_IMPORT_ATTRIBUTE_FIELDS = [
   { key: "color", required: false },
   { key: "size", required: false },
+  { key: "fabric", required: false },
+  { key: "fit", required: false },
+  { key: "price", required: false },
+  { key: "material", required: false },
+] as const;
+
+/**
+ * Facet keys illustrated in sample downloads. Facets are derived from attributes at
+ * search index time; CSV includes `facet_*` reference columns that are not part of
+ * the default import template mappings.
+ */
+export const PRODUCT_IMPORT_FACET_FIELDS = [
+  { key: "brand", required: false },
+  { key: "color", required: false },
+  { key: "size", required: false },
+  { key: "fabric", required: false },
+  { key: "fit", required: false },
+  { key: "price", required: false },
+  { key: "material", required: false },
 ] as const;
 
 export const PRODUCT_IMPORT_CORE_FIELD_KEYS = PRODUCT_IMPORT_CORE_FIELDS.map((field) => field.key);
 export const PRODUCT_IMPORT_ATTRIBUTE_FIELD_KEYS = PRODUCT_IMPORT_ATTRIBUTE_FIELDS.map(
   (field) => field.key,
 );
+export const PRODUCT_IMPORT_FACET_FIELD_KEYS = PRODUCT_IMPORT_FACET_FIELDS.map((field) => field.key);
+export const PRODUCT_IMPORT_FACET_SAMPLE_COLUMN_KEYS = PRODUCT_IMPORT_FACET_FIELD_KEYS.map(
+  (key) => `facet_${key}`,
+);
 export const PRODUCT_IMPORT_SAMPLE_FIELD_KEYS = [
   ...PRODUCT_IMPORT_CORE_FIELD_KEYS,
   ...PRODUCT_IMPORT_ATTRIBUTE_FIELD_KEYS,
+  ...PRODUCT_IMPORT_FACET_SAMPLE_COLUMN_KEYS,
 ] as const;
 
 export type ProductImportCoreFieldKey = (typeof PRODUCT_IMPORT_CORE_FIELDS)[number]["key"];
 export type ProductImportAttributeFieldKey = (typeof PRODUCT_IMPORT_ATTRIBUTE_FIELDS)[number]["key"];
+export type ProductImportFacetFieldKey = (typeof PRODUCT_IMPORT_FACET_FIELDS)[number]["key"];
 
 export interface ImportExampleProduct {
   sku: string;
@@ -52,6 +77,7 @@ export interface ImportExampleProduct {
   start_date?: string;
   discontinue_date?: string;
   attributes?: Record<string, string>;
+  facets?: Record<string, string>;
 }
 
 const BASE_EXAMPLE_PRODUCTS: ImportExampleProduct[] = [
@@ -66,7 +92,14 @@ const BASE_EXAMPLE_PRODUCTS: ImportExampleProduct[] = [
     selling_points: ["Quality fabric", "Easy care", "Classic fit"],
     start_date: "2025-01-01",
     discontinue_date: "2027-12-31",
-    attributes: { color: "Blue", size: "M" },
+    attributes: {
+      color: "Blue",
+      size: "M",
+      fabric: "Cotton",
+      fit: "Regular",
+      price: "49.99",
+      material: "Cotton",
+    },
   },
   {
     sku: "EXAMPLE-002",
@@ -79,7 +112,14 @@ const BASE_EXAMPLE_PRODUCTS: ImportExampleProduct[] = [
     selling_points: ["Soft cotton", "Breathable", "Everyday essential"],
     start_date: "2025-02-01",
     discontinue_date: "2028-06-30",
-    attributes: { color: "White", size: "L" },
+    attributes: {
+      color: "White",
+      size: "L",
+      fabric: "Cotton",
+      fit: "Relaxed",
+      price: "24.99",
+      material: "Cotton",
+    },
   },
   {
     sku: "EXAMPLE-003",
@@ -105,7 +145,14 @@ const BASE_EXAMPLE_PRODUCTS: ImportExampleProduct[] = [
     selling_points: ["Quality fabric", "Easy care"],
     start_date: "2025-01-01",
     discontinue_date: "2027-12-31",
-    attributes: { color: "Blue", size: "M" },
+    attributes: {
+      color: "Blue",
+      size: "M",
+      fabric: "Cotton",
+      fit: "Regular",
+      price: "49.99",
+      material: "Cotton",
+    },
   },
   {
     sku: "EXAMPLE-005",
@@ -119,7 +166,14 @@ const BASE_EXAMPLE_PRODUCTS: ImportExampleProduct[] = [
     selling_points: ["Quality fabric", "Easy care"],
     start_date: "2025-01-01",
     discontinue_date: "2027-12-31",
-    attributes: { color: "White", size: "L" },
+    attributes: {
+      color: "White",
+      size: "L",
+      fabric: "Cotton",
+      fit: "Regular",
+      price: "49.99",
+      material: "Cotton",
+    },
   },
 ];
 
@@ -127,15 +181,49 @@ function exampleSku(prefix: string, sku: string): string {
   return sku.replace(/^EXAMPLE-/, `${prefix}-`);
 }
 
+function priceFacetBucket(priceValue: string | undefined): string | undefined {
+  const price = Number.parseFloat(priceValue ?? "");
+  if (Number.isNaN(price)) return undefined;
+  if (price < 25) return "under_25";
+  if (price < 50) return "25_to_50";
+  if (price < 100) return "50_to_100";
+  if (price < 200) return "100_to_200";
+  return "200_plus";
+}
+
+export function deriveExampleFacets(product: ImportExampleProduct): Record<string, string> {
+  const facets: Record<string, string> = {};
+
+  if (product.brand) facets.brand = product.brand;
+
+  for (const key of PRODUCT_IMPORT_FACET_FIELD_KEYS) {
+    if (key === "brand" || key === "price") continue;
+    const value = product.attributes?.[key];
+    if (value) facets[key] = value;
+  }
+
+  const priceBucket = priceFacetBucket(product.attributes?.price);
+  if (priceBucket) facets.price = priceBucket;
+
+  return { ...facets, ...product.facets };
+}
+
 export function importExampleProducts(fileType: ImportExampleFileType): ImportExampleProduct[] {
   const prefix = fileType;
-  return BASE_EXAMPLE_PRODUCTS.map((product) => ({
-    ...product,
-    sku: exampleSku(prefix, product.sku),
-    ...(product.parent_sku
-      ? { parent_sku: exampleSku(prefix, product.parent_sku) }
-      : {}),
-  }));
+  return BASE_EXAMPLE_PRODUCTS.map((product) => {
+    const sku = exampleSku(prefix, product.sku);
+    const parentSku = product.parent_sku ? exampleSku(prefix, product.parent_sku) : undefined;
+    const withSkus = {
+      ...product,
+      sku,
+      ...(parentSku ? { parent_sku: parentSku } : {}),
+    };
+
+    return {
+      ...withSkus,
+      facets: deriveExampleFacets(withSkus),
+    };
+  });
 }
 
 export function buildDefaultTemplateMappings(): ProductImportTemplateMapping[] {
@@ -195,13 +283,22 @@ function csvEscape(value: string): string {
   return value;
 }
 
+function isAttributeFieldKey(key: string): key is ProductImportAttributeFieldKey {
+  return (PRODUCT_IMPORT_ATTRIBUTE_FIELD_KEYS as readonly string[]).includes(key);
+}
+
 function productToCsvRow(product: ImportExampleProduct): string {
+  const facets = deriveExampleFacets(product);
   const values = PRODUCT_IMPORT_SAMPLE_FIELD_KEYS.map((key) => {
     if (key === "selling_points") {
       return csvEscape((product.selling_points ?? []).join("|"));
     }
-    if (key === "color" || key === "size") {
+    if (isAttributeFieldKey(key)) {
       return csvEscape(product.attributes?.[key] ?? "");
+    }
+    if (key.startsWith("facet_")) {
+      const facetKey = key.slice("facet_".length) as ProductImportFacetFieldKey;
+      return csvEscape(facets[facetKey] ?? "");
     }
     const value = product[key as keyof ImportExampleProduct];
     if (Array.isArray(value) || (value && typeof value === "object")) {
@@ -221,10 +318,11 @@ export function buildImportExampleCsv(fileType: ImportExampleFileType = "CSV"): 
 
 export function buildImportExampleJson(fileType: ImportExampleFileType = "JSON"): string {
   const products = importExampleProducts(fileType).map(
-    ({ attributes, selling_points, ...product }) => ({
+    ({ attributes, facets, selling_points, ...product }) => ({
       ...product,
       ...(selling_points ? { selling_points } : {}),
-      ...(attributes ? { attributes } : {}),
+      ...(attributes && Object.keys(attributes).length > 0 ? { attributes } : {}),
+      ...(facets && Object.keys(facets).length > 0 ? { facets } : {}),
     }),
   );
   return `${JSON.stringify(products, null, 2)}\n`;
@@ -243,7 +341,21 @@ function xmlElement(name: string, value: string, indent = 4): string {
   return `${pad}<${name}>${escapeXml(value)}</${name}>`;
 }
 
+function buildXmlRecordBlock(
+  blockName: string,
+  values: Record<string, string>,
+  indent = 4,
+): string[] {
+  const lines = [`${" ".repeat(indent)}<${blockName}>`];
+  for (const [key, value] of Object.entries(values)) {
+    lines.push(xmlElement(key, value, indent + 2));
+  }
+  lines.push(`${" ".repeat(indent)}</${blockName}>`);
+  return lines;
+}
+
 function buildXmlProduct(product: ImportExampleProduct): string {
+  const facets = deriveExampleFacets(product);
   const lines = [
     xmlElement("sku", product.sku),
     xmlElement("product_type", product.product_type),
@@ -261,11 +373,10 @@ function buildXmlProduct(product: ImportExampleProduct): string {
   if (product.start_date) lines.push(xmlElement("start_date", product.start_date));
   if (product.discontinue_date) lines.push(xmlElement("discontinue_date", product.discontinue_date));
   if (product.attributes && Object.keys(product.attributes).length > 0) {
-    lines.push("    <attributes>");
-    for (const [key, value] of Object.entries(product.attributes)) {
-      lines.push(xmlElement(key, value, 6));
-    }
-    lines.push("    </attributes>");
+    lines.push(...buildXmlRecordBlock("attributes", product.attributes));
+  }
+  if (Object.keys(facets).length > 0) {
+    lines.push(...buildXmlRecordBlock("facets", facets));
   }
 
   return `  <product>\n${lines.join("\n")}\n  </product>`;
