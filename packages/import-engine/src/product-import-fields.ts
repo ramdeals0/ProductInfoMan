@@ -81,6 +81,46 @@ const BASE_EXAMPLE_PRODUCTS: ImportExampleProduct[] = [
     discontinue_date: "2028-06-30",
     attributes: { color: "White", size: "L" },
   },
+  {
+    sku: "EXAMPLE-003",
+    product_type: "PARENT",
+    title: "Import Oxford Shirt Family",
+    description: "Parent product grouping oxford shirt variants by size and color.",
+    brand: "Demo Brand",
+    category_code: "oxford",
+    summary: "Oxford shirt available in multiple sizes and colors.",
+    selling_points: ["Multiple fits", "Coordinated variants", "Easy merchandising"],
+    start_date: "2025-01-01",
+    discontinue_date: "2027-12-31",
+  },
+  {
+    sku: "EXAMPLE-004",
+    product_type: "VARIANT",
+    title: "Import Oxford Shirt — Blue / M",
+    description: "Oxford shirt variant in blue, size medium.",
+    brand: "Demo Brand",
+    parent_sku: "EXAMPLE-003",
+    category_code: "oxford",
+    summary: "Blue oxford shirt in size medium.",
+    selling_points: ["Quality fabric", "Easy care"],
+    start_date: "2025-01-01",
+    discontinue_date: "2027-12-31",
+    attributes: { color: "Blue", size: "M" },
+  },
+  {
+    sku: "EXAMPLE-005",
+    product_type: "VARIANT",
+    title: "Import Oxford Shirt — White / L",
+    description: "Oxford shirt variant in white, size large.",
+    brand: "Demo Brand",
+    parent_sku: "EXAMPLE-003",
+    category_code: "oxford",
+    summary: "White oxford shirt in size large.",
+    selling_points: ["Quality fabric", "Easy care"],
+    start_date: "2025-01-01",
+    discontinue_date: "2027-12-31",
+    attributes: { color: "White", size: "L" },
+  },
 ];
 
 function exampleSku(prefix: string, sku: string): string {
@@ -92,6 +132,9 @@ export function importExampleProducts(fileType: ImportExampleFileType): ImportEx
   return BASE_EXAMPLE_PRODUCTS.map((product) => ({
     ...product,
     sku: exampleSku(prefix, product.sku),
+    ...(product.parent_sku
+      ? { parent_sku: exampleSku(prefix, product.parent_sku) }
+      : {}),
   }));
 }
 
