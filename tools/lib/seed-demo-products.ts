@@ -4,6 +4,7 @@ import {
   defaultStorefrontAvailability,
 } from "./product-merchandising-copy.js";
 import { merchandisingValuesForIndex } from "./product-attribute-values.js";
+import { seedDemoParentVariantFamilies } from "./seed-product-family.js";
 import { upsertProductAttribute } from "./upsert-product-attribute.js";
 
 export type SeedDemoProductsOptions = {
@@ -16,6 +17,8 @@ export type SeedDemoProductsResult = {
   created: number;
   updated: number;
   total: number;
+  parentFamilies: number;
+  variants: number;
 };
 
 const BRANDS = ["Acme", "Northline", "Summit", "Harbor", "Fieldworks"] as const;
@@ -94,6 +97,26 @@ export async function seedDemoProducts(
     }
   }
 
+  const categoryByCode = Object.fromEntries(leafCategories.map((category) => [category.code, category]));
+  const parentVariantResults = await seedDemoParentVariantFamilies(
+    prisma,
+    organizationId,
+    {
+      brand: attrByKey.get("brand")!,
+      color: attrByKey.get("color")!,
+      size: attrByKey.get("size")!,
+      fabric: attrByKey.get("fabric")!,
+      price: attrByKey.get("price")!,
+      rating: attrByKey.get("rating")!,
+      availability: attrByKey.get("availability")!,
+      warranty_years: attrByKey.get("warranty_years")!,
+      material: attrByKey.get("material")!,
+      fit: attrByKey.get("fit")!,
+    },
+    categoryByCode,
+    publish,
+  );
+
   let created = 0;
   let updated = 0;
 
@@ -165,5 +188,11 @@ export async function seedDemoProducts(
     }
   }
 
-  return { created, updated, total: count };
+  return {
+    created,
+    updated,
+    total: count,
+    parentFamilies: parentVariantResults.length,
+    variants: parentVariantResults.reduce((sum, family) => sum + family.variantIds.length, 0),
+  };
 }

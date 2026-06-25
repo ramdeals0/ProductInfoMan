@@ -18,11 +18,19 @@ function parseCount(argv: string[]): number {
   return !Number.isNaN(parsed) && parsed > 0 ? parsed : DEFAULT_DEMO_PRODUCT_COUNT;
 }
 
-async function publishDemoShirtCatalog(organizationId: string): Promise<number> {
+async function publishDemoParentCatalog(organizationId: string): Promise<number> {
+  const parentSkus = ["SHIRT-001", "POLO-001", "FLANNEL-001", "DRESS-001", "BTN-001"];
   const result = await prisma.product.updateMany({
     where: {
       organizationId,
-      sku: { startsWith: "SHIRT-" },
+      OR: [
+        { sku: { in: parentSkus } },
+        { sku: { startsWith: "SHIRT-001-" } },
+        { sku: { startsWith: "POLO-001-" } },
+        { sku: { startsWith: "FLANNEL-001-" } },
+        { sku: { startsWith: "DRESS-001-" } },
+        { sku: { startsWith: "BTN-001-" } },
+      ],
       deletedAt: null,
     },
     data: { status: "PUBLISHED" },
@@ -42,13 +50,13 @@ async function main() {
   execSync("pnpm db:seed", { stdio: "inherit" });
 
   const org = await prisma.organization.findUniqueOrThrow({ where: { slug: orgSlug } });
-  const published = await publishDemoShirtCatalog(org.id);
-  console.log(`==> Published ${published} SHIRT-* products`);
+  const published = await publishDemoParentCatalog(org.id);
+  console.log(`==> Published ${published} parent/variant catalog products`);
 
   console.log(`==> Seeding ${productCount} demo products (DEMO-*)`);
   const demoResult = await seedDemoProducts(prisma, org.id, { count: productCount, publish: true });
   console.log(
-    `    ${demoResult.created} created, ${demoResult.updated} updated (${demoResult.total} total)`,
+    `    ${demoResult.created} created, ${demoResult.updated} updated (${demoResult.total} SIMPLE) + ${demoResult.parentFamilies} parent families (${demoResult.variants} variants)`,
   );
 
   console.log("==> Reindexing search via running API");
@@ -56,7 +64,7 @@ async function main() {
   console.log(`Search reindex triggered via API (run ${runId})`);
 
   console.log(
-    `Demo reseed complete (${productCount} DEMO products + SHIRT parent/variants, Fleet Farm removed).`,
+    `Demo reseed complete (${productCount} DEMO SIMPLE products + ${demoResult.parentFamilies} parent families / ${demoResult.variants} variants, Fleet Farm removed).`,
   );
 }
 

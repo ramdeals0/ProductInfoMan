@@ -43,7 +43,9 @@ async function main() {
     publish: true,
   });
 
-  console.log(`Products seeded: ${result.created} created, ${result.updated} updated (${result.total} total)`);
+  console.log(
+    `Products seeded: ${result.created} created, ${result.updated} updated (${result.total} SIMPLE) + ${result.parentFamilies} parent families (${result.variants} variants)`,
+  );
 
   if (options.reindex) {
     const runId = await reindexViaApi(options.orgSlug);

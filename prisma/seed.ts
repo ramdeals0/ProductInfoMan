@@ -5,11 +5,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client.js";
 import { PRICE_FACET_BUCKETS } from "../packages/config/facets.config.js";
 import { ROLE_SEEDS } from "../packages/shared/src/rbac.js";
-import {
-  buildProductMerchandisingCopy,
-  defaultStorefrontAvailability,
-} from "../tools/lib/product-merchandising-copy.js";
 import { buildDefaultTemplateMappings } from "../packages/import-engine/src/product-import-fields.js";
+import { seedDemoParentVariantFamilies } from "../tools/lib/seed-product-family.js";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -753,112 +750,30 @@ async function main() {
     });
   }
 
-  async function upsertProductAttribute(
-    productId: string,
-    attributeDefinitionId: string,
-    value: string | number,
-  ) {
-    await prisma.productAttributeValue.upsert({
-      where: {
-        productId_attributeDefinitionId: {
-          productId,
-          attributeDefinitionId,
-        },
-      },
-      create: {
-        productId,
-        attributeDefinitionId,
-        value,
-        source: "LOCAL",
-      },
-      update: { value },
-    });
-  }
+  const attributeMap = {
+    brand: brandAttr.id,
+    color: colorAttr.id,
+    size: sizeAttr.id,
+    fabric: fabricAttr.id,
+    price: priceAttr.id,
+    rating: ratingAttr.id,
+    availability: availabilityAttr.id,
+    warranty_years: warrantyAttr.id,
+    material: materialAttr.id,
+    fit: fitAttr.id,
+  };
 
-  const shirtCopy = buildProductMerchandisingCopy("Classic Oxford Shirt", "Shirts", 1);
-  const shirtDates = defaultStorefrontAvailability(1);
-
-  const parent = await prisma.product.upsert({
-    where: { organizationId_sku: { organizationId: org.id, sku: "SHIRT-001" } },
-    create: {
-      organizationId: org.id,
-      productType: "PARENT",
-      sku: "SHIRT-001",
-      title: "Classic Oxford Shirt",
-      description: shirtCopy.description,
-      summary: shirtCopy.summary,
-      sellingPoints: shirtCopy.sellingPoints,
-      brand: "Acme",
-      primaryCategoryId: oxford.id,
-      startDate: shirtDates.startDate,
-      discontinueDate: shirtDates.discontinueDate,
-      status: "PUBLISHED",
+  const parentVariantFamilies = await seedDemoParentVariantFamilies(
+    prisma,
+    org.id,
+    attributeMap,
+    {
+      oxford: { id: oxford.id, name: oxford.name },
+      flannel: { id: flannel.id, name: flannel.name },
+      spread_collar: { id: spreadCollar.id, name: spreadCollar.name },
+      button_down: { id: buttonDown.id, name: buttonDown.name },
     },
-    update: {
-      description: shirtCopy.description,
-      summary: shirtCopy.summary,
-      sellingPoints: shirtCopy.sellingPoints,
-      startDate: shirtDates.startDate,
-      discontinueDate: shirtDates.discontinueDate,
-      status: "PUBLISHED",
-    },
-  });
-
-  await upsertProductAttribute(parent.id, brandAttr.id, "Acme");
-  await upsertProductAttribute(parent.id, fabricAttr.id, "Cotton");
-  await upsertProductAttribute(parent.id, priceAttr.id, 49.99);
-  await upsertProductAttribute(parent.id, ratingAttr.id, 4.5);
-  await upsertProductAttribute(parent.id, availabilityAttr.id, "In Stock");
-  await upsertProductAttribute(parent.id, warrantyAttr.id, 2);
-  await upsertProductAttribute(parent.id, materialAttr.id, "Cotton");
-  await upsertProductAttribute(parent.id, fitAttr.id, "Regular");
-
-  const variants = [
-    { sku: "SHIRT-001-BL-M", color: "Blue", size: "M", price: 49.99 },
-    { sku: "SHIRT-001-BL-L", color: "Blue", size: "L", price: 49.99 },
-    { sku: "SHIRT-001-WH-M", color: "White", size: "M", price: 47.99 },
-  ];
-
-  for (const [variantIndex, v] of variants.entries()) {
-    const variantCopy = buildProductMerchandisingCopy(parent.title, "Shirts", variantIndex + 2);
-    const variantDates = defaultStorefrontAvailability(variantIndex + 2);
-    const variant = await prisma.product.upsert({
-      where: { organizationId_sku: { organizationId: org.id, sku: v.sku } },
-      create: {
-        organizationId: org.id,
-        productType: "VARIANT",
-        sku: v.sku,
-        parentId: parent.id,
-        title: parent.title,
-        description: variantCopy.description,
-        summary: variantCopy.summary,
-        sellingPoints: variantCopy.sellingPoints,
-        brand: parent.brand,
-        primaryCategoryId: oxford.id,
-        startDate: variantDates.startDate,
-        discontinueDate: variantDates.discontinueDate,
-        status: "PUBLISHED",
-      },
-      update: {
-        description: variantCopy.description,
-        summary: variantCopy.summary,
-        sellingPoints: variantCopy.sellingPoints,
-        startDate: variantDates.startDate,
-        discontinueDate: variantDates.discontinueDate,
-        status: "PUBLISHED",
-      },
-    });
-
-    await upsertProductAttribute(variant.id, colorAttr.id, v.color);
-    await upsertProductAttribute(variant.id, sizeAttr.id, v.size);
-    await upsertProductAttribute(variant.id, fabricAttr.id, "Cotton");
-    await upsertProductAttribute(variant.id, priceAttr.id, v.price);
-    await upsertProductAttribute(variant.id, ratingAttr.id, 4.3);
-    await upsertProductAttribute(variant.id, availabilityAttr.id, "In Stock");
-    await upsertProductAttribute(variant.id, warrantyAttr.id, 2);
-    await upsertProductAttribute(variant.id, materialAttr.id, "Cotton");
-    await upsertProductAttribute(variant.id, fitAttr.id, "Regular");
-  }
+  );
 
   const importTemplate = await prisma.importTemplate.upsert({
     where: { organizationId_code: { organizationId: org.id, code: "mvp-product-csv" } },
@@ -1203,7 +1118,7 @@ async function main() {
   });
 
   console.log(
-    "Seed complete: demo org, taxonomy, facets, import template, workflow, search index mapping, demo-store channel, SHIRT-001 + 3 variants",
+    `Seed complete: demo org, taxonomy, facets, import template, workflow, search index mapping, demo-store channel, ${parentVariantFamilies.length} parent families (${parentVariantFamilies.reduce((sum, family) => sum + family.variantIds.length, 0)} variants)`,
   );
 
   await prisma.integrationEndpoint.upsert({
