@@ -5,6 +5,7 @@ import type {
   SearchFacetResultEntity,
   SearchQueryResultEntity,
 } from "@productinfoman/domain";
+import { buildRequestHeaders } from "./request-headers";
 
 export type CatalogClientConfig = {
   baseUrl: string;
@@ -54,11 +55,7 @@ export class CatalogClient {
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(`${this.config.baseUrl}${path}`, {
       ...init,
-      headers: {
-        "Content-Type": "application/json",
-        "X-Organization-Slug": this.config.organizationSlug,
-        ...init?.headers,
-      },
+      headers: buildRequestHeaders({ organizationSlug: this.config.organizationSlug }, init),
     });
 
     if (!response.ok) {

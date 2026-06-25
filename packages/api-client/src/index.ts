@@ -1,4 +1,5 @@
 export { CatalogClient, createCatalogClient, type CatalogClientConfig, type SearchProductsParams } from "./catalog";
+export { buildRequestHeaders } from "./request-headers";
 
 import type {
   AuditLogEntity,
@@ -28,6 +29,7 @@ import type {
   WorkflowTaskEntity,
   WorkflowTransitionResult,
 } from "@productinfoman/domain";
+import { buildRequestHeaders } from "./request-headers";
 
 export type ApiClientConfig = {
   baseUrl: string;
@@ -90,21 +92,22 @@ function humanizeValidationMessage(message: string): string {
 export class ApiClient {
   constructor(private readonly config: ApiClientConfig) {}
 
-  private headers(extra?: HeadersInit): HeadersInit {
-    return {
-      "Content-Type": "application/json",
-      "X-Organization-Slug": this.config.organizationSlug,
-      ...(this.config.accessToken ? { Authorization: `Bearer ${this.config.accessToken}` } : {}),
-      ...(this.config.userEmail ? { "X-User-Email": this.config.userEmail } : {}),
-      ...(this.config.actorRole ? { "X-Actor-Role": this.config.actorRole } : {}),
-      ...extra,
-    };
+  private headers(init?: RequestInit): HeadersInit {
+    return buildRequestHeaders(
+      {
+        organizationSlug: this.config.organizationSlug,
+        accessToken: this.config.accessToken,
+        userEmail: this.config.userEmail,
+        actorRole: this.config.actorRole,
+      },
+      init,
+    );
   }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(`${this.config.baseUrl}${path}`, {
       ...init,
-      headers: this.headers(init?.headers),
+      headers: this.headers(init),
     });
 
     if (!response.ok) {
@@ -330,12 +333,6 @@ export class ApiClient {
   uploadImport(formData: FormData) {
     return this.request<ImportJobEntity>("/api/v1/imports/upload", {
       method: "POST",
-      headers: {
-        "X-Organization-Slug": this.config.organizationSlug,
-        ...(this.config.accessToken ? { Authorization: `Bearer ${this.config.accessToken}` } : {}),
-        ...(this.config.userEmail ? { "X-User-Email": this.config.userEmail } : {}),
-        ...(this.config.actorRole ? { "X-Actor-Role": this.config.actorRole } : {}),
-      },
       body: formData,
     });
   }
