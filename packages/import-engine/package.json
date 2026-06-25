@@ -6,7 +6,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./examples": "./src/product-import-fields.ts"
+    "./examples": "./src/product-import-fields.ts",
+    "./taxonomy-examples": "./src/taxonomy-import-fields.ts"
   },
   "scripts": {
     "test": "vitest run"

@@ -1,9 +1,9 @@
 import type { ImportEntityType, ImportFileType } from "@productinfoman/domain";
 import {
   buildImportExampleFile,
-  buildTaxonomyImportExample,
   IMPORT_EXAMPLE_FILE_TYPES,
-} from "@productinfoman/import-engine";
+} from "@productinfoman/import-engine/examples";
+import { buildTaxonomyImportExample } from "@productinfoman/import-engine/taxonomy-examples";
 
 export const IMPORT_EXAMPLE_TYPES = IMPORT_EXAMPLE_FILE_TYPES;
 
