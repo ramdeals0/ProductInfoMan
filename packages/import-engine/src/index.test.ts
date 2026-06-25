@@ -151,4 +151,39 @@ describe("import-engine", () => {
       attributes: { color: "Red" },
     });
   });
+
+  it("maps merchandising fields outside of custom attributes", () => {
+    const row = normalizeRow(
+      1,
+      {
+        sku: "M-1",
+        product_type: "SIMPLE",
+        title: "Merch",
+        summary: "Short summary.",
+        selling_points: "One|Two",
+        start_date: "2025-01-01",
+        discontinue_date: "2027-12-31",
+        color: "Blue",
+      },
+      [
+        { sourceColumn: "sku", targetField: "sku", isRequired: true },
+        { sourceColumn: "product_type", targetField: "product_type", isRequired: true },
+        { sourceColumn: "title", targetField: "title" },
+        { sourceColumn: "summary", targetField: "summary" },
+        { sourceColumn: "selling_points", targetField: "selling_points" },
+        { sourceColumn: "start_date", targetField: "start_date" },
+        { sourceColumn: "discontinue_date", targetField: "discontinue_date" },
+        { sourceColumn: "color", targetField: "color" },
+      ],
+      "IGNORE",
+    );
+
+    expect(row).toMatchObject({
+      summary: "Short summary.",
+      sellingPoints: ["One", "Two"],
+      startDate: "2025-01-01",
+      discontinueDate: "2027-12-31",
+      attributes: { color: "Blue" },
+    });
+  });
 });

@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     "@productinfoman/api-client",
     "@productinfoman/config",
     "@productinfoman/domain",
+    "@productinfoman/import-engine",
     "@productinfoman/shared",
     "@productinfoman/validation",
   ],

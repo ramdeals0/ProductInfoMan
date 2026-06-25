@@ -53,6 +53,9 @@ importers:
       '@productinfoman/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@productinfoman/import-engine':
+        specifier: workspace:*
+        version: link:../../packages/import-engine
       '@productinfoman/shared':
         specifier: workspace:*
         version: link:../../packages/shared

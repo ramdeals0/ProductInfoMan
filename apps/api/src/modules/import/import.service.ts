@@ -16,12 +16,14 @@ import type {
 } from "@productinfoman/validation";
 import {
   buildErrorReportCsv,
+  buildDefaultTemplateMappings,
   collectImportRows,
   fieldsToStringRecord,
   inferImportFileType,
   ImportParseError,
   normalizeRow,
   parseCsv,
+  parseImportDate,
   parseJson,
   parseXml,
   validateImportRows,
@@ -171,17 +173,7 @@ async function loadTemplateMappings(
     }));
   }
 
-  return [
-    { sourceColumn: "sku", targetField: "sku", isRequired: true },
-    { sourceColumn: "product_type", targetField: "product_type", isRequired: true },
-    { sourceColumn: "title", targetField: "title", isRequired: true },
-    { sourceColumn: "description", targetField: "description" },
-    { sourceColumn: "brand", targetField: "brand" },
-    { sourceColumn: "parent_sku", targetField: "parent_sku" },
-    { sourceColumn: "category_code", targetField: "category_code" },
-    { sourceColumn: "color", targetField: "color" },
-    { sourceColumn: "size", targetField: "size" },
-  ];
+  return buildDefaultTemplateMappings();
 }
 
 async function buildValidationContext(organizationId: string, job: {
@@ -499,6 +491,13 @@ export async function processImportJob(importJobId: string, organizationId: stri
   });
   const categoryByCode = new Map(categories.map((category) => [category.code, category.id]));
 
+  const productMerchandising = (normalized: NormalizedImportRow) => ({
+    summary: normalized.summary,
+    sellingPoints: normalized.sellingPoints,
+    startDate: parseImportDate(normalized.startDate),
+    discontinueDate: parseImportDate(normalized.discontinueDate),
+  });
+
   const skuToProductId = new Map<string, string>();
   const existingProducts = await prisma.product.findMany({
     where: { organizationId, deletedAt: null },
@@ -580,6 +579,7 @@ export async function processImportJob(importJobId: string, organizationId: stri
           primaryCategoryId: normalized.categoryCode
             ? categoryByCode.get(normalized.categoryCode)
             : undefined,
+          ...productMerchandising(normalized),
         });
         skuToProductId.set(normalized.sku, product.id);
       } else {
@@ -592,6 +592,7 @@ export async function processImportJob(importJobId: string, organizationId: stri
           primaryCategoryId: normalized.categoryCode
             ? categoryByCode.get(normalized.categoryCode)
             : undefined,
+          ...productMerchandising(normalized),
         });
         skuToProductId.set(normalized.sku, product.id);
       }
