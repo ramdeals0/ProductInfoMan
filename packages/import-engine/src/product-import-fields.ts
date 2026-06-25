@@ -230,8 +230,17 @@ export function buildImportExampleJson(fileType: ImportExampleFileType = "JSON")
   return `${JSON.stringify(products, null, 2)}\n`;
 }
 
-function xmlElement(name: string, value: string): string {
-  return `    <${name}>${value}</${name}>`;
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function xmlElement(name: string, value: string, indent = 4): string {
+  const pad = " ".repeat(indent);
+  return `${pad}<${name}>${escapeXml(value)}</${name}>`;
 }
 
 function buildXmlProduct(product: ImportExampleProduct): string {
@@ -254,7 +263,7 @@ function buildXmlProduct(product: ImportExampleProduct): string {
   if (product.attributes && Object.keys(product.attributes).length > 0) {
     lines.push("    <attributes>");
     for (const [key, value] of Object.entries(product.attributes)) {
-      lines.push(xmlElement(key, value));
+      lines.push(xmlElement(key, value, 6));
     }
     lines.push("    </attributes>");
   }

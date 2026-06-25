@@ -84,6 +84,8 @@ Map flattened paths in your import template, for example:
 
 Expected shape: a root element (default: first root tag) containing repeated `<product>` elements. Child elements flatten to dotted paths.
 
+Downloadable examples include **SIMPLE**, **PARENT**, and **VARIANT** rows. Variant products reference their parent with `<parent_sku>`.
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <products>
@@ -103,8 +105,39 @@ Expected shape: a root element (default: first root tag) containing repeated `<p
       <size>M</size>
     </attributes>
   </product>
+  <product>
+    <sku>XML-003</sku>
+    <product_type>PARENT</product_type>
+    <title>Import Oxford Shirt Family</title>
+    <description>Parent product grouping oxford shirt variants by size and color.</description>
+    <brand>Demo Brand</brand>
+    <category_code>oxford</category_code>
+    <summary>Oxford shirt available in multiple sizes and colors.</summary>
+    <selling_points>Multiple fits|Coordinated variants|Easy merchandising</selling_points>
+    <start_date>2025-01-01</start_date>
+    <discontinue_date>2027-12-31</discontinue_date>
+  </product>
+  <product>
+    <sku>XML-004</sku>
+    <product_type>VARIANT</product_type>
+    <title>Import Oxford Shirt — Blue / M</title>
+    <description>Oxford shirt variant in blue, size medium.</description>
+    <brand>Demo Brand</brand>
+    <parent_sku>XML-003</parent_sku>
+    <category_code>oxford</category_code>
+    <summary>Blue oxford shirt in size medium.</summary>
+    <selling_points>Quality fabric|Easy care</selling_points>
+    <start_date>2025-01-01</start_date>
+    <discontinue_date>2027-12-31</discontinue_date>
+    <attributes>
+      <color>Blue</color>
+      <size>M</size>
+    </attributes>
+  </product>
 </products>
 ```
+
+Use pipe-separated values for `selling_points` in XML (same as CSV). Nested `<attributes>` elements map to dotted template paths such as `attributes.color`.
 
 <CodeBlock language="bash" title="Upload XML">
 {`curl -X POST "https://api.yourpim.com/api/v1/imports/upload?file_type=xml" \\
