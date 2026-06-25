@@ -21,6 +21,7 @@ import {
   fieldsToStringRecord,
   inferImportFileType,
   ImportParseError,
+  mergeTemplateMappings,
   normalizeRow,
   parseCsv,
   parseImportDate,
@@ -37,7 +38,11 @@ import { appError, writeAudit } from "@productinfoman/shared";
 import { createEvent } from "@productinfoman/contracts";
 import { emitEvent } from "../../lib/events.js";
 import { emitAuditRecordEvent } from "../../lib/audit-events.js";
-import { createProduct, setProductAttributes } from "../product-core/product.service.js";
+import {
+  createProduct,
+  setProductAttributes,
+  updateProduct,
+} from "../product-core/product.service.js";
 import { processImportRowThroughMdm } from "../mdm/mdm.service.js";
 import { normalizeSourcePayload } from "@productinfoman/mdm-engine";
 import { enqueueImportJob } from "./import.queue.js";
@@ -154,11 +159,13 @@ async function loadTemplateMappings(
       include: { mappings: { orderBy: { sortOrder: "asc" } } },
     });
     if (!template) throw appError("Import template not found", 404);
-    return template.mappings.map((mapping) => ({
-      sourceColumn: mapping.sourceColumn,
-      targetField: mapping.targetField,
-      isRequired: mapping.isRequired,
-    }));
+    return mergeTemplateMappings(
+      template.mappings.map((mapping) => ({
+        sourceColumn: mapping.sourceColumn,
+        targetField: mapping.targetField,
+        isRequired: mapping.isRequired,
+      })),
+    );
   }
 
   const defaultTemplate = await prisma.importTemplate.findFirst({
@@ -166,11 +173,13 @@ async function loadTemplateMappings(
     include: { mappings: { orderBy: { sortOrder: "asc" } } },
   });
   if (defaultTemplate) {
-    return defaultTemplate.mappings.map((mapping) => ({
-      sourceColumn: mapping.sourceColumn,
-      targetField: mapping.targetField,
-      isRequired: mapping.isRequired,
-    }));
+    return mergeTemplateMappings(
+      defaultTemplate.mappings.map((mapping) => ({
+        sourceColumn: mapping.sourceColumn,
+        targetField: mapping.targetField,
+        isRequired: mapping.isRequired,
+      })),
+    );
   }
 
   return buildDefaultTemplateMappings();
@@ -557,8 +566,25 @@ export async function processImportJob(importJobId: string, organizationId: stri
         continue;
       }
 
-      let product;
-      if (normalized.productType === "VARIANT") {
+      const existingProductId = skuToProductId.get(normalized.sku);
+      const primaryCategoryId = normalized.categoryCode
+        ? categoryByCode.get(normalized.categoryCode)
+        : undefined;
+      const merchandising = productMerchandising(normalized);
+      const productInput = {
+        title: normalized.title ?? normalized.sku,
+        description: normalized.description,
+        brand: normalized.brand,
+        primaryCategoryId,
+        ...merchandising,
+      };
+
+      let productId: string;
+
+      if (existingProductId && (job.importType === "UPDATE" || job.importType === "UPSERT")) {
+        const updated = await updateProduct(existingProductId, organizationId, productInput);
+        productId = updated.id;
+      } else if (normalized.productType === "VARIANT") {
         const parentId = normalized.parentSku ? skuToProductId.get(normalized.parentSku) : undefined;
         if (!parentId) {
           skippedRows++;
@@ -569,36 +595,26 @@ export async function processImportJob(importJobId: string, organizationId: stri
           continue;
         }
 
-        product = await createProduct(organizationId, {
+        const created = await createProduct(organizationId, {
           productType: "VARIANT",
           sku: normalized.sku,
-          title: normalized.title ?? normalized.sku,
-          description: normalized.description,
-          brand: normalized.brand,
           parentId,
-          primaryCategoryId: normalized.categoryCode
-            ? categoryByCode.get(normalized.categoryCode)
-            : undefined,
-          ...productMerchandising(normalized),
+          ...productInput,
         });
-        skuToProductId.set(normalized.sku, product.id);
+        productId = created.id;
+        skuToProductId.set(normalized.sku, productId);
       } else {
-        product = await createProduct(organizationId, {
+        const created = await createProduct(organizationId, {
           productType: normalized.productType,
           sku: normalized.sku,
-          title: normalized.title ?? normalized.sku,
-          description: normalized.description,
-          brand: normalized.brand,
-          primaryCategoryId: normalized.categoryCode
-            ? categoryByCode.get(normalized.categoryCode)
-            : undefined,
-          ...productMerchandising(normalized),
+          ...productInput,
         });
-        skuToProductId.set(normalized.sku, product.id);
+        productId = created.id;
+        skuToProductId.set(normalized.sku, productId);
       }
 
       if (Object.keys(normalized.attributes).length > 0) {
-        await setProductAttributes(product.id, organizationId, {
+        await setProductAttributes(productId, organizationId, {
           attributes: normalized.attributes,
         });
       }
@@ -606,7 +622,7 @@ export async function processImportJob(importJobId: string, organizationId: stri
       committedRows++;
       await prisma.importJobRow.update({
         where: { id: row.id },
-        data: { status: "COMMITTED", entityId: skuToProductId.get(normalized.sku) },
+        data: { status: "COMMITTED", entityId: productId },
       });
 
       processedInBatch += 1;

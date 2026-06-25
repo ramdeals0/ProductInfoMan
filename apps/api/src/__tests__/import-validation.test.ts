@@ -357,4 +357,95 @@ describe("Import and Validation", () => {
     expect(validated.validRows).toBe(1);
     expect(validated.status).toBe("VALIDATED");
   });
+
+  it("commits XML merchandising fields even when the template lacks those mappings", async () => {
+    const ts = Date.now();
+    const sku = `XML-0011-${ts}`;
+    const xml = Buffer.from(
+      `<?xml version="1.0"?><products><product><sku>${sku}</sku><product_type>SIMPLE</product_type><title>XML Merch Product</title><description>Full description</description><brand>Demo Brand</brand><category_code>${shirtsCategoryCode}</category_code><summary>Imported summary text</summary><selling_points>Point one|Point two</selling_points><start_date>2025-03-01</start_date><discontinue_date>2028-03-01</discontinue_date><attributes><color>Blue</color><size>M</size></attributes></product></products>`,
+      "utf8",
+    );
+
+    const template = await createImportTemplate(organizationId, {
+      code: `xml-legacy-${ts}`,
+      name: "Legacy XML template",
+      sourceFormat: "XML",
+      mappings: [
+        { sourceColumn: "sku", targetField: "sku", isRequired: true },
+        { sourceColumn: "product_type", targetField: "product_type", isRequired: true },
+        { sourceColumn: "title", targetField: "title", isRequired: true },
+        { sourceColumn: "description", targetField: "description" },
+        { sourceColumn: "brand", targetField: "brand" },
+        { sourceColumn: "category_code", targetField: "category_code" },
+        { sourceColumn: "attributes.color", targetField: "color" },
+        { sourceColumn: "attributes.size", targetField: "size" },
+      ],
+    });
+
+    const uploaded = await uploadImport(organizationId, {
+      fileName: `products-${ts}.xml`,
+      fileBuffer: xml,
+      fileType: "XML",
+      importType: "CREATE",
+      duplicatePolicy: "REJECT",
+      importTemplateId: template.id,
+    });
+
+    const validated = await validateImport(uploaded.id, organizationId);
+    expect(validated.validRows).toBe(1);
+
+    await processImportJob(uploaded.id, organizationId);
+
+    const product = await prisma.product.findFirst({
+      where: { organizationId, sku },
+    });
+
+    expect(product).not.toBeNull();
+    expect(product?.summary).toBe("Imported summary text");
+    expect(product?.sellingPoints).toEqual(["Point one", "Point two"]);
+    expect(product?.startDate?.toISOString()).toBe("2025-03-01T00:00:00.000Z");
+    expect(product?.discontinueDate?.toISOString()).toBe("2028-03-01T00:00:00.000Z");
+  });
+
+  it("updates merchandising fields on UPSERT for an existing SKU", async () => {
+    const ts = Date.now();
+    const sku = `XML-UPSERT-${ts}`;
+
+    await prisma.product.create({
+      data: {
+        organizationId,
+        productType: "SIMPLE",
+        sku,
+        title: "Existing Product",
+      },
+    });
+
+    const xml = Buffer.from(
+      `<?xml version="1.0"?><products><product><sku>${sku}</sku><product_type>SIMPLE</product_type><title>Updated Product</title><category_code>${shirtsCategoryCode}</category_code><summary>Updated summary</summary><selling_points>Alpha|Beta</selling_points><start_date>2025-04-01</start_date><discontinue_date>2029-04-01</discontinue_date></product></products>`,
+      "utf8",
+    );
+
+    const uploaded = await uploadImport(organizationId, {
+      fileName: `upsert-${ts}.xml`,
+      fileBuffer: xml,
+      fileType: "XML",
+      importType: "UPSERT",
+      duplicatePolicy: "REJECT",
+    });
+
+    const validated = await validateImport(uploaded.id, organizationId);
+    expect(validated.validRows).toBe(1);
+
+    await processImportJob(uploaded.id, organizationId);
+
+    const product = await prisma.product.findFirst({
+      where: { organizationId, sku },
+    });
+
+    expect(product?.title).toBe("Updated Product");
+    expect(product?.summary).toBe("Updated summary");
+    expect(product?.sellingPoints).toEqual(["Alpha", "Beta"]);
+    expect(product?.startDate?.toISOString()).toBe("2025-04-01T00:00:00.000Z");
+    expect(product?.discontinueDate?.toISOString()).toBe("2029-04-01T00:00:00.000Z");
+  });
 });

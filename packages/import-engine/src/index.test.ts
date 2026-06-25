@@ -152,6 +152,31 @@ describe("import-engine", () => {
     });
   });
 
+  it("reads merchandising fields from raw XML/JSON paths when template mappings are missing", () => {
+    const row = normalizeRow(
+      1,
+      {
+        sku: "XML-0011",
+        product_type: "SIMPLE",
+        title: "Imported Shirt",
+        summary: "Short summary.",
+        selling_points: "One|Two",
+        start_date: "2025-01-01",
+        discontinue_date: "2027-12-31",
+      },
+      mappings,
+      "IGNORE",
+    );
+
+    expect(row).toMatchObject({
+      sku: "XML-0011",
+      summary: "Short summary.",
+      sellingPoints: ["One", "Two"],
+      startDate: "2025-01-01",
+      discontinueDate: "2027-12-31",
+    });
+  });
+
   it("maps merchandising fields outside of custom attributes", () => {
     const row = normalizeRow(
       1,

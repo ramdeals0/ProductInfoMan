@@ -7,6 +7,7 @@ import {
   buildImportExampleFile,
   buildImportExampleJson,
   buildImportExampleXml,
+  mergeTemplateMappings,
   parseImportDate,
   parseImportSellingPoints,
   PRODUCT_IMPORT_CORE_FIELD_KEYS,
@@ -82,6 +83,18 @@ describe("product-import-fields", () => {
       "attributes.fabric": "Cotton",
       "facets.price": "25_to_50",
     });
+  });
+
+  it("merges stored template mappings with canonical defaults", () => {
+    const merged = mergeTemplateMappings([
+      { sourceColumn: "sku", targetField: "sku", isRequired: true },
+      { sourceColumn: "title", targetField: "title" },
+    ]);
+
+    expect(merged.some((mapping) => mapping.sourceColumn === "summary")).toBe(true);
+    expect(merged.some((mapping) => mapping.sourceColumn === "selling_points")).toBe(true);
+    expect(merged.some((mapping) => mapping.sourceColumn === "start_date")).toBe(true);
+    expect(merged.find((mapping) => mapping.sourceColumn === "title")?.targetField).toBe("title");
   });
 
   it("keeps fixture files aligned with generated examples", () => {
