@@ -180,7 +180,7 @@ export type ImportJobStatus =
   | "CANCELLED";
 export type ImportType = "CREATE" | "UPDATE" | "UPSERT";
 export type ImportFileType = "CSV" | "XML" | "JSON";
-export type ImportEntityType = "PRODUCT" | "VARIANT" | "CATEGORY";
+export type ImportEntityType = "PRODUCT" | "VARIANT" | "CATEGORY" | "ATTRIBUTE" | "FACET";
 export type DuplicatePolicy = "REJECT" | "UPDATE" | "SKIP";
 export type BlankCellPolicy = "IGNORE" | "CLEAR";
 
@@ -211,6 +211,7 @@ export interface ImportJobEntity {
   id: string;
   organizationId: string;
   importTemplateId: string | null;
+  entityType: ImportEntityType;
   fileName: string;
   filePath: string;
   fileType: ImportFileType;

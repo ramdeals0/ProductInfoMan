@@ -145,9 +145,13 @@ export default function ImportDetailPage() {
       <Breadcrumb items={[{ label: "Imports", href: "/admin/imports" }, { label: job.fileName }]} />
       <PageHeader
         title={job.fileName}
-        description="Import job status, validation, and error report."
+        description={`${job.entityType} import job status, validation, and error report.`}
         actions={<StatusChip status={job.status} />}
       />
+
+      <div className="mb-6 rounded border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+        Entity type: <span className="font-medium">{job.entityType}</span>
+      </div>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-5">
         {[

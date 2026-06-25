@@ -6,6 +6,11 @@ import { PrismaClient } from "../generated/prisma/client.js";
 import { PRICE_FACET_BUCKETS } from "../packages/config/facets.config.js";
 import { ROLE_SEEDS } from "../packages/shared/src/rbac.js";
 import { buildDefaultTemplateMappings } from "../packages/import-engine/src/product-import-fields.js";
+import {
+  buildDefaultAttributeTemplateMappings,
+  buildDefaultCategoryTemplateMappings,
+  buildDefaultFacetTemplateMappings,
+} from "../packages/import-engine/src/taxonomy-import-fields.js";
 import { seedDemoParentVariantFamilies } from "../tools/lib/seed-product-family.js";
 
 const connectionString = process.env.DATABASE_URL;
@@ -813,6 +818,69 @@ async function main() {
       },
       update: { targetField, isRequired, sortOrder: index },
     });
+  }
+
+  const taxonomyTemplates = [
+    {
+      code: "mvp-category-csv",
+      name: "MVP Category CSV",
+      entityType: "CATEGORY" as const,
+      mappings: buildDefaultCategoryTemplateMappings(),
+    },
+    {
+      code: "mvp-attribute-csv",
+      name: "MVP Attribute CSV",
+      entityType: "ATTRIBUTE" as const,
+      mappings: buildDefaultAttributeTemplateMappings(),
+    },
+    {
+      code: "mvp-facet-csv",
+      name: "MVP Facet CSV",
+      entityType: "FACET" as const,
+      mappings: buildDefaultFacetTemplateMappings(),
+    },
+  ];
+
+  for (const templateDef of taxonomyTemplates) {
+    const taxonomyTemplate = await prisma.importTemplate.upsert({
+      where: { organizationId_code: { organizationId: org.id, code: templateDef.code } },
+      create: {
+        organizationId: org.id,
+        code: templateDef.code,
+        name: templateDef.name,
+        entityType: templateDef.entityType,
+        sourceFormat: "CSV",
+        isDefault: true,
+        configJson: {
+          blankCellPolicy: "IGNORE",
+          duplicatePolicy: "REJECT",
+        },
+      },
+      update: { isDefault: true, entityType: templateDef.entityType },
+    });
+
+    for (const [index, mapping] of templateDef.mappings.entries()) {
+      await prisma.importTemplateMapping.upsert({
+        where: {
+          importTemplateId_sourceColumn: {
+            importTemplateId: taxonomyTemplate.id,
+            sourceColumn: mapping.sourceColumn,
+          },
+        },
+        create: {
+          importTemplateId: taxonomyTemplate.id,
+          sourceColumn: mapping.sourceColumn,
+          targetField: mapping.targetField,
+          isRequired: mapping.isRequired ?? false,
+          sortOrder: index,
+        },
+        update: {
+          targetField: mapping.targetField,
+          isRequired: mapping.isRequired ?? false,
+          sortOrder: index,
+        },
+      });
+    }
   }
 
   const validationRuleDefs = [

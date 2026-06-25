@@ -641,6 +641,8 @@ enum ImportEntityType {
   PRODUCT
   VARIANT
   CATEGORY
+  ATTRIBUTE
+  FACET
 }
 
 enum DuplicatePolicy {
@@ -716,6 +718,7 @@ model ImportJob {
   id               String           @id @default(cuid())
   organizationId   String
   importTemplateId String?
+  entityType       ImportEntityType @default(PRODUCT)
   fileName         String
   filePath         String
   fileType         ImportFileType   @default(CSV)

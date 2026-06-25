@@ -30,6 +30,10 @@ export default function ImportsPage() {
     () => [
       { header: "File", accessorKey: "fileName" },
       {
+        header: "Entity",
+        accessorKey: "entityType",
+      },
+      {
         header: "Type",
         accessorKey: "fileType",
       },
@@ -49,7 +53,7 @@ export default function ImportsPage() {
     <div>
       <PageHeader
         title="Imports"
-        description="Upload and monitor CSV, JSON, and XML import jobs."
+        description="Upload and monitor CSV, JSON, and XML imports for products, categories, attributes, and facets."
       />
       <ImportUploadPanel />
       {isLoading ? <LoadingState /> : null}
