@@ -44,6 +44,25 @@ describe("product-import-fields", () => {
     expect(products).toContain('"parent_sku": "JSON-003"');
   });
 
+  it("builds XML examples with parent, variant, and nested attributes", async () => {
+    const xml = buildImportExampleXml("XML");
+    expect(xml).toContain("<product_type>PARENT</product_type>");
+    expect(xml).toContain("<product_type>VARIANT</product_type>");
+    expect(xml).toContain("<parent_sku>XML-003</parent_sku>");
+    expect(xml).toMatch(/<attributes>\n {6}<color>Blue<\/color>/);
+
+    const { collectImportRows, fieldsToStringRecord, parseXml } = await import("./parser.js");
+    const rows = await collectImportRows(parseXml(xml));
+    expect(rows).toHaveLength(5);
+    expect(fieldsToStringRecord(rows[3]!.fields)).toMatchObject({
+      sku: "XML-004",
+      product_type: "VARIANT",
+      parent_sku: "XML-003",
+      "attributes.color": "Blue",
+      "attributes.size": "M",
+    });
+  });
+
   it("keeps fixture files aligned with generated examples", () => {
     expect(buildImportExampleFile("CSV").content).toBe(buildImportExampleCsv("CSV"));
     expect(buildImportExampleFile("JSON").content).toBe(buildImportExampleJson("JSON"));
