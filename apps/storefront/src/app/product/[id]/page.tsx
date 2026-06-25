@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ProductDetail } from "@/components/catalog/ProductDetail";
 import { Breadcrumbs, StoreLayout } from "@/components/layout/StoreShell";
 import { createStorefrontCatalog } from "@/lib/catalog";
+import type { ProductEntity } from "@productinfoman/domain";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -17,44 +18,78 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   try {
     const product = await catalog.getProduct(id);
     return {
-      title: `${product.title} — Demo Shop`,
-      description: product.description ?? `Buy ${product.title} from the PIM catalog`,
+      title: product.title,
+      description: product.summary ?? product.description ?? `Shop ${product.title} at Northline`,
       alternates: { canonical: `/product/${id}` },
     };
   } catch {
-    return { title: "Product — Demo Shop" };
+    return { title: "Product" };
   }
+}
+
+async function resolveProductContext(
+  catalog: ReturnType<typeof createStorefrontCatalog>,
+  id: string,
+): Promise<{ product: ProductEntity; variants: ProductEntity[]; selectedId: string }> {
+  const fetched = await catalog.getProduct(id);
+
+  if (fetched.productType === "PARENT") {
+    const variants = (await catalog.listVariants(fetched.id)).items;
+    return {
+      product: fetched,
+      variants,
+      selectedId: variants[0]?.id ?? fetched.id,
+    };
+  }
+
+  if (fetched.productType === "VARIANT" && fetched.parentId) {
+    const variants = (await catalog.listVariants(fetched.parentId)).items;
+    try {
+      const parent = await catalog.getProduct(fetched.parentId);
+      return { product: parent, variants, selectedId: fetched.id };
+    } catch {
+      return { product: fetched, variants, selectedId: fetched.id };
+    }
+  }
+
+  return { product: fetched, variants: [], selectedId: fetched.id };
 }
 
 export default async function ProductPage({ params }: PageProps) {
   const { id } = await params;
   const catalog = createStorefrontCatalog();
 
-  let product;
+  let context;
   try {
-    product = await catalog.getProduct(id);
+    context = await resolveProductContext(catalog, id);
   } catch {
     notFound();
   }
 
-  let variants: Awaited<ReturnType<typeof catalog.listVariants>>["items"] = [];
-  if (product.productType === "PARENT") {
-    const result = await catalog.listVariants(product.id);
-    variants = result.items;
-  } else if (product.productType === "VARIANT" && product.parentId) {
-    const result = await catalog.listVariants(product.parentId);
-    variants = result.items;
+  const { product, variants, selectedId } = context;
+
+  const breadcrumbItems: Array<{ label: string; href?: string }> = [
+    { label: "Home", href: "/" },
+    { label: "Shop", href: "/search" },
+  ];
+
+  if (product.primaryCategoryId) {
+    const { items: categories } = await catalog.listCategories();
+    const category = categories.find((entry) => entry.id === product.primaryCategoryId);
+    if (category) {
+      breadcrumbItems.push({
+        label: category.name,
+        href: `/category/${category.code}`,
+      });
+    }
   }
+
+  breadcrumbItems.push({ label: product.title });
 
   return (
     <StoreLayout>
-      <Breadcrumbs
-        items={[
-          { label: "Home", href: "/" },
-          { label: product.title },
-        ]}
-      />
-      <ProductDetail product={product} variants={variants} />
+      <Breadcrumbs items={breadcrumbItems} />
+      <ProductDetail product={product} variants={variants} initialSelectedId={selectedId} />
     </StoreLayout>
   );
 }

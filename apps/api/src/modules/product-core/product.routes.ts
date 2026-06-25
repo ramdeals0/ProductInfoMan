@@ -56,7 +56,6 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
   app.get(
     "/products/:id/variants",
-    { preHandler: requireRoleGroup("READ") },
     async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
@@ -85,7 +84,6 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
   app.get(
     "/products/:id",
-    { preHandler: requireRoleGroup("READ") },
     async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
