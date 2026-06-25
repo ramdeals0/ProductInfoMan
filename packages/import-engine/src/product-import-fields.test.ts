@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  buildDefaultTemplateMappings,
   buildImportExampleCsv,
   buildImportExampleFile,
   buildImportExampleJson,
@@ -13,6 +14,8 @@ import {
   PRODUCT_IMPORT_CORE_FIELD_KEYS,
   PRODUCT_IMPORT_SAMPLE_FIELD_KEYS,
 } from "./product-import-fields.js";
+import { normalizeRow } from "./index.js";
+import { collectImportRows, fieldsToStringRecord, parseXml } from "./parser.js";
 
 describe("product-import-fields", () => {
   it("includes merchandising fields in the core field catalog", () => {
@@ -94,7 +97,43 @@ describe("product-import-fields", () => {
     expect(merged.some((mapping) => mapping.sourceColumn === "summary")).toBe(true);
     expect(merged.some((mapping) => mapping.sourceColumn === "selling_points")).toBe(true);
     expect(merged.some((mapping) => mapping.sourceColumn === "start_date")).toBe(true);
+    expect(merged.some((mapping) => mapping.sourceColumn === "attributes.color")).toBe(true);
+    expect(merged.some((mapping) => mapping.sourceColumn === "attributes.fabric")).toBe(true);
     expect(merged.find((mapping) => mapping.sourceColumn === "title")?.targetField).toBe("title");
+  });
+
+  it("includes nested attribute paths in default template mappings", () => {
+    const defaults = buildDefaultTemplateMappings();
+
+    expect(defaults.some((mapping) => mapping.sourceColumn === "color")).toBe(true);
+    expect(defaults.some((mapping) => mapping.sourceColumn === "attributes.color")).toBe(true);
+    expect(
+      defaults.find((mapping) => mapping.sourceColumn === "attributes.material")?.targetField,
+    ).toBe("material");
+  });
+
+  it("normalizes XML sample attributes with default template mappings", async () => {
+    const xml = buildImportExampleXml("XML");
+    const rows = await collectImportRows(parseXml(xml));
+    const mappings = buildDefaultTemplateMappings();
+    const normalized = normalizeRow(
+      1,
+      fieldsToStringRecord(rows[0]!.fields),
+      mappings,
+      "IGNORE",
+    );
+
+    expect(normalized).toMatchObject({
+      sku: "XML-001",
+      attributes: {
+        color: "Blue",
+        size: "M",
+        fabric: "Cotton",
+        fit: "Regular",
+        price: "49.99",
+        material: "Cotton",
+      },
+    });
   });
 
   it("keeps fixture files aligned with generated examples", () => {

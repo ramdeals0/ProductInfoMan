@@ -227,18 +227,25 @@ export function importExampleProducts(fileType: ImportExampleFileType): ImportEx
 }
 
 export function buildDefaultTemplateMappings(): ProductImportTemplateMapping[] {
-  return [
-    ...PRODUCT_IMPORT_CORE_FIELDS.map((field) => ({
-      sourceColumn: field.key,
-      targetField: field.key,
-      isRequired: field.required,
-    })),
-    ...PRODUCT_IMPORT_ATTRIBUTE_FIELDS.map((field) => ({
-      sourceColumn: field.key,
-      targetField: field.key,
-      isRequired: field.required,
-    })),
-  ];
+  const coreMappings = PRODUCT_IMPORT_CORE_FIELDS.map((field) => ({
+    sourceColumn: field.key,
+    targetField: field.key,
+    isRequired: field.required,
+  }));
+
+  const flatAttributeMappings = PRODUCT_IMPORT_ATTRIBUTE_FIELDS.map((field) => ({
+    sourceColumn: field.key,
+    targetField: field.key,
+    isRequired: field.required,
+  }));
+
+  const nestedAttributeMappings = PRODUCT_IMPORT_ATTRIBUTE_FIELDS.map((field) => ({
+    sourceColumn: `attributes.${field.key}`,
+    targetField: field.key,
+    isRequired: field.required,
+  }));
+
+  return [...coreMappings, ...flatAttributeMappings, ...nestedAttributeMappings];
 }
 
 /** Ensure canonical import mappings exist even when a stored template predates new fields. */

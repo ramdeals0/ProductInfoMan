@@ -322,6 +322,27 @@ describe("Import and Validation", () => {
     expect(job.errorMessage).toContain("Malformed JSON");
   });
 
+  it("uploads XML and validates product rows with the default template", async () => {
+    const ts = Date.now();
+    const xml = Buffer.from(
+      `<?xml version="1.0"?><products><product><sku>XML-DEF-${ts}</sku><product_type>SIMPLE</product_type><title>XML Default Template Product</title><category_code>${shirtsCategoryCode}</category_code><attributes><color>Red</color><size>L</size><fabric>Cotton</fabric></attributes></product></products>`,
+      "utf8",
+    );
+
+    const uploaded = await uploadImport(organizationId, {
+      fileName: `products-default-${ts}.xml`,
+      fileBuffer: xml,
+      fileType: "XML",
+      importType: "CREATE",
+      duplicatePolicy: "REJECT",
+    });
+
+    expect(uploaded.fileType).toBe("XML");
+    const validated = await validateImport(uploaded.id, organizationId);
+    expect(validated.validRows).toBe(1);
+    expect(validated.status).toBe("VALIDATED");
+  });
+
   it("uploads XML and validates product rows", async () => {
     const ts = Date.now();
     const xml = Buffer.from(
