@@ -11,6 +11,7 @@ import { ImportUploadPanel } from "@/components/imports/ImportUploadPanel";
 import { DataTable } from "@/components/ui/DataTable";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/States";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { IMPORT_POLL_INTERVAL_MS, isActiveImportStatus } from "@/lib/import-jobs";
 import { useSession } from "@/lib/session";
 
 export default function ImportsPage() {
@@ -19,6 +20,10 @@ export default function ImportsPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["imports"],
     queryFn: () => api.listImports({ page: 1, pageSize: 50 }),
+    refetchInterval: (query) => {
+      const hasActiveJob = query.state.data?.items.some((job) => isActiveImportStatus(job.status));
+      return hasActiveJob ? IMPORT_POLL_INTERVAL_MS : false;
+    },
   });
 
   const columns = useMemo<ColumnDef<ImportJobEntity>[]>(
