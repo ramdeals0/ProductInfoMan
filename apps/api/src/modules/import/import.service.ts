@@ -24,6 +24,7 @@ import {
   ImportParseError,
   mergeTemplateMappings,
   normalizeRow,
+  applyFacetValuesToAttributes,
   parseCsv,
   parseImportDate,
   parseJson,
@@ -56,6 +57,7 @@ import {
   taxonomyParseOptions,
   validateTaxonomyImportJob,
 } from "./import-taxonomy.service.js";
+import { loadFacetSourceAttributeMap } from "../taxonomy/facet-attribute-sync.js";
 import { assertHeavyJobCapacity } from "../../lib/queue-backpressure.js";
 import { loadApiEnv } from "@productinfoman/config";
 
@@ -479,6 +481,10 @@ export async function validateImport(
 
   const normalizationErrors: RowValidationError[] = [];
   const normalizedRows: NormalizedImportRow[] = [];
+  const facetSourceByKey =
+    entityType === "PRODUCT" || entityType === "VARIANT"
+      ? await loadFacetSourceAttributeMap(organizationId)
+      : new Map<string, string>();
 
   for (const row of parsed.rows) {
     const normalized = normalizeRow(row.rowNumber, row.data, mappings, job.blankCellPolicy);
@@ -496,7 +502,7 @@ export async function validateImport(
       });
       continue;
     }
-    normalizedRows.push(normalized);
+    normalizedRows.push(applyFacetValuesToAttributes(normalized, facetSourceByKey));
   }
 
   const validation = validateImportRows(normalizedRows, context);
