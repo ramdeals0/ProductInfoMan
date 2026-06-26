@@ -17,6 +17,7 @@ import type {
   OperationsReportEntity,
   OutboxEventEntity,
   ProductEntity,
+  ProductFacetPreviewEntity,
   ProductMatchCandidateEntity,
   ProductSourceRecordDetailEntity,
   ProductSourceRecordEntity,
@@ -141,6 +142,10 @@ export class ApiClient {
 
   getProduct(id: string) {
     return this.request<ProductEntity>(`/api/v1/products/${id}`);
+  }
+
+  getProductFacets(id: string) {
+    return this.request<ProductFacetPreviewEntity>(`/api/v1/products/${id}/facets`);
   }
 
   createProduct(body: Record<string, unknown>) {

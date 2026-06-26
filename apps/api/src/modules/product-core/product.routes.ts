@@ -83,6 +83,19 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get(
+    "/products/:id/facets",
+    { preHandler: requireRoleGroup("READ") },
+    async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const preview = await productService.getProductFacets(id, request.organizationId);
+      return reply.send(preview);
+    } catch (e) {
+      return sendRouteError(reply, request, e);
+    }
+  });
+
+  app.get(
     "/products/:id",
     async (request, reply) => {
     try {

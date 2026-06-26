@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   aggregateFacets,
+  buildFacetFields,
   buildSearchDocument,
   isIndexableStatus,
   matchesSearchQuery,
@@ -47,8 +48,8 @@ const baseInput: BuildSearchDocumentInput = {
     },
   ],
   facetDefinitions: [
-    { key: "color", sourceAttributeKey: "color" },
-    { key: "size", sourceAttributeKey: "size" },
+    { key: "color", label: "Color", sourceAttributeKey: "color" },
+    { key: "size", label: "Size", sourceAttributeKey: "size" },
   ],
 };
 
@@ -60,6 +61,33 @@ describe("isIndexableStatus", () => {
     expect(isIndexableStatus("DRAFT")).toBe(false);
     expect(isIndexableStatus("IN_REVIEW")).toBe(false);
     expect(isIndexableStatus("REJECTED")).toBe(false);
+  });
+});
+
+describe("buildFacetFields", () => {
+  it("computes facet values from attributes and rules", () => {
+    const fields = buildFacetFields(
+      [
+        { key: "color", attributeDefinitionId: "attr-color", value: "Blue" },
+        { key: "price", attributeDefinitionId: "attr-price", value: 49.99 },
+      ],
+      [
+        { key: "color", label: "Color", sourceAttributeKey: "color" },
+        {
+          key: "price",
+          label: "Price",
+          sourceAttributeKey: "price",
+          ruleType: "RANGE_BUCKET",
+          ruleConfig: {
+            buckets: [
+              { code: "under_25", label: "Under $25", min: null, max: 25 },
+              { code: "25_to_50", label: "$25 to $50", min: 25, max: 50 },
+            ],
+          },
+        },
+      ],
+    );
+    expect(fields).toEqual({ color: "Blue", price: "25_to_50" });
   });
 });
 
@@ -100,6 +128,7 @@ describe("buildSearchDocument", () => {
       facetDefinitions: [
         {
           key: "price",
+          label: "Price",
           sourceAttributeKey: "price",
           ruleType: "RANGE_BUCKET",
           ruleConfig: {
