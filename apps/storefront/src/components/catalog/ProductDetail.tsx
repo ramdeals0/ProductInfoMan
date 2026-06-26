@@ -14,8 +14,6 @@ type ProductDetailProps = {
   initialSelectedId?: string;
 };
 
-type DetailTab = "overview" | "specifications" | "features";
-
 function variantLabel(variant: ProductEntity): string {
   const axisAttrs = variant.attributes.filter((attr) =>
     ["color", "size", "style"].includes(attr.key.toLowerCase()),
@@ -36,7 +34,6 @@ export function ProductDetail({ product, variants, initialSelectedId }: ProductD
   const [selectedId, setSelectedId] = useState(defaultSelectedId);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
-  const [activeTab, setActiveTab] = useState<DetailTab>("overview");
 
   const selected = useMemo(
     () => selectableVariants.find((variant) => variant.id === selectedId) ?? product,
@@ -167,73 +164,56 @@ export function ProductDetail({ product, variants, initialSelectedId }: ProductD
       </div>
 
       <div className="catalog-panel mt-8 overflow-hidden">
-        <div className="flex border-b border-brand-200 bg-surface-muted">
-          <button
-            type="button"
-            className={activeTab === "overview" ? "tab-button-active" : "tab-button-inactive"}
-            onClick={() => setActiveTab("overview")}
-          >
-            Product Details
-          </button>
-          <button
-            type="button"
-            className={activeTab === "specifications" ? "tab-button-active" : "tab-button-inactive"}
-            onClick={() => setActiveTab("specifications")}
-          >
-            Specifications
-          </button>
-          <button
-            type="button"
-            className={activeTab === "features" ? "tab-button-active" : "tab-button-inactive"}
-            onClick={() => setActiveTab("features")}
-          >
-            Features
-          </button>
-        </div>
-
-        <div className="p-5 md:p-6">
-          {activeTab === "overview" ? (
-            <div className="prose-sm max-w-3xl text-brand-700">
+        <div className="divide-y divide-brand-200">
+          <section className="p-5 md:p-6">
+            <h2 className="text-lg font-semibold text-brand-900">Product Details</h2>
+            <div className="prose-sm mt-4 max-w-3xl text-brand-700">
               {product.description ? (
                 <p className="leading-relaxed">{product.description}</p>
               ) : (
                 <p className="text-brand-500">No additional product details available.</p>
               )}
             </div>
-          ) : null}
+          </section>
 
-          {activeTab === "specifications" ? (
-            selected.attributes.length > 0 ? (
-              <dl className="spec-table grid overflow-hidden rounded-lg border border-brand-200 md:grid-cols-2">
-                {selected.attributes.map((attr) => (
-                  <div key={attr.key} className="contents">
-                    <dt className="capitalize">{attr.key.replace(/_/g, " ")}</dt>
-                    <dd>{String(attr.value)}</dd>
-                  </div>
-                ))}
-              </dl>
-            ) : (
-              <p className="text-sm text-brand-500">No specifications listed for this product.</p>
-            )
-          ) : null}
+          <section className="p-5 md:p-6">
+            <h2 className="text-lg font-semibold text-brand-900">Specifications</h2>
+            <div className="mt-4">
+              {selected.attributes.length > 0 ? (
+                <dl className="spec-table grid overflow-hidden rounded-lg border border-brand-200 md:grid-cols-2">
+                  {selected.attributes.map((attr) => (
+                    <div key={attr.key} className="contents">
+                      <dt className="capitalize">{attr.key.replace(/_/g, " ")}</dt>
+                      <dd>{String(attr.value)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <p className="text-sm text-brand-500">No specifications listed for this product.</p>
+              )}
+            </div>
+          </section>
 
-          {activeTab === "features" ? (
-            product.sellingPoints.length > 0 ? (
-              <ul className="grid gap-3 sm:grid-cols-2">
-                {product.sellingPoints.map((point) => (
-                  <li
-                    key={point}
-                    className="flex gap-2 rounded-lg border border-brand-100 bg-surface-muted px-4 py-3 text-sm text-brand-700"
-                  >
-                    <span className="text-accent-500">✓</span>
-                    <span>{point}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-brand-500">No feature highlights listed for this product.</p>
-            )
-          ) : null}
+          <section className="p-5 md:p-6">
+            <h2 className="text-lg font-semibold text-brand-900">Features</h2>
+            <div className="mt-4">
+              {product.sellingPoints.length > 0 ? (
+                <ul className="grid gap-3 sm:grid-cols-2">
+                  {product.sellingPoints.map((point) => (
+                    <li
+                      key={point}
+                      className="flex gap-2 rounded-lg border border-brand-100 bg-surface-muted px-4 py-3 text-sm text-brand-700"
+                    >
+                      <span className="text-accent-500">✓</span>
+                      <span>{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-brand-500">No feature highlights listed for this product.</p>
+              )}
+            </div>
+          </section>
         </div>
       </div>
     </article>
