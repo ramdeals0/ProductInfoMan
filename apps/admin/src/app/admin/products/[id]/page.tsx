@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { CategoryEntity } from "@productinfoman/domain";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -31,6 +32,17 @@ function parseAttributeInput(raw: string, existing: unknown): unknown {
   return trimmed;
 }
 
+function formatCategoryPath(path: string): string {
+  return path
+    .split("/")
+    .filter(Boolean)
+    .join(" / ");
+}
+
+function sortCategories(categories: CategoryEntity[]): CategoryEntity[] {
+  return [...categories].sort((left, right) => left.path.localeCompare(right.path));
+}
+
 export default function ProductDetailPage() {
   const params = useParams<{ id: string }>();
   const { api, user } = useSession();
@@ -43,6 +55,7 @@ export default function ProductDetailPage() {
   const [discontinueDate, setDiscontinueDate] = useState("");
   const [rejectReason, setRejectReason] = useState("");
   const [attributeEdits, setAttributeEdits] = useState<Record<string, string>>({});
+  const [primaryCategoryId, setPrimaryCategoryId] = useState("");
 
   const roles = user?.roles ?? [];
   const canEdit = canEditProducts(roles);
@@ -59,8 +72,14 @@ export default function ProductDetailPage() {
       setSellingPointsText((product.sellingPoints ?? []).join("\n"));
       setStartDate(product.startDate ? product.startDate.slice(0, 10) : "");
       setDiscontinueDate(product.discontinueDate ? product.discontinueDate.slice(0, 10) : "");
+      setPrimaryCategoryId(product.primaryCategoryId ?? "");
       return product;
     },
+  });
+
+  const categoriesQuery = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => api.listCategories(),
   });
 
   const facetsQuery = useQuery({
@@ -104,8 +123,12 @@ export default function ProductDetailPage() {
         discontinueDate: discontinueDate
           ? new Date(`${discontinueDate}T00:00:00.000Z`).toISOString()
           : null,
+        primaryCategoryId: primaryCategoryId || null,
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["product", params.id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["product", params.id] });
+      queryClient.invalidateQueries({ queryKey: ["product-facets", params.id] });
+    },
   });
 
   const attributesMutation = useMutation({
@@ -150,6 +173,8 @@ export default function ProductDetailPage() {
   const product = productQuery.data!;
   const facets = facetsQuery.data?.facets ?? [];
   const facetSourceKeys = new Set(facets.map((facet) => facet.sourceAttributeKey));
+  const categories = sortCategories(categoriesQuery.data?.items ?? []);
+  const selectedCategory = categories.find((category) => category.id === primaryCategoryId) ?? null;
 
   return (
     <div>
@@ -175,6 +200,46 @@ export default function ProductDetailPage() {
           <div>
             <label className="label">Brand</label>
             <input className="input" value={brand} onChange={(e) => setBrand(e.target.value)} disabled={!canEdit} />
+          </div>
+          <div>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <label className="label mb-0" htmlFor="primary-category">
+                Primary category
+              </label>
+              <Link href="/admin/taxonomy/categories" className="text-xs text-sky-700 hover:underline">
+                Manage categories
+              </Link>
+            </div>
+            {canEdit ? (
+              <select
+                id="primary-category"
+                className="input"
+                value={primaryCategoryId}
+                onChange={(e) => setPrimaryCategoryId(e.target.value)}
+              >
+                <option value="">No category</option>
+                {categories
+                  .filter((category) => category.isActive)
+                  .map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {`${"— ".repeat(category.depth)}${category.name} (${category.code})`}
+                    </option>
+                  ))}
+              </select>
+            ) : (
+              <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                {selectedCategory
+                  ? `${selectedCategory.name} · ${formatCategoryPath(selectedCategory.path)}`
+                  : "No category assigned"}
+              </p>
+            )}
+            {selectedCategory ? (
+              <p className="mt-1 text-xs text-slate-500">{formatCategoryPath(selectedCategory.path)}</p>
+            ) : (
+              <p className="mt-1 text-xs text-slate-500">
+                Category drives which attributes and storefront facets apply to this product.
+              </p>
+            )}
           </div>
           <div>
             <label className="label">Summary (~20 words)</label>
