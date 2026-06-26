@@ -1,17 +1,20 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { ProductEntity } from "@productinfoman/domain";
+import { ProductImageGallery } from "@/components/catalog/ProductImageGallery";
+import { TrustBadges } from "@/components/catalog/TrustBadges";
 import { useCartStore } from "@/lib/cart";
-import { formatPrice, productImageUrl, resolveProductPrice } from "@/lib/catalog";
+import { formatPrice, productImageUrl, resolveProductPrice, resolveProductRating, formatRating } from "@/lib/catalog";
 
 type ProductDetailProps = {
   product: ProductEntity;
   variants: ProductEntity[];
   initialSelectedId?: string;
 };
+
+type DetailTab = "overview" | "specifications" | "features";
 
 function variantLabel(variant: ProductEntity): string {
   const axisAttrs = variant.attributes.filter((attr) =>
@@ -33,6 +36,7 @@ export function ProductDetail({ product, variants, initialSelectedId }: ProductD
   const [selectedId, setSelectedId] = useState(defaultSelectedId);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [activeTab, setActiveTab] = useState<DetailTab>("overview");
 
   const selected = useMemo(
     () => selectableVariants.find((variant) => variant.id === selectedId) ?? product,
@@ -41,6 +45,7 @@ export function ProductDetail({ product, variants, initialSelectedId }: ProductD
 
   const price = resolveProductPrice(selected);
   const image = productImageUrl(selected.id, selected.title);
+  const rating = resolveProductRating(selected.sku);
 
   const onAddToCart = () => {
     addItem(
@@ -58,121 +63,178 @@ export function ProductDetail({ product, variants, initialSelectedId }: ProductD
   };
 
   return (
-    <article className="grid gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-16">
-      <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-surface-muted">
-        <Image
-          src={image}
-          alt={selected.title}
-          fill
-          className="object-cover"
-          sizes="(max-width: 1024px) 100vw, 50vw"
-          priority
-        />
-      </div>
+    <article>
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <ProductImageGallery productId={selected.id} title={selected.title} />
 
-      <div className="flex flex-col">
-        {selected.brand ? (
-          <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-brand-400">
-            {selected.brand}
-          </p>
-        ) : null}
+        <div className="catalog-panel p-5 lg:p-6">
+          {selected.brand ? (
+            <p className="text-xs font-semibold uppercase tracking-wide text-brand-500">{selected.brand}</p>
+          ) : null}
 
-        <h1 className="mt-3 font-display text-3xl leading-tight text-brand-900 md:text-4xl">
-          {product.title}
-        </h1>
+          <h1 className="mt-2 text-2xl font-semibold leading-tight text-brand-900 md:text-3xl">
+            {product.title}
+          </h1>
 
-        <p className="mt-5 text-2xl text-brand-900">{formatPrice(price)}</p>
-        <p className="mt-2 text-sm text-brand-400">SKU {selected.sku}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-brand-600">
+            <div className="flex items-center gap-1 text-accent-500">
+              <span className="font-semibold text-brand-900">{formatRating(rating.score)}</span>
+              <span>★</span>
+              <span className="text-brand-500">({rating.count} reviews)</span>
+            </div>
+            <span className="text-brand-300">|</span>
+            <span>
+              Item # <span className="font-medium text-brand-800">{selected.sku}</span>
+            </span>
+          </div>
 
-        {product.summary ? (
-          <p className="mt-8 text-base leading-relaxed text-brand-700">{product.summary}</p>
-        ) : product.description ? (
-          <p className="mt-8 leading-relaxed text-brand-600">{product.description}</p>
-        ) : null}
+          <p className="mt-5 text-3xl font-semibold text-brand-900">{formatPrice(price)}</p>
 
-        {product.sellingPoints.length > 0 ? (
-          <ul className="mt-6 space-y-2 border-t border-brand-100 pt-6">
-            {product.sellingPoints.slice(0, 5).map((point) => (
-              <li key={point} className="text-sm leading-relaxed text-brand-600">
-                {point}
-              </li>
-            ))}
-          </ul>
-        ) : null}
+          {product.summary ? (
+            <p className="mt-4 text-sm leading-relaxed text-brand-700">{product.summary}</p>
+          ) : null}
 
-        {selectableVariants.length > 1 ? (
-          <div className="mt-8 border-t border-brand-100 pt-8">
-            <p className="text-sm font-medium text-brand-800">Options</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {selectableVariants.map((variant) => (
-                <button
-                  key={variant.id}
-                  type="button"
-                  onClick={() => setSelectedId(variant.id)}
-                  className={
-                    variant.id === selectedId
-                      ? "rounded-full border border-brand-900 bg-brand-900 px-4 py-2 text-sm font-medium text-white"
-                      : "rounded-full border border-brand-200 px-4 py-2 text-sm text-brand-700 transition hover:border-brand-400"
-                  }
-                >
-                  {variantLabel(variant)}
-                </button>
-              ))}
+          {selectableVariants.length > 1 ? (
+            <div className="mt-6 border-t border-brand-100 pt-6">
+              <p className="text-sm font-semibold text-brand-900">Select option</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {selectableVariants.map((variant) => (
+                  <button
+                    key={variant.id}
+                    type="button"
+                    onClick={() => setSelectedId(variant.id)}
+                    className={
+                      variant.id === selectedId
+                        ? "rounded-md border-2 border-brand-800 bg-brand-800 px-4 py-2 text-sm font-semibold text-white"
+                        : "rounded-md border border-brand-300 bg-white px-4 py-2 text-sm font-medium text-brand-800 hover:border-brand-500"
+                    }
+                  >
+                    {variantLabel(variant)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="mt-6 flex flex-wrap items-end gap-4 border-t border-brand-100 pt-6">
+            <label className="block text-sm font-semibold text-brand-900">
+              Qty
+              <input
+                type="number"
+                min={1}
+                max={99}
+                value={quantity}
+                onChange={(event) =>
+                  setQuantity(Math.max(1, Number.parseInt(event.target.value, 10) || 1))
+                }
+                className="input mt-2 w-24"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={onAddToCart}
+              className={added ? "btn-accent min-w-[12rem] flex-1 px-8" : "btn-primary min-w-[12rem] flex-1 px-8"}
+            >
+              {added ? "Added to cart" : "Add to cart"}
+            </button>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-brand-200 bg-surface-muted px-4 py-3 text-sm">
+              <p className="font-semibold text-brand-900">Store pickup</p>
+              <p className="mt-1 text-brand-600">Available at select locations</p>
+            </div>
+            <div className="rounded-lg border border-brand-200 bg-surface-muted px-4 py-3 text-sm">
+              <p className="font-semibold text-brand-900">Ship to home</p>
+              <p className="mt-1 text-brand-600">Free shipping on orders over $75</p>
             </div>
           </div>
-        ) : null}
 
-        <div className="mt-8 flex flex-wrap items-end gap-4 border-t border-brand-100 pt-8">
-          <label className="block text-sm font-medium text-brand-800">
-            Quantity
-            <input
-              type="number"
-              min={1}
-              max={99}
-              value={quantity}
-              onChange={(event) =>
-                setQuantity(Math.max(1, Number.parseInt(event.target.value, 10) || 1))
-              }
-              className="input mt-2 w-24"
-            />
-          </label>
+          <p className="mt-4 text-sm text-brand-500">
+            <Link href="/cart" className="font-medium text-accent-600 hover:underline">
+              View cart
+            </Link>
+            {" · "}
+            <Link href="/search" className="font-medium text-accent-600 hover:underline">
+              Continue shopping
+            </Link>
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <TrustBadges compact />
+      </div>
+
+      <div className="catalog-panel mt-8 overflow-hidden">
+        <div className="flex border-b border-brand-200 bg-surface-muted">
           <button
             type="button"
-            onClick={onAddToCart}
-            className={added ? "btn-accent px-8" : "btn-primary px-8"}
+            className={activeTab === "overview" ? "tab-button-active" : "tab-button-inactive"}
+            onClick={() => setActiveTab("overview")}
           >
-            {added ? "Added to cart" : "Add to cart"}
+            Product Details
+          </button>
+          <button
+            type="button"
+            className={activeTab === "specifications" ? "tab-button-active" : "tab-button-inactive"}
+            onClick={() => setActiveTab("specifications")}
+          >
+            Specifications
+          </button>
+          <button
+            type="button"
+            className={activeTab === "features" ? "tab-button-active" : "tab-button-inactive"}
+            onClick={() => setActiveTab("features")}
+          >
+            Features
           </button>
         </div>
 
-        <p className="mt-6 text-sm text-brand-500">
-          <Link href="/cart" className="underline-offset-4 hover:underline">
-            View cart
-          </Link>
-          {" · "}
-          <Link href="/search" className="underline-offset-4 hover:underline">
-            Continue shopping
-          </Link>
-        </p>
+        <div className="p-5 md:p-6">
+          {activeTab === "overview" ? (
+            <div className="prose-sm max-w-3xl text-brand-700">
+              {product.description ? (
+                <p className="leading-relaxed">{product.description}</p>
+              ) : (
+                <p className="text-brand-500">No additional product details available.</p>
+              )}
+            </div>
+          ) : null}
 
-        {selected.attributes.length > 0 ? (
-          <div className="mt-10 border-t border-brand-100 pt-10">
-            <h2 className="text-sm font-medium uppercase tracking-[0.2em] text-brand-400">
-              Details
-            </h2>
-            <dl className="mt-5 divide-y divide-brand-100">
-              {selected.attributes.map((attr) => (
-                <div
-                  key={attr.key}
-                  className="grid grid-cols-[minmax(0,0.4fr)_minmax(0,1fr)] gap-4 py-3 text-sm"
-                >
-                  <dt className="capitalize text-brand-500">{attr.key.replace(/_/g, " ")}</dt>
-                  <dd className="text-brand-900">{String(attr.value)}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        ) : null}
+          {activeTab === "specifications" ? (
+            selected.attributes.length > 0 ? (
+              <dl className="spec-table grid overflow-hidden rounded-lg border border-brand-200 md:grid-cols-2">
+                {selected.attributes.map((attr) => (
+                  <div key={attr.key} className="contents">
+                    <dt className="capitalize">{attr.key.replace(/_/g, " ")}</dt>
+                    <dd>{String(attr.value)}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="text-sm text-brand-500">No specifications listed for this product.</p>
+            )
+          ) : null}
+
+          {activeTab === "features" ? (
+            product.sellingPoints.length > 0 ? (
+              <ul className="grid gap-3 sm:grid-cols-2">
+                {product.sellingPoints.map((point) => (
+                  <li
+                    key={point}
+                    className="flex gap-2 rounded-lg border border-brand-100 bg-surface-muted px-4 py-3 text-sm text-brand-700"
+                  >
+                    <span className="text-accent-500">✓</span>
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-brand-500">No feature highlights listed for this product.</p>
+            )
+          ) : null}
+        </div>
       </div>
     </article>
   );

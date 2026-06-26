@@ -1,16 +1,17 @@
 "use client";
 
-import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { FacetSidebar } from "@/components/catalog/FacetSidebar";
-import { ProductGrid } from "@/components/catalog/ProductCard";
-import { Pagination } from "@/components/catalog/Pagination";
-import { Breadcrumbs, PageTitle, StoreLayout } from "@/components/layout/StoreShell";
+import { ProductListingPage } from "@/components/catalog/ProductListingPage";
+import { StoreLayout } from "@/components/layout/StoreShell";
 import { ErrorMessage, LoadingGrid } from "@/components/ui/States";
 import { createStorefrontCatalog } from "@/lib/catalog";
-import { findCategoryNode, toSearchParams } from "@/lib/search-params";
+import {
+  buildCategoryBreadcrumbs,
+  findCategoryNode,
+  toSearchParams,
+} from "@/lib/search-params";
 
 function CategoryResults() {
   const params = useParams<{ slug: string }>();
@@ -25,6 +26,11 @@ function CategoryResults() {
   const treeQuery = useQuery({
     queryKey: ["category-tree"],
     queryFn: () => catalog.getCategoryTree(),
+  });
+
+  const allCategoriesQuery = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => catalog.listCategories(),
   });
 
   const searchInput = toSearchParams(searchParams, categoryQuery.data?.id);
@@ -43,7 +49,7 @@ function CategoryResults() {
 
   if (categoryQuery.isLoading) {
     return (
-      <StoreLayout>
+      <StoreLayout variant="catalog">
         <LoadingGrid />
       </StoreLayout>
     );
@@ -51,7 +57,7 @@ function CategoryResults() {
 
   if (categoryQuery.error || !categoryQuery.data) {
     return (
-      <StoreLayout>
+      <StoreLayout variant="catalog">
         <ErrorMessage message="Category not found" />
       </StoreLayout>
     );
@@ -65,59 +71,22 @@ function CategoryResults() {
       )
     : null;
   const subcategories = treeNode?.children ?? [];
+  const breadcrumbs =
+    allCategoriesQuery.data?.items != null
+      ? buildCategoryBreadcrumbs(allCategoriesQuery.data.items, category)
+      : [{ label: "Home", href: "/" }, { label: category.name }];
 
   return (
-    <StoreLayout>
-      <Breadcrumbs
-        items={[
-          { label: "Home", href: "/" },
-          { label: category.name },
-        ]}
-      />
-      <PageTitle
-        title={category.name}
-        description={`Browse products in ${category.path}`}
-      />
-
-      {subcategories.length > 0 ? (
-        <section className="mb-8">
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-brand-500">
-            Shop by subcategory
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {subcategories.map((subcategory) => (
-              <Link
-                key={subcategory.id}
-                href={`/category/${subcategory.code}`}
-                className="rounded-full border border-brand-200 bg-surface-card px-4 py-2 text-sm font-medium text-brand-700 transition hover:border-brand-400 hover:bg-brand-50"
-              >
-                {subcategory.name}
-              </Link>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      <div className="grid gap-8 lg:grid-cols-[260px_minmax(0,1fr)]">
-        <FacetSidebar facets={facetsQuery.data?.facets ?? []} />
-        <div>
-          {resultsQuery.isLoading ? <LoadingGrid /> : null}
-          {resultsQuery.error ? (
-            <ErrorMessage message={(resultsQuery.error as Error).message} />
-          ) : null}
-          {resultsQuery.data ? (
-            <>
-              <ProductGrid items={resultsQuery.data.items} />
-              <Pagination
-                page={resultsQuery.data.page}
-                pageSize={resultsQuery.data.pageSize}
-                total={resultsQuery.data.total}
-              />
-            </>
-          ) : null}
-        </div>
-      </div>
-    </StoreLayout>
+    <ProductListingPage
+      breadcrumbs={breadcrumbs}
+      title={category.name}
+      description={category.path.replace(/\//g, " / ").replace(/^\s*/, "")}
+      subcategories={subcategories}
+      facets={facetsQuery.data?.facets ?? []}
+      results={resultsQuery.data}
+      isLoading={resultsQuery.isLoading}
+      error={(resultsQuery.error as Error) ?? null}
+    />
   );
 }
 

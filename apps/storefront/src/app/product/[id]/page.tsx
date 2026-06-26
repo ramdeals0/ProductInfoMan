@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ProductDetail } from "@/components/catalog/ProductDetail";
 import { Breadcrumbs, StoreLayout } from "@/components/layout/StoreShell";
 import { createStorefrontCatalog } from "@/lib/catalog";
+import { buildCategoryBreadcrumbs } from "@/lib/search-params";
 import type { ProductEntity } from "@productinfoman/domain";
 
 type PageProps = {
@@ -68,26 +69,20 @@ export default async function ProductPage({ params }: PageProps) {
 
   const { product, variants, selectedId } = context;
 
-  const breadcrumbItems: Array<{ label: string; href?: string }> = [
-    { label: "Home", href: "/" },
-    { label: "Shop", href: "/search" },
-  ];
+  const breadcrumbItems: Array<{ label: string; href?: string }> = [{ label: "Home", href: "/" }];
 
   if (product.primaryCategoryId) {
     const { items: categories } = await catalog.listCategories();
     const category = categories.find((entry) => entry.id === product.primaryCategoryId);
     if (category) {
-      breadcrumbItems.push({
-        label: category.name,
-        href: `/category/${category.code}`,
-      });
+      breadcrumbItems.push(...buildCategoryBreadcrumbs(categories, category).slice(1));
     }
   }
 
   breadcrumbItems.push({ label: product.title });
 
   return (
-    <StoreLayout>
+    <StoreLayout variant="product">
       <Breadcrumbs items={breadcrumbItems} />
       <ProductDetail product={product} variants={variants} initialSelectedId={selectedId} />
     </StoreLayout>
