@@ -90,6 +90,17 @@ export function resolveFacetOptions(facet: FacetDefinitionInput): ResolvedFacetO
   return [];
 }
 
+export function getCategoryPathPrefixes(path: string): string[] {
+  const parts = path.split("/").filter(Boolean);
+  const prefixes: string[] = [];
+  let current = "";
+  for (const part of parts) {
+    current += `/${part}`;
+    prefixes.push(current);
+  }
+  return prefixes;
+}
+
 export function resolveCategoryFacets(facets: FacetDefinitionInput[]): ResolvedFacet[] {
   return facets
     .sort((a, b) => a.sortOrder - b.sortOrder)

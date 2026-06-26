@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { resolveCategoryFacets, resolveFacetOptions } from "./index.js";
+import { getCategoryPathPrefixes, resolveCategoryFacets, resolveFacetOptions } from "./index.js";
 
 describe("facet-engine", () => {
+  it("builds category path prefixes for ancestor lookup", () => {
+    expect(getCategoryPathPrefixes("/toys/action-figures")).toEqual([
+      "/toys",
+      "/toys/action-figures",
+    ]);
+    expect(getCategoryPathPrefixes("/apparel")).toEqual(["/apparel"]);
+  });
+
   it("resolves controlled facet values before enum fallbacks", () => {
     const options = resolveFacetOptions({
       key: "color",

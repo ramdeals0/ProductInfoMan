@@ -287,4 +287,61 @@ describe("Taxonomy and Facets", () => {
       { value: "M", label: "Medium", sortOrder: 1 },
     ]);
   });
+
+  it("inherits parent category facets in child categories", async () => {
+    const ts = Date.now();
+    const parent = await createCategory(organizationId, {
+      name: "Outdoor Parent",
+      code: `outdoor-parent-${ts}`,
+      slug: `outdoor-parent-${ts}`,
+    });
+    const child = await createCategory(organizationId, {
+      name: "Camping Child",
+      code: `camping-child-${ts}`,
+      slug: `camping-child-${ts}`,
+      parentId: parent.id,
+    });
+
+    const group = await createAttributeGroup(organizationId, {
+      name: `Outdoor Specs ${ts}`,
+      code: `outdoor-specs-${ts}`,
+    });
+    const materialAttr = await createAttribute(organizationId, {
+      attributeGroupId: group.id,
+      key: `material_${ts}`,
+      label: "Material",
+      dataType: "TEXT",
+    });
+
+    await linkCategoryAttributeGroups(parent.id, organizationId, {
+      attributeGroupIds: [group.id],
+    });
+
+    const parentFacet = await createFacetDefinition(organizationId, {
+      key: `parent_material_facet_${ts}`,
+      label: "Material",
+      sourceAttributeId: materialAttr.id,
+      categoryId: parent.id,
+      sortOrder: 1,
+    });
+
+    const rule = await createFacetRule(
+      organizationId,
+      {
+        facetDefinitionId: parentFacet.id,
+        categoryId: parent.id,
+        attributeDefinitionId: materialAttr.id,
+        ruleType: "DIRECT",
+      },
+      { userId: "test-editor" },
+    );
+    await submitFacetRule(rule.id, organizationId, { userId: "test-editor" });
+    await approveFacetRule(rule.id, organizationId, { userId: "test-approver" });
+
+    const parentFacets = await getCategoryFacets(parent.id, organizationId);
+    const childFacets = await getCategoryFacets(child.id, organizationId);
+
+    expect(parentFacets.some((facet) => facet.key === `parent_material_facet_${ts}`)).toBe(true);
+    expect(childFacets.some((facet) => facet.key === `parent_material_facet_${ts}`)).toBe(true);
+  });
 });

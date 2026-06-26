@@ -12,6 +12,7 @@ import { prisma } from "@productinfoman/db";
 import { appError, writeAudit } from "@productinfoman/shared";
 import { createEvent } from "@productinfoman/contracts";
 import { emitEvent } from "../../lib/events.js";
+import { getInheritedFacetCategoryIds } from "./facet-category-scope.js";
 
 export {
   createFacetRule,
@@ -152,13 +153,20 @@ export async function listFacetDefinitions(
   organizationId: string,
   query: ListFacetDefinitionsQuery = {},
 ): Promise<FacetDefinitionEntity[]> {
+  const inheritedCategoryIds = query.categoryId
+    ? await getInheritedFacetCategoryIds(organizationId, query.categoryId)
+    : [];
+
   const facets = await prisma.facetDefinition.findMany({
     where: {
       organizationId,
       ...(query.includeInactive ? {} : { isActive: true }),
       ...(query.categoryId
         ? {
-            OR: [{ categoryId: query.categoryId }, { categoryId: null, scope: "GLOBAL" }],
+            OR: [
+              { categoryId: null, scope: "GLOBAL" },
+              { categoryId: { in: inheritedCategoryIds } },
+            ],
           }
         : {}),
     },
@@ -229,11 +237,13 @@ export async function getCategoryFacets(
   });
   if (!category) throw appError("Category not found", 404);
 
+  const inheritedCategoryIds = await getInheritedFacetCategoryIds(organizationId, categoryId);
+
   const facets = await prisma.facetDefinition.findMany({
     where: {
       organizationId,
       isActive: true,
-      OR: [{ categoryId }, { categoryId: null, scope: "GLOBAL" }],
+      OR: [{ categoryId: null, scope: "GLOBAL" }, { categoryId: { in: inheritedCategoryIds } }],
     },
     include: {
       sourceAttribute: {
@@ -245,7 +255,7 @@ export async function getCategoryFacets(
       rules: {
         where: {
           workflowStateCode: "approved",
-          OR: [{ categoryId }, { categoryId: null }],
+          OR: [{ categoryId: { in: inheritedCategoryIds } }, { categoryId: null }],
         },
         orderBy: { priority: "desc" },
       },

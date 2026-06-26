@@ -14,6 +14,7 @@ import {
   type ProjectionFacetDefinition,
 } from "@productinfoman/search-projection";
 import type { ProductFacetPreviewEntity, ProductFacetPreviewItem, ProductStatus } from "@productinfoman/domain";
+import { getInheritedFacetCategoryIds } from "../taxonomy/facet-category-scope.js";
 import { getCategoryFacets } from "../taxonomy/facet.service.js";
 
 type LoadedProduct = NonNullable<Awaited<ReturnType<typeof loadProjectionProduct>>>;
@@ -216,27 +217,14 @@ export async function resolveFacetKeys(organizationId: string, categoryId?: stri
     return facets.map((facet) => facet.key);
   }
 
-  const category = await prisma.category.findFirst({
-    where: { id: categoryId, organizationId },
-    select: { id: true, path: true },
-  });
-  if (!category) return [];
-
-  const descendants = await prisma.category.findMany({
-    where: {
-      organizationId,
-      isActive: true,
-      OR: [{ id: categoryId }, { path: { startsWith: `${category.path}/` } }],
-    },
-    select: { id: true },
-  });
-  const categoryIds = descendants.map((entry) => entry.id);
+  const inheritedCategoryIds = await getInheritedFacetCategoryIds(organizationId, categoryId);
+  if (inheritedCategoryIds.length === 0) return [];
 
   const facets = await prisma.facetDefinition.findMany({
     where: {
       organizationId,
       isActive: true,
-      OR: [{ categoryId: null, scope: "GLOBAL" }, { categoryId: { in: categoryIds } }],
+      OR: [{ categoryId: null, scope: "GLOBAL" }, { categoryId: { in: inheritedCategoryIds } }],
     },
     select: { key: true, sortOrder: true },
     orderBy: { sortOrder: "asc" },
