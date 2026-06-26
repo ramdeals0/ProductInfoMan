@@ -53,6 +53,7 @@ export const BIGBOX_CATEGORY_ATTRIBUTES: Record<string, BigBoxCategoryAttributeS
   toys_games: [
     { key: "age_range", label: "Age Range", values: ["3+", "6+", "8+", "12+"] },
     { key: "toy_type", label: "Toy Type", values: ["Building", "Game", "Plush", "STEM", "Outdoor"] },
+    { key: "gender", label: "Gender", values: ["Boys", "Girls", "Unisex"] },
   ],
 };
 
