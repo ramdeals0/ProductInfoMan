@@ -18,6 +18,7 @@ import {
   createFacetDefinition,
   getCategoryFacets,
 } from "../modules/taxonomy/facet.service.js";
+import { createProduct, getProduct } from "../modules/product-core/product.service.js";
 import { prisma } from "@productinfoman/db";
 
 const ORG_SLUG = "demo";
@@ -343,5 +344,43 @@ describe("Taxonomy and Facets", () => {
 
     expect(parentFacets.some((facet) => facet.key === `parent_material_facet_${ts}`)).toBe(true);
     expect(childFacets.some((facet) => facet.key === `parent_material_facet_${ts}`)).toBe(true);
+  });
+
+  it("adds facet source attributes to products in scoped categories", async () => {
+    const ts = Date.now();
+    const category = await createCategory(organizationId, {
+      name: "Facet Attribute Category",
+      code: `facet-attr-cat-${ts}`,
+      slug: `facet-attr-cat-${ts}`,
+    });
+
+    const group = await createAttributeGroup(organizationId, {
+      name: `Facet Attr Group ${ts}`,
+      code: `facet-attr-group-${ts}`,
+    });
+    const genderAttr = await createAttribute(organizationId, {
+      attributeGroupId: group.id,
+      key: `gender_${ts}`,
+      label: "Gender",
+      dataType: "TEXT",
+    });
+
+    await createFacetDefinition(organizationId, {
+      key: `gender_facet_${ts}`,
+      label: "Gender",
+      sourceAttributeId: genderAttr.id,
+      categoryId: category.id,
+      sortOrder: 1,
+    });
+
+    const product = await createProduct(organizationId, {
+      productType: "SIMPLE",
+      sku: `facet-attr-product-${ts}`,
+      title: "Facet Attribute Product",
+      primaryCategoryId: category.id,
+    });
+
+    const loaded = await getProduct(product.id, organizationId);
+    expect(loaded.attributes.some((attr) => attr.key === `gender_${ts}`)).toBe(true);
   });
 });

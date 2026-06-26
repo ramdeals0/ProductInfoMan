@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildErrorReportCsv,
+  applyFacetValuesToAttributes,
   normalizeRow,
   parseCsv,
   validateImportRows,
@@ -210,5 +211,31 @@ describe("import-engine", () => {
       discontinueDate: "2027-12-31",
       attributes: { color: "Blue" },
     });
+  });
+
+  it("maps facet column values onto facet source attributes", () => {
+    const row = normalizeRow(
+      1,
+      {
+        sku: "A-1",
+        product_type: "SIMPLE",
+        facet_color: "Blue",
+        color: "",
+      },
+      [
+        { sourceColumn: "sku", targetField: "sku", isRequired: true },
+        { sourceColumn: "product_type", targetField: "product_type", isRequired: true },
+        { sourceColumn: "facet_color", targetField: "facet_color" },
+        { sourceColumn: "color", targetField: "color" },
+      ],
+      "IGNORE",
+    );
+
+    expect(row).not.toBeNull();
+    const enriched = applyFacetValuesToAttributes(
+      row!,
+      new Map([["color", "color"]]),
+    );
+    expect(enriched.attributes).toEqual({ color: "Blue" });
   });
 });

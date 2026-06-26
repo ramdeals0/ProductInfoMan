@@ -136,15 +136,18 @@ export default function ProductDetailPage() {
       const product = productQuery.data;
       if (!product) throw new Error("Product not loaded");
 
+      const existingByKey = new Map(product.attributes.map((attr) => [attr.key, attr]));
       const attributes: Record<string, unknown> = {};
-      for (const attr of product.attributes) {
-        const edited = attributeEdits[attr.key];
+
+      for (const [key, edited] of Object.entries(attributeEdits)) {
         if (edited === undefined) continue;
-        const parsed = parseAttributeInput(edited, attr.value);
-        if (JSON.stringify(parsed) !== JSON.stringify(attr.value)) {
-          attributes[attr.key] = parsed;
+        const existing = existingByKey.get(key);
+        const parsed = parseAttributeInput(edited, existing?.value ?? null);
+        if (!existing || JSON.stringify(parsed) !== JSON.stringify(existing.value)) {
+          attributes[key] = parsed;
         }
       }
+
       return api.setProductAttributes(params.id, attributes);
     },
     onSuccess: () => {

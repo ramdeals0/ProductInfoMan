@@ -20,6 +20,7 @@ import type { Prisma, Product } from "../../../../generated/prisma/client.js";
 import { emitEvent } from "../../lib/events.js";
 import { emitAuditRecordEvent } from "../../lib/audit-events.js";
 import { getProductFacetPreview } from "../search/search.projection.js";
+import { enrichProductAttributesFromFacets } from "../taxonomy/facet-attribute-sync.js";
 
 import type { ResolvedAttribute } from "@productinfoman/domain";
 
@@ -185,6 +186,12 @@ async function toProductDto(
       source: v.source,
     }));
   }
+
+  resolved = await enrichProductAttributesFromFacets(
+    product.organizationId,
+    categoryId,
+    resolved,
+  );
 
   return {
     id: product.id,

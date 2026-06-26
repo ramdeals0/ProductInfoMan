@@ -235,6 +235,53 @@ export function normalizeRow(
   };
 }
 
+export function applyFacetValuesToAttributes(
+  row: NormalizedImportRow,
+  facetSourceByKey: Map<string, string>,
+): NormalizedImportRow {
+  if (facetSourceByKey.size === 0) return row;
+
+  const attributes = { ...row.attributes };
+
+  for (const [key, value] of Object.entries(attributes)) {
+    if (!value || !key.startsWith("facet_")) continue;
+    const facetKey = key.slice("facet_".length);
+    const sourceKey = facetSourceByKey.get(facetKey);
+    if (!sourceKey) continue;
+    if (!attributes[sourceKey]) {
+      attributes[sourceKey] = value;
+    }
+    delete attributes[key];
+  }
+
+  const rawFacets = row.raw.facets;
+  if (rawFacets && typeof rawFacets === "object" && !Array.isArray(rawFacets)) {
+    for (const [facetKey, facetValue] of Object.entries(rawFacets as Record<string, unknown>)) {
+      if (facetValue == null) continue;
+      const sourceKey = facetSourceByKey.get(facetKey);
+      const normalizedValue = String(facetValue).trim();
+      if (sourceKey && normalizedValue && !attributes[sourceKey]) {
+        attributes[sourceKey] = normalizedValue;
+      }
+    }
+  }
+
+  for (const [key, value] of Object.entries(row.raw)) {
+    if (!value || !key.startsWith("facet_")) continue;
+    const facetKey = key.slice("facet_".length);
+    const sourceKey = facetSourceByKey.get(facetKey);
+    const normalizedValue = value.trim();
+    if (sourceKey && normalizedValue && !attributes[sourceKey]) {
+      attributes[sourceKey] = normalizedValue;
+    }
+  }
+
+  return {
+    ...row,
+    attributes,
+  };
+}
+
 export function validateImportRows(
   rows: NormalizedImportRow[],
   context: ValidationContext,
