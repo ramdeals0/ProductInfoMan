@@ -53,6 +53,7 @@ export interface ProjectionCategory {
 
 export interface ProjectionFacetDefinition {
   key: string;
+  label: string;
   sourceAttributeKey: string;
   ruleType?: "DIRECT" | "NORMALIZE" | "RANGE_BUCKET" | "COMPOSITE";
   ruleConfig?: Record<string, unknown> | null;
@@ -178,6 +179,27 @@ export const PRODUCT_SEARCH_INDEX_MAPPING = {
   },
 } as const;
 
+export function buildFacetFields(
+  attributes: ProjectionAttributeValue[],
+  facetDefinitions: ProjectionFacetDefinition[],
+): Record<string, string> {
+  const attrByKey = new Map(attributes.map((attr) => [attr.key, attr]));
+  const facetFields: Record<string, string> = {};
+
+  for (const facet of facetDefinitions) {
+    const attr = attrByKey.get(facet.sourceAttributeKey);
+    if (!attr) continue;
+    const facetValue = facet.ruleType
+      ? applyFacetRuleToValue(facet.ruleType, facet.ruleConfig ?? null, attr.value)
+      : normalizeFacetValue(attr.value);
+    if (facetValue) {
+      facetFields[facet.key] = facetValue;
+    }
+  }
+
+  return facetFields;
+}
+
 function normalizeFacetValue(value: unknown): string | null {
   if (value == null || value === "") return null;
   if (typeof value === "boolean") return value ? "true" : "false";
@@ -240,7 +262,6 @@ export function buildSearchDocument(input: BuildSearchDocumentInput): SearchDocu
   ];
 
   const defByKey = new Map(input.attributeDefinitions.map((d) => [d.key, d]));
-  const attrByKey = new Map(input.attributes.map((a) => [a.key, a]));
 
   const variantAttributes: Record<string, unknown> = {};
   const filterableAttributes: Record<string, unknown> = {};
@@ -267,16 +288,7 @@ export function buildSearchDocument(input: BuildSearchDocumentInput): SearchDocu
   if (input.brand) sortableAttributes.brand = input.brand.toLowerCase();
   sortableAttributes.sku = input.sku;
 
-  for (const facet of input.facetDefinitions) {
-    const attr = attrByKey.get(facet.sourceAttributeKey);
-    if (!attr) continue;
-    const facetValue = facet.ruleType
-      ? applyFacetRuleToValue(facet.ruleType, facet.ruleConfig ?? null, attr.value)
-      : normalizeFacetValue(attr.value);
-    if (facetValue) {
-      facetFields[facet.key] = facetValue;
-    }
-  }
+  Object.assign(facetFields, buildFacetFields(input.attributes, input.facetDefinitions));
 
   const storefrontActive = isStorefrontVisible({
     status: input.status,

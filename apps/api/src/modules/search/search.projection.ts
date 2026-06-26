@@ -5,13 +5,16 @@ import {
 import { prisma } from "@productinfoman/db";
 import {
   buildSearchDocument,
+  buildFacetFields,
+  isIndexableStatus,
   type BuildSearchDocumentInput,
   type ProjectionAttributeDefinition,
   type ProjectionAttributeValue,
   type ProjectionCategory,
   type ProjectionFacetDefinition,
 } from "@productinfoman/search-projection";
-import type { ProductStatus } from "@productinfoman/domain";
+import type { ProductFacetPreviewEntity, ProductFacetPreviewItem, ProductStatus } from "@productinfoman/domain";
+import { getCategoryFacets } from "../taxonomy/facet.service.js";
 
 type LoadedProduct = NonNullable<Awaited<ReturnType<typeof loadProjectionProduct>>>;
 
@@ -190,6 +193,7 @@ async function loadFacetDefinitions(
         : null;
     return {
       key: facet.key,
+      label: facet.label,
       sourceAttributeKey: facet.sourceAttribute.key,
       ruleType: activeRule?.ruleType,
       ruleConfig,
@@ -300,6 +304,58 @@ export async function buildProductSearchDocument(productId: string, organization
   };
 
   return buildSearchDocument(input);
+}
+
+export async function getProductFacetPreview(
+  productId: string,
+  organizationId: string,
+): Promise<ProductFacetPreviewEntity | null> {
+  const product = await loadProjectionProduct(productId, organizationId);
+  if (!product) return null;
+
+  const [attributes, facetDefinitions] = await Promise.all([
+    resolveProductAttributes(product),
+    loadFacetDefinitions(organizationId, product.primaryCategoryId),
+  ]);
+
+  const facetFields = buildFacetFields(attributes, facetDefinitions);
+  const attrByKey = new Map(attributes.map((attr) => [attr.key, attr]));
+
+  const optionLabels = new Map<string, Map<string, string>>();
+  if (product.primaryCategoryId) {
+    const categoryFacets = await getCategoryFacets(product.primaryCategoryId, organizationId);
+    for (const facet of categoryFacets) {
+      optionLabels.set(
+        facet.key,
+        new Map(facet.options.map((option) => [option.value, option.label])),
+      );
+    }
+  }
+
+  const facets: ProductFacetPreviewItem[] = facetDefinitions.map((facet) => {
+    const rawValue = attrByKey.get(facet.sourceAttributeKey)?.value ?? null;
+    const computedValue = facetFields[facet.key] ?? null;
+    const labels = optionLabels.get(facet.key);
+    const displayValue =
+      computedValue != null ? (labels?.get(computedValue) ?? computedValue) : null;
+
+    return {
+      key: facet.key,
+      label: facet.label,
+      sourceAttributeKey: facet.sourceAttributeKey,
+      rawValue,
+      computedValue,
+      displayValue,
+      ruleType: facet.ruleType ?? null,
+    };
+  });
+
+  return {
+    productId: product.id,
+    primaryCategoryId: product.primaryCategoryId,
+    isIndexable: isIndexableStatus(product.status),
+    facets,
+  };
 }
 
 export async function listIndexableProductIds(organizationId: string): Promise<string[]> {

@@ -168,6 +168,23 @@ export interface CategoryFacetEntity {
   }>;
 }
 
+export interface ProductFacetPreviewItem {
+  key: string;
+  label: string;
+  sourceAttributeKey: string;
+  rawValue: unknown;
+  computedValue: string | null;
+  displayValue: string | null;
+  ruleType: FacetRuleType | null;
+}
+
+export interface ProductFacetPreviewEntity {
+  productId: string;
+  primaryCategoryId: string | null;
+  isIndexable: boolean;
+  facets: ProductFacetPreviewItem[];
+}
+
 export type ImportJobStatus =
   | "UPLOADED"
   | "VALIDATING"

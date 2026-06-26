@@ -1,4 +1,4 @@
-import type { ProductEntity, ProductTreeNode } from "@productinfoman/domain";
+import type { ProductEntity, ProductFacetPreviewEntity, ProductTreeNode } from "@productinfoman/domain";
 import { isStorefrontVisible } from "@productinfoman/domain";
 import type {
   CreateProductInput,
@@ -19,6 +19,7 @@ import { appError, recordChange, recordSnapshot } from "@productinfoman/shared";
 import type { Prisma, Product } from "../../../../generated/prisma/client.js";
 import { emitEvent } from "../../lib/events.js";
 import { emitAuditRecordEvent } from "../../lib/audit-events.js";
+import { getProductFacetPreview } from "../search/search.projection.js";
 
 import type { ResolvedAttribute } from "@productinfoman/domain";
 
@@ -384,6 +385,17 @@ export async function getProduct(
     throw Object.assign(new Error("Product not found"), { statusCode: 404 });
   }
   return dto;
+}
+
+export async function getProductFacets(
+  id: string,
+  organizationId: string,
+): Promise<ProductFacetPreviewEntity> {
+  const preview = await getProductFacetPreview(id, organizationId);
+  if (!preview) {
+    throw Object.assign(new Error("Product not found"), { statusCode: 404 });
+  }
+  return preview;
 }
 
 export async function updateProduct(

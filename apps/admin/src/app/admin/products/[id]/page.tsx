@@ -3,13 +3,33 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Breadcrumb, PageHeader } from "@/components/layout/AdminShell";
 import { ErrorState, LoadingState } from "@/components/ui/States";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { formatUserFacingError } from "@/lib/errors";
 import { canApproveWorkflow, canEditProducts, canSubmitForReview } from "@/lib/roles";
 import { useSession } from "@/lib/session";
+
+function formatAttributeValue(value: unknown): string {
+  if (value == null || value === "") return "";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+function parseAttributeInput(raw: string, existing: unknown): unknown {
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+  if (typeof existing === "number") {
+    const parsed = Number(trimmed);
+    return Number.isNaN(parsed) ? trimmed : parsed;
+  }
+  if (typeof existing === "boolean") {
+    if (trimmed === "true") return true;
+    if (trimmed === "false") return false;
+  }
+  return trimmed;
+}
 
 export default function ProductDetailPage() {
   const params = useParams<{ id: string }>();
@@ -22,6 +42,7 @@ export default function ProductDetailPage() {
   const [startDate, setStartDate] = useState("");
   const [discontinueDate, setDiscontinueDate] = useState("");
   const [rejectReason, setRejectReason] = useState("");
+  const [attributeEdits, setAttributeEdits] = useState<Record<string, string>>({});
 
   const roles = user?.roles ?? [];
   const canEdit = canEditProducts(roles);
@@ -41,6 +62,21 @@ export default function ProductDetailPage() {
       return product;
     },
   });
+
+  const facetsQuery = useQuery({
+    queryKey: ["product-facets", params.id],
+    queryFn: () => api.getProductFacets(params.id),
+    enabled: Boolean(productQuery.data),
+  });
+
+  useEffect(() => {
+    if (!productQuery.data) return;
+    const next: Record<string, string> = {};
+    for (const attr of productQuery.data.attributes) {
+      next[attr.key] = formatAttributeValue(attr.value);
+    }
+    setAttributeEdits(next);
+  }, [productQuery.data]);
 
   const variantsQuery = useQuery({
     queryKey: ["variants", params.id],
@@ -72,6 +108,28 @@ export default function ProductDetailPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["product", params.id] }),
   });
 
+  const attributesMutation = useMutation({
+    mutationFn: () => {
+      const product = productQuery.data;
+      if (!product) throw new Error("Product not loaded");
+
+      const attributes: Record<string, unknown> = {};
+      for (const attr of product.attributes) {
+        const edited = attributeEdits[attr.key];
+        if (edited === undefined) continue;
+        const parsed = parseAttributeInput(edited, attr.value);
+        if (JSON.stringify(parsed) !== JSON.stringify(attr.value)) {
+          attributes[attr.key] = parsed;
+        }
+      }
+      return api.setProductAttributes(params.id, attributes);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["product", params.id] });
+      queryClient.invalidateQueries({ queryKey: ["product-facets", params.id] });
+    },
+  });
+
   const workflowMutation = useMutation({
     mutationFn: (action: "submit" | "approve" | "reject" | "publish") => {
       if (action === "submit") return api.submitProduct(params.id);
@@ -81,6 +139,7 @@ export default function ProductDetailPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["product", params.id] });
+      queryClient.invalidateQueries({ queryKey: ["product-facets", params.id] });
       queryClient.invalidateQueries({ queryKey: ["workflow-history", params.id] });
     },
   });
@@ -89,6 +148,8 @@ export default function ProductDetailPage() {
   if (productQuery.error) return <ErrorState message={formatUserFacingError(productQuery.error)} />;
 
   const product = productQuery.data!;
+  const facets = facetsQuery.data?.facets ?? [];
+  const facetSourceKeys = new Set(facets.map((facet) => facet.sourceAttributeKey));
 
   return (
     <div>
@@ -166,15 +227,93 @@ export default function ProductDetailPage() {
           ) : null}
 
           <div>
-            <h3 className="mb-2 font-medium">Attributes</h3>
-            <dl className="grid gap-2 sm:grid-cols-2">
-              {product.attributes.map((attr) => (
-                <div key={attr.key} className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
-                  <dt className="text-slate-500">{attr.key}</dt>
-                  <dd className="font-medium">{String(attr.value)}</dd>
-                </div>
-              ))}
-            </dl>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h3 className="font-medium">Attributes</h3>
+              {facetSourceKeys.size > 0 ? (
+                <span className="text-xs text-slate-500">Highlighted rows drive storefront facets</span>
+              ) : null}
+            </div>
+            {product.attributes.length === 0 ? (
+              <p className="text-sm text-slate-500">No attributes on this product.</p>
+            ) : (
+              <div className="space-y-2">
+                {product.attributes.map((attr) => (
+                  <div
+                    key={attr.key}
+                    className={`rounded-lg px-3 py-2 text-sm ${
+                      facetSourceKeys.has(attr.key) ? "border border-sky-200 bg-sky-50" : "bg-slate-50"
+                    }`}
+                  >
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <label className="font-medium text-slate-700" htmlFor={`attr-${attr.key}`}>
+                        {attr.key}
+                      </label>
+                      <span className="text-xs text-slate-400">{attr.source}</span>
+                    </div>
+                    <input
+                      id={`attr-${attr.key}`}
+                      className="input"
+                      value={attributeEdits[attr.key] ?? ""}
+                      onChange={(e) =>
+                        setAttributeEdits((current) => ({ ...current, [attr.key]: e.target.value }))
+                      }
+                      disabled={!canEdit}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            {canEdit && product.attributes.length > 0 ? (
+              <button
+                className="btn-secondary mt-3"
+                disabled={attributesMutation.isPending}
+                onClick={() => attributesMutation.mutate()}
+              >
+                Save attributes
+              </button>
+            ) : null}
+            {attributesMutation.error ? (
+              <p className="mt-2 text-sm text-red-600">{formatUserFacingError(attributesMutation.error)}</p>
+            ) : null}
+          </div>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h3 className="font-medium">Storefront facets</h3>
+              <Link href="/admin/taxonomy/facets" className="text-sm text-sky-700 hover:underline">
+                Manage facet rules
+              </Link>
+            </div>
+            {facetsQuery.isLoading ? (
+              <p className="text-sm text-slate-500">Loading facet preview…</p>
+            ) : facetsQuery.error ? (
+              <p className="text-sm text-red-600">{formatUserFacingError(facetsQuery.error)}</p>
+            ) : facets.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No facets apply to this product&apos;s category. Assign a primary category or configure facets in
+                taxonomy.
+              </p>
+            ) : (
+              <>
+                {facetsQuery.data && !facetsQuery.data.isIndexable ? (
+                  <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    Preview only — facets appear in search after the product is approved.
+                  </p>
+                ) : null}
+                <dl className="grid gap-2 sm:grid-cols-2">
+                  {facets.map((facet) => (
+                    <div key={facet.key} className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                      <dt className="text-slate-500">{facet.label}</dt>
+                      <dd className="font-medium">{facet.displayValue ?? facet.computedValue ?? "—"}</dd>
+                      <dd className="mt-1 text-xs text-slate-400">
+                        {facet.sourceAttributeKey}: {formatAttributeValue(facet.rawValue) || "—"}
+                        {facet.ruleType ? ` · ${facet.ruleType}` : ""}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </>
+            )}
           </div>
 
           {variantsQuery.data?.items.length ? (
